@@ -98,7 +98,14 @@ public class DelayedCheckWorker : BackgroundService
             return;
         }
 
-        if (mensagem is null || mensagem.ReportPublicId == Guid.Empty)
+        // Sem o identificador que o tipo pede, nao ha o que reavaliar: a limpeza da conta
+        // traz a conta, e as outras verificacoes trazem o relato.
+        var semAlvo = mensagem is null
+                      || (mensagem.Kind == DelayedCheckKind.AccountPurge
+                          ? mensagem.AccountPublicId is null || mensagem.AccountPublicId == Guid.Empty
+                          : mensagem.ReportPublicId == Guid.Empty);
+
+        if (mensagem is null || semAlvo)
         {
             await channel.BasicAckAsync(entrega.DeliveryTag, multiple: false, cancellationToken);
             return;
@@ -123,6 +130,10 @@ public class DelayedCheckWorker : BackgroundService
                 case DelayedCheckKind.InfoRequest:
                     await relatos.ExpireInfoRequestAsync(mensagem.ReportPublicId, cancellationToken);
                     break;
+                case DelayedCheckKind.AccountPurge:
+                    await escopo.ServiceProvider.GetRequiredService<IAccountDeletionService>()
+                        .PurgeAsync(mensagem.AccountPublicId!.Value, cancellationToken);
+                    break;
 
                 default:
                     // Tipo que esta versao nao conhece: confirmada e descartada, em
@@ -136,7 +147,8 @@ public class DelayedCheckWorker : BackgroundService
         }
         catch (Exception excecao)
         {
-            _logger.LogError(excecao, "Falha ao reavaliar o relato {Report}.", mensagem.ReportPublicId);
+            _logger.LogError(excecao, "Falha ao reavaliar {Kind} de {Alvo}.",
+                mensagem.Kind, mensagem.AccountPublicId ?? mensagem.ReportPublicId);
 
             // **Espera antes de devolver, e a espera e a parte importante.** Devolver
             // na hora com uma falha que se repete — o banco fora do ar, por exemplo —
@@ -183,13 +195,15 @@ public class DelayedCheckWorker : BackgroundService
             // As duas verificacoes tem a mesma rede, e por isso sao lidas juntas.
             var esperas = await relatos.ListOverdueScheduledAsync(cancellationToken);
             var prazos = await relatos.ListOverdueInfoRequestsAsync(cancellationToken);
+            var contas = await escopo.ServiceProvider.GetRequiredService<IAccountDeletionService>()
+                .ListOverdueAsync(cancellationToken);
 
-            if (esperas.Count == 0 && prazos.Count == 0)
+            if (esperas.Count == 0 && prazos.Count == 0 && contas.Count == 0)
                 return;
 
             _logger.LogWarning(
-                "Vencidos sem aplicacao: {Esperas} espera(s) e {Prazos} prazo(s). Reavaliando na subida.",
-                esperas.Count, prazos.Count);
+                "Vencidos sem aplicacao: {Esperas} espera(s), {Prazos} prazo(s) e {Contas} exclusao(oes) de conta. Reavaliando na subida.",
+                esperas.Count, prazos.Count, contas.Count);
 
             foreach (var reportPublicId in esperas)
             {
@@ -205,6 +219,14 @@ public class DelayedCheckWorker : BackgroundService
                 var servico = porRelato.ServiceProvider.GetRequiredService<IReportService>();
 
                 await servico.ExpireInfoRequestAsync(reportPublicId, cancellationToken);
+            }
+
+            foreach (var accountPublicId in contas)
+            {
+                using var porConta = _scopes.CreateScope();
+                var exclusao = porConta.ServiceProvider.GetRequiredService<IAccountDeletionService>();
+
+                await exclusao.PurgeAsync(accountPublicId, cancellationToken);
             }
         }
         catch (Exception excecao)

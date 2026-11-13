@@ -15,6 +15,11 @@ namespace Pds.Workers;
 /// atual. Dai sair de graca que mensagem duplicada nao faz dano, que mensagem fora
 /// de ordem nao faz dano, e que desfazer nao precisa cancelar nada.</para>
 /// </summary>
-/// <param name="Kind">Qual das duas verificacoes.</param>
-/// <param name="ReportPublicId">O relato a reavaliar.</param>
-public record DelayedCheckMessage(DelayedCheckKind Kind, Guid ReportPublicId);
+/// <param name="Kind">Qual verificacao.</param>
+/// <param name="ReportPublicId">O relato a reavaliar, nas verificacoes de relato; vazio na da conta.</param>
+/// <param name="AccountPublicId">
+/// A conta a reavaliar, so na limpeza da exclusao. Opcional e no fim, de proposito: as
+/// mensagens que ja estao na fila, gravadas antes deste campo existir, continuam sendo
+/// lidas do mesmo jeito.
+/// </param>
+public record DelayedCheckMessage(DelayedCheckKind Kind, Guid ReportPublicId, Guid? AccountPublicId = null);
