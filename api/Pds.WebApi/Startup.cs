@@ -56,8 +56,8 @@ public class Startup
         Conta, projetos e chaves; o relato que chega do site do cliente e a fila em
         que o time o trabalha; a jornada pública que quem relatou acompanha; o ciclo
         que fecha, com pedido de informação, confirmação e reabertura; identidade,
-        visibilidade e moderação; e os anexos — imagens e arquivos. A notificação por
-        e-mail está planejada.
+        visibilidade e moderação; e os anexos (imagens e arquivos). O e-mail de convite
+        para o time já sai pela fila; o aviso por e-mail a quem relatou está planejado.
 
         O tempo real da tela de Trabalho (SignalR, em `/realtime/hub`) fica fora desta
         página; aqui está o bilhete que abre a conexão, em `POST /realtime/ticket`.
@@ -70,13 +70,14 @@ public class Startup
 
         ### O que esperar das respostas
 
-        Toda resposta vem no mesmo envelope, com sucesso ou sem: `Success`,
-        `Message`, `Data` e, nas listagens, `Total`.
+        Toda resposta que chega a uma rota vem no mesmo envelope, com sucesso ou sem:
+        `Success`, `Message`, `Data` e, nas listagens, `Total`. A recusa de quem chega
+        sem sessão sai antes, na autenticação, e volta 401 sem corpo.
 
         Propriedades e valores de enum em `PascalCase`. Datas em ISO-8601 UTC, com
         `Z` no fim. Identificadores são sempre GUID: o id interno nunca sai daqui.
 
-        Projeto em que a pessoa não está responde **404**, e não 403 — dizer "existe,
+        Projeto em que a pessoa não está responde **404**, e não 403: dizer "existe,
         mas não é seu" já é contar que existe. O **403** fica para quem está no projeto
         e não tem o papel: a configuração é só de quem administra.
 

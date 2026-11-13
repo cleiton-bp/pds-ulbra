@@ -93,14 +93,14 @@ administrador</strong>), com seis exceções:</p>
   alguem do time.</code> (403).</li>
 </ul>
 
-<p>Das cem rotas de projeto, cinquenta e cinco valem para qualquer papel, e quarenta e cinco
+<p>Das cento e três rotas de projeto, cinquenta e cinco valem para qualquer papel, e quarenta e oito
 pedem administrador:</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Papel</th><th>Rotas</th></tr>
   <tr><td>Membro</td><td>As leituras da configuração (o projeto, os endereços, isto é, os autorizados, os bloqueados, os que mandaram relatos e os que esperam liberação, os estados, a jornada, o mapa e as seis configurações, a do time e os limites de relato inclusive); a lista do time, as prioridades, os tipos de relato e as etiquetas; criar etiqueta; tudo sob <code>/reports</code>, menos as duas decisões sobre os cards de origem bloqueada: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, arrumar a ordem do quadro, os campos do card (título, responsável, prioridade, etiquetas e prazo), os vínculos entre cards, a sprint e os pontos do card, os comentários interno e público (e corrigir e apagar o próprio interno), os anexos, o pedido de informação, o encerramento e a moderação; as sprints (listar, criar, editar, iniciar, concluir e apagar); e sair do time.</td></tr>
-  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e gerar as chaves; autorizar e retirar endereço; bloquear e desbloquear domínio; liberar e apagar de vez os relatos retidos; manter e apagar de vez os cards de origem bloqueada; gravar a ferramenta, o ciclo, a identidade, os limites de relato, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code>, <code>/report-types</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar outra pessoa do time, conferido no serviço, na mesma rota de sair; e os convites (listar, convidar, reenviar e cancelar).</td></tr>
+  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e gerar as chaves; autorizar e retirar endereço; bloquear e desbloquear domínio; liberar e apagar de vez os relatos retidos; manter e apagar de vez os cards de origem bloqueada; gravar a ferramenta, o ciclo, a identidade (e ler o segredo dela, ver o histórico dele e trocá-lo), os limites de relato, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code>, <code>/report-types</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar outra pessoa do time, conferido no serviço, na mesma rota de sair; e os convites (listar, convidar, reenviar e cancelar).</td></tr>
 </table>
 </div>
 

@@ -45,11 +45,11 @@ e as das sprints, na tela <strong>Sprints</strong>, e cada tela grava só os cam
 o relato está aberto. E tirar da coluna que encerra um relato encerrado (o que o reabre, e tira o
 motivo da página de quem relatou) <strong>pergunta antes</strong>, pelo quadro e pelo card.</p>
 
-<p>Ficam duas ressalvas. <strong>Onde a fila roda em produção</strong> é <strong>Adiado</strong>:
-o Render não fornece broker, e sem fila a espera não liga (a tela de Encerramento recusa salvar uma
-espera maior que zero, dizendo o motivo) e o prazo do pedido <strong>nunca encerra o relato
-sozinho</strong>: quem aplica o vencimento é o consumidor da fila, e sem fila ele não existe.</p>
+<p>Em produção, a fila roda na própria máquina, e a espera e o prazo do pedido funcionam lá. Numa
+instalação sem fila, a espera não liga (a tela de Encerramento recusa salvar uma espera maior que
+zero, dizendo o motivo) e o prazo do pedido <strong>nunca encerra o relato sozinho</strong>: quem
+aplica o vencimento é o consumidor da fila, e sem fila ele não existe.</p>
 
-<p>E <code>tracking_code_can_act</code> (se quem chega pelo código pessoal também confirma e
+<p>Fica uma ressalva: <code>tracking_code_can_act</code> (se quem chega pelo código pessoal também confirma e
 reabre) fica gravado, <strong>escondido na tela de Encerramento</strong>, e a API o ignora: confirmar,
 reabrir e responder aceitam só o link. Fazer essas três ações aceitarem o código é <strong>Adiado</strong>.</p>
