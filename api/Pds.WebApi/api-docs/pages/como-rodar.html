@@ -1,6 +1,15 @@
 <h2>Como rodar</h2>
 <p class="lead">Precisa de .NET 10. Não precisa de banco local.</p>
 
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Copie o <code>.env.local</code>, aplique as migrações e rode a API.</li>
+    <li>O Docker é opcional: sobe a fila e o armazenamento dos anexos.</li>
+    <li>Esta documentação e o Swagger ficam abertos, também em produção.</li>
+  </ul>
+</div>
+
 <p>Todos os comandos rodam a partir da pasta <code>api</code>.</p>
 
 <pre><code>cd api
@@ -11,16 +20,14 @@ cp Pds.WebApi/Environment/.env.example Pds.WebApi/Environment/.env.local
 dotnet ef database update --project Pds.Data --startup-project Pds.WebApi
 dotnet run --project Pds.WebApi</code></pre>
 
-<p>A API sobe em <code>http://localhost:5080</code>. Esta documentação fica na raiz e o
-<a href="/swagger">Swagger</a> em <code>/swagger</code>.</p>
+<p>A API sobe em <code>http://localhost:5080</code>. Esta documentação fica na raiz do endereço
+da API e o <a href="/swagger">Swagger</a> em <code>/swagger</code>.</p>
 
 <h2>Docker é opcional</h2>
 
-<p>Ele serve para <strong>duas</strong> coisas, que rodam na sua máquina: a fila que sustenta a
-espera antes de quem relatou ver, e o armazenamento dos anexos. Sem elas a API sobe inteira. Sem a
-fila, a espera fica indisponível (a tela de Encerramento recusa ligá-la, dizendo por quê) e o prazo do
-pedido de informação não encerra nada sozinho: o pedido fica aberto até quem relatou responder ou o
-time agir. Sem o armazenamento, o anexo fica desligado: a tela de Anexos recusa ligá-lo.</p>
+<p>Sem a fila, a espera antes de quem relatou ver fica indisponível, o prazo do pedido de
+informação não encerra nada sozinho, o convite não sai e a exclusão de conta só se completa quando a pessoa entra de novo. Sem o armazenamento, o anexo fica desligado. O resto da API
+sobe inteiro.</p>
 
 <pre><code>cd api
 
@@ -28,66 +35,55 @@ docker compose up -d rabbitmq             # só a fila
 docker compose up -d minio minio-init     # só o armazenamento
 docker compose up -d --build              # tudo, com a API junto, na mesma 5080</code></pre>
 
-<p>O banco não está entre eles, de propósito: ele é hospedado e compartilhado. O porquê de cada
-serviço, e as variáveis que apontam para ele, estão em <a href="#/como-rodar/a-fila">A fila</a> e
-<a href="#/como-rodar/armazenamento">O armazenamento</a>. O e-mail também não: sai por um servidor
-SMTP de fora, configurado no <code>.env.local</code> (ver <a href="#/como-rodar/o-email">O
-e-mail</a>).</p>
+<p>O banco fica de fora porque é hospedado e compartilhado. O e-mail também: sai por um SMTP de
+fora, configurado no <code>.env.local</code>. Veja <a href="#/como-rodar/a-fila">A fila</a>,
+<a href="#/como-rodar/armazenamento">O armazenamento</a> e <a href="#/como-rodar/o-email">O
+e-mail</a>.</p>
 
 <div class="note warn">
   <strong>Não use a 5000 no macOS</strong>
-  <p>O Receptor do AirPlay ocupa a <code>5000</code> e a <code>7000</code>, no curinga
-  <code>*</code>. O sistema até deixa a API subir em <code>127.0.0.1:5000</code> ao lado
-  dele, mas quem atende a conexão depende da ordem em que cada um subiu: às vezes é a API,
-  às vezes é o AirPlay. Intermitente é pior do que quebrado.</p>
-  <p>O sintoma é <strong>HTTP 403</strong> no navegador, com a API rodando normalmente. Para
-  confirmar quem respondeu, olhe o cabeçalho: <code>Server: AirTunes</code> entrega o
-  AirPlay.</p>
+  <p>O AirPlay ocupa a <code>5000</code> e a <code>7000</code>, no curinga <code>*</code>. Com a API
+  em <code>127.0.0.1:5000</code>, às vezes responde ela, às vezes ele. O sintoma é
+  <strong>HTTP 403</strong>, e o cabeçalho <code>Server: AirTunes</code> entrega o AirPlay.</p>
 </div>
 
-<div class="note why">
-  <strong>Dividir porta pede cuidado com o cache</strong>
-  <p>Aplicações na mesma porta dividem a mesma origem no navegador: o cache, o
-  <code>localStorage</code> e os cookies são os mesmos para todas. O CSS e o JavaScript de
-  um projeto podem acabar servidos no lugar dos do outro quando os caminhos coincidem: a
-  página mostra o nome do projeto errado, com o código certo no servidor.</p>
-  <p>Por isso os nossos assets têm nome próprio (<code>docs.css</code>,
-  <code>docs.js</code>) e são servidos com <code>no-cache</code>.</p>
-</div>
+<details class="mais">
+  <summary>Porta dividida e cache</summary>
+  <p>Aplicações na mesma porta dividem o cache, o <code>localStorage</code> e os cookies do
+  navegador. Por isso os nossos arquivos se chamam <code>docs.css</code> e <code>docs.js</code> e
+  são servidos com <code>no-cache</code>.</p>
+</details>
 
 <h2>As sondas de saúde</h2>
 
-<p>Para quem hospeda a API (o Kubernetes, ou qualquer plataforma que pergunte se ela está de
-pé), duas rotas sem sessão, fora do Swagger:</p>
+<p>Duas rotas sem sessão, fora do Swagger, para a plataforma que hospeda a API (o Kubernetes, por
+exemplo):</p>
 
 <ul>
   <li><code>GET /health/live</code>, a <strong>vida</strong>: o processo responde. Nunca olha o
-  banco: com o banco fora, reiniciar a API não o traz de volta.</li>
+  banco.</li>
   <li><code>GET /health/ready</code>, a <strong>prontidão</strong>: 503 enquanto a API aquece (o
-  modelo do EF e as primeiras conexões com o banco, menos de meio segundo) e enquanto o banco não
-  responde; 200 depois. É ela que mantém o tráfego longe da API recém-subida, ainda fria.</li>
+  modelo do EF e as primeiras conexões, menos de meio segundo) ou o banco não responde, e 200
+  depois.</li>
 </ul>
 
-<p>Com o banco fora no arranque, a API fica viva e não pronta, e tenta de novo sozinha, com espera
-crescente (até 30 s): não entra em laço de reinício por causa do banco.</p>
+<p>Com o banco fora na subida, a API fica viva e não pronta, e tenta de novo sozinha, com espera
+crescente até 30 s.</p>
 
 <h2>Login com Google</h2>
 
 <p>O <code>GOOGLE_CLIENT_ID</code> sai do console do Google Cloud, em <em>APIs e serviços →
-Credenciais → ID do cliente OAuth</em>, tipo <em>aplicativo web</em>. Em desenvolvimento
-funciona com <code>localhost</code>; para o ambiente publicado é preciso ter o domínio
-antes.</p>
-
-<p>Não há <em>client secret</em> aqui: quem faz o Sign-In é o painel, no navegador, e a API
-apenas confere o token recebido.</p>
+Credenciais → ID do cliente OAuth</em>, tipo <em>aplicativo web</em>. Em desenvolvimento serve
+<code>localhost</code>; publicado, é preciso o domínio. Não há <em>client secret</em>: o painel faz
+o login, e a API só confere o token.</p>
 
 <h2>Nesta seção</h2>
 
 <div class="steps-index">
-  <a href="#/como-rodar/variaveis"><strong>Variáveis de ambiente</strong><span>O que precisa pedir, o que você mesmo gera e o que já vem pronto.</span></a>
-  <a href="#/como-rodar/banco-e-migracoes"><strong>O banco e as migrações</strong><span>Endereço interno x externo, SSL, e como criar e aplicar migração.</span></a>
-  <a href="#/como-rodar/a-fila"><strong>A fila</strong><span>RabbitMQ para a espera e o prazo, e o que acontece sem ele.</span></a>
-  <a href="#/como-rodar/armazenamento"><strong>O armazenamento</strong><span>MinIO para os anexos, o balde privado, e o que acontece sem ele.</span></a>
-  <a href="#/como-rodar/o-email"><strong>O e-mail</strong><span>SMTP pelo Brevo, o remetente, e o que acontece sem ele.</span></a>
-  <a href="#/como-rodar/esta-documentacao"><strong>Esta documentação</strong><span>Como estas páginas são servidas, e como acrescentar uma.</span></a>
+  <a href="#/como-rodar/variaveis"><strong>Variáveis de ambiente</strong><span>O que pedir, o que gerar e o que já tem padrão.</span></a>
+  <a href="#/como-rodar/banco-e-migracoes"><strong>O banco e as migrações</strong><span>A string de conexão e como criar e aplicar migração.</span></a>
+  <a href="#/como-rodar/a-fila"><strong>A fila</strong><span>O RabbitMQ da espera, do prazo e do e-mail.</span></a>
+  <a href="#/como-rodar/armazenamento"><strong>O armazenamento</strong><span>O MinIO dos anexos, com o balde privado.</span></a>
+  <a href="#/como-rodar/o-email"><strong>O e-mail</strong><span>O SMTP pelo Brevo e o que o envio garante.</span></a>
+  <a href="#/como-rodar/esta-documentacao"><strong>Esta documentação</strong><span>Como as páginas são servidas e como criar uma.</span></a>
 </div>

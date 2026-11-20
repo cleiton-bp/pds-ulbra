@@ -1,47 +1,44 @@
 <h2>O time e o convite</h2>
-<p class="lead">Quem está no time, o papel de cada um, sair do time, a configuração do time, e o convite, dos dois lados: de quem convida e de quem aceita.</p>
+<p class="lead">Quem está no time, sair dele e o convite dos dois lados.</p>
 
-<h3>O time</h3>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Qualquer pessoa do time lê a lista e pode sair; tirar outra pessoa é de quem administra.</li>
+    <li>O convite sai por e-mail numa fila, sem a resposta esperar o envio.</li>
+    <li>Quem aceita usa duas rotas fora do projeto, com o link no corpo.</li>
+  </ul>
+</div>
+
+<h2>O time</h2>
 
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/members</code></td><td>Quem está no time: o dono primeiro, como administrador marcado com <code>IsAccountOwner</code>; depois quem entrou, na ordem em que entrou.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/members/{userPublicId}/role</code></td><td><strong>Administrador.</strong> Muda o papel. O dono não muda: 409.</td></tr>
-  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/members/{userPublicId}</code></td><td>Indicando a si mesma, <strong>a pessoa sai do time</strong>: de qualquer papel. Indicando outra pessoa, tira do time: <strong>Administrador</strong>, e quem não administra recebe 403. O dono não sai: 409.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/team-settings</code></td><td>A configuração do time. Sem nada salvo, o padrão: o convite vale 7 dias.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/team-settings</code></td><td><strong>Administrador.</strong> Grava a configuração inteira. Prazo de 1 a 30 dias.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/members</code></td><td>Quem está no time: o dono primeiro (com <code>IsAccountOwner</code>), depois os outros na ordem em que entraram.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/members/{userPublicId}/role</code></td><td><strong>Administrador.</strong> Muda o papel. O do dono não muda: 409.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/members/{userPublicId}</code></td><td>Consigo mesma, <strong>a pessoa sai do time</strong>, de qualquer papel. Com outra pessoa, tira do time: <strong>Administrador</strong> (senão 403). O dono não sai: 409.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/team-settings</code></td><td>A configuração do time. Sem nada salvo, o convite vale 7 dias.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/team-settings</code></td><td><strong>Administrador.</strong> Grava tudo junto. Prazo de 1 a 30 dias.</td></tr>
 </table>
 </div>
 
-<div class="note why">
-  <strong>O membro lê o time</strong>
-  <p>A lista do time é de qualquer papel: é com quem ele trabalha. Cada pessoa vem com
-  <code>Name</code>, <code>Email</code>, <code>AvatarUrl</code>, <code>Role</code> e
-  <code>IsYou</code>: o painel marca "(você)" sem comparar identificadores.</p>
-  <p><strong>Sair é de qualquer pessoa do time; tirar outra é de quem administra.</strong> As duas
-  passam pela mesma rota, <code>DELETE .../members/{userPublicId}</code>: com o próprio
-  identificador, a pessoa sai; com o de outra, o pedido só vale para administrador (403 com
-  <code>So administradores do projeto podem tirar alguem do time.</code>). A rota aceita o membro, e a
-  conferência mora no serviço, só ali se sabe se quem pede é a própria pessoa da linha. Nos dois
-  casos o acesso acaba na requisição seguinte, e o que a pessoa escreveu nos relatos continua com o
-  nome dela. O dono não sai: não tem linha no time para apagar.</p>
-  <p>A tela de Trabalho que a pessoa tinha aberta fecha na hora, e a dos outros tira o nome dela da
-  escolha de responsável (ver <a href="#/fluxo/tempo-real">O tempo real</a>).</p>
-</div>
+<p>Cada pessoa vem com <code>Name</code>, <code>Email</code>, <code>AvatarUrl</code>, <code>Role</code> e
+<code>IsYou</code>. Quem sai perde o acesso na requisição seguinte, e o que escreveu continua com o nome
+dela (ver <a href="#/fluxo/tempo-real">O tempo real</a>).</p>
 
-<div class="note warn">
-  <strong>A escrita de membro fora de <code>/reports</code>, declarada</strong>
-  <p>Fora do trabalho nos cards, toda rota de projeto que grava exige administrador, e a API não
-  sobe se alguma esquecer. Sair do time é uma das exceções, e é declarada: a ação leva
-  <code>[MemberWrite]</code>, com o motivo; sair é de qualquer um, e tirar outra pessoa o serviço
-  confere. Ver <a href="#/isolamento/de-onde-vem-a-conta">De onde vem o acesso</a>.</p>
-</div>
+<details class="mais">
+  <summary>Sair e tirar na mesma rota</summary>
+  <p>A conferência mora no serviço. Tirar outra pessoa sem ser administrador dá 403 com <code>So administradores do projeto podem tirar alguem do time.</code></p>
+  <p>Fora de <code>/reports</code>, toda rota de projeto que grava exige administrador, e a API não sobe
+  se alguma esquecer. Sair do time é exceção declarada com <code>[MemberWrite]</code>. Ver
+  <a href="#/isolamento/de-onde-vem-a-conta">De onde vem o acesso</a>.</p>
+</details>
 
-<h3>Os convites, do lado de quem convida</h3>
+<h2>Os convites, do lado de quem convida</h2>
 
-<p>Todas de administrador, <strong>inclusive a lista</strong>: ela traz o endereço de pessoas que
-ainda não estão no time.</p>
+<p>Todas são de administrador, <strong>inclusive a lista</strong>, porque ela mostra o e-mail de quem
+ainda não está no time.</p>
 
 <div class="table-scroll">
 <table>
@@ -67,56 +64,41 @@ ainda não estão no time.</p>
   }
 }</code></pre>
 
-<p><strong>A resposta não espera o servidor de e-mail.</strong> O convite volta com
-<code>EmailStatus</code> <code>Pending</code> (na fila), e anda sozinho para <code>Sending</code>,
-<code>Sent</code> ou <code>Failed</code>. A tela de Membros relê a lista a cada dois segundos
-enquanto houver convite na fila ou saindo, por até meio minuto depois de cada convite ou reenvio. Se o envio falha, o motivo vai para o log da API, e a resposta não vira erro: o
-convite existe, só o e-mail é que não saiu.</p>
+<p>O convite volta com <code>EmailStatus</code> <code>Pending</code> e anda sozinho para
+<code>Sending</code>, <code>Sent</code> ou <code>Failed</code> (o motivo da falha vai para o log). Convidar
+de novo um endereço com convite aberto reenvia o mesmo, com papel e link novos.</p>
 
-<div class="note why">
-  <strong>Convidar de novo o mesmo endereço reenvia</strong>
-  <p>Endereço que já tem convite aberto não ganha outro: o mesmo convite sai de novo, com o papel
-  pedido agora, prazo novo e link novo. Dois links valendo ao mesmo tempo para a mesma pessoa
-  seriam dois jeitos de entrar, e um deles com o papel errado.</p>
-</div>
-
-<p>O <code>GET</code> traz, junto dos convites, o que a tela precisa para oferecer o campo:</p>
-
-<pre><code>{ "Items": [ ... ], "CanInvite": true, "UnavailableReason": null,
+<details class="mais">
+  <summary>A lista de convites e os limites</summary>
+  <p>A tela de Membros relê a lista a cada dois segundos enquanto houver convite na fila ou saindo, por até
+  meio minuto. O <code>GET</code> traz também o que a tela precisa:</p>
+  <pre><code>{ "Items": [ ... ], "CanInvite": true, "UnavailableReason": null,
   "ValidityDays": 7, "MaxPerHour": 20 }</code></pre>
+  <p><code>CanInvite</code> falso diz que falta uma peça neste servidor, e <code>UnavailableReason</code>
+  diz qual: <code>EmailNotConfigured</code>, <code>QueueNotConfigured</code> ou
+  <code>PanelUrlNotConfigured</code>. O convite vencido continua na lista, com <code>IsExpired</code>, para
+  ser reenviado.</p>
+  <p>Convidar dá 409 quando a pessoa já está no time ou é a dona, quando o servidor não manda convite, e
+  no limite da hora: <code>INVITATION_EMAILS_PER_HOUR</code> (padrão 20 por projeto) ou
+  <code>INVITATION_EMAILS_PER_ACCOUNT_PER_HOUR</code> (padrão 40 por conta). Reenviar conta nos mesmos
+  limites, e cancelar não devolve a vaga.</p>
+</details>
 
-<p><code>CanInvite</code> falso diz que falta, neste servidor, uma das três peças do convite, e
-<code>UnavailableReason</code> diz qual: <code>EmailNotConfigured</code>,
-<code>QueueNotConfigured</code> ou <code>PanelUrlNotConfigured</code>. Aberto é o convite nem
-aceito nem cancelado: o vencido continua na lista, com <code>IsExpired</code>, para poder ser
-reenviado.</p>
-
-<div class="note warn">
-  <strong>Os 409 do convite</strong>
-  <p>Convidar responde 409 quando quem foi convidado já está no time ou é o dono; quando o
-  servidor não manda convite; e quando o projeto chegou ao limite da hora
-  (<code>INVITATION_EMAILS_PER_HOUR</code>, padrão 20, os novos e os reenviados somados), ou a conta
-  chegou ao dela (<code>INVITATION_EMAILS_PER_ACCOUNT_PER_HOUR</code>, padrão 40, somando os projetos). Reenviar
-  conta nos mesmos limites. Cancelar não devolve a vaga: o e-mail já saiu.</p>
-</div>
-
-<h3>O convite, do lado de quem aceita</h3>
+<h2>O convite, do lado de quem aceita</h2>
 
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/invitations/preview</code></td><td>O convite do link, para a pessoa logada: o que fazer com ele.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/invitations/accept</code></td><td>Aceita: a pessoa logada entra no time, com o papel do convite.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/invitations/preview</code></td><td>Mostra à pessoa logada o convite do link e o que fazer com ele.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/invitations/accept</code></td><td>Aceita: a pessoa logada entra no time com o papel do convite.</td></tr>
 </table>
 </div>
 
 <pre><code>POST /invitations/preview
 { "Token": "&lt;o que vem depois de #t= no link do e-mail&gt;" }</code></pre>
 
-<p>As duas ficam <strong>fora</strong> de <code>/projects/{publicId}</code>: quem aceita ainda não
-está no projeto, e a rota dele responderia "não encontrado". E as duas são <code>POST</code>, com o
-link no corpo, mesmo a que só lê: URL acaba em log de servidor e em histórico, e o link é a
-credencial do convite.</p>
+<p>As duas ficam fora de <code>/projects/{publicId}</code>, e são <code>POST</code> com o link no corpo: o
+link é a credencial, e URL acaba em log.</p>
 
 <p>A prévia responde com um <code>Status</code>:</p>
 
@@ -124,20 +106,18 @@ credencial do convite.</p>
 <table>
   <tr><th><code>Status</code></th><th>Quer dizer</th></tr>
   <tr><td><code>Valid</code></td><td>Pode aceitar. Vêm o projeto, quem convidou, o papel e o prazo.</td></tr>
-  <tr><td><code>WrongAccount</code></td><td>A sessão é de outra conta. Vem só <code>InvitedEmailHint</code> (a primeira letra e o domínio, como <code>b•••@exemplo.com</code>) e nada do projeto.</td></tr>
-  <tr><td><code>EmailNotVerified</code></td><td>É o endereço certo, mas o Google não o confirmou. Também só a pista.</td></tr>
-  <tr><td><code>Expired</code></td><td>Venceu. Vêm o projeto e quem convidou, para a pessoa saber a quem pedir de novo.</td></tr>
-  <tr><td><code>AlreadyAccepted</code></td><td>Esta pessoa já aceitou, e continua no time. Vem o projeto, para o painel levar até ele. Se ela saiu do time depois, o link já foi usado: 404, como um link que não vale.</td></tr>
-  <tr><td><code>AlreadyMember</code></td><td>Ela já estava no time, ou é dona. Aceitar só fecha o convite, e o painel aceita ao abrir o projeto, para o convite não ficar aberto na tela de quem convidou.</td></tr>
+  <tr><td><code>WrongAccount</code></td><td>A sessão é de outra conta. Vem só <code>InvitedEmailHint</code> (como <code>b•••@exemplo.com</code>), nada do projeto.</td></tr>
+  <tr><td><code>EmailNotVerified</code></td><td>Endereço certo, mas o Google não o confirmou. Também só a pista.</td></tr>
+  <tr><td><code>Expired</code></td><td>Venceu. Vêm o projeto e quem convidou, para saber a quem pedir.</td></tr>
+  <tr><td><code>AlreadyAccepted</code></td><td>Já aceitou e continua no time. Vem o projeto. Se saiu depois, o link já foi usado: 404.</td></tr>
+  <tr><td><code>AlreadyMember</code></td><td>Já estava no time, ou é dona. Aceitar só fecha o convite, e o painel faz isso ao abrir o projeto.</td></tr>
 </table>
 </div>
 
-<p>Aceitar recusa com <strong>403</strong> a conta errada e o e-mail não confirmado, e com
-<strong>409</strong> o convite vencido. Aceitar de novo não é erro: devolve o projeto. Link que não
-existe, cancelado, trocado por um reenvio ou já usado por quem saiu do time responde
-<strong>404</strong>, nas duas rotas, com a
-mesma mensagem ("Este convite nao vale mais. Peca um novo a quem convidou."), para não
-contar qual foi.</p>
+<p>Aceitar dá <strong>403</strong> com conta errada ou e-mail não confirmado, e <strong>409</strong> com
+convite vencido. Aceitar de novo não é erro. Link inexistente, cancelado, trocado ou já usado dá
+<strong>404</strong>, sempre com a mesma mensagem ("Este convite nao
+vale mais. Peca um novo a quem convidou.").</p>
 
 <pre><code>{
   "Success": true,
@@ -145,5 +125,4 @@ contar qual foi.</p>
   "Data": { "ProjectPublicId": "2be49b28-...", "ProjectName": "Loja Online" }
 }</code></pre>
 
-<p>O acesso vale a partir da requisição seguinte: é ela que relê, do banco, os projetos que a
-pessoa enxerga.</p>
+<p>O acesso vale a partir da requisição seguinte.</p>

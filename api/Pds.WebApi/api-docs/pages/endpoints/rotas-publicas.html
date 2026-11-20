@@ -1,39 +1,63 @@
 <h2>Rotas públicas</h2>
-<p class="lead">As dezenove que chegam sem sessão: a ferramenta no site do cliente, e quem relatou voltando pelo link, pelo código ou pela identidade do sistema do cliente.</p>
+<p class="lead">As 19 rotas sem sessão: a ferramenta no site do cliente e quem relatou voltando.</p>
+
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>A credencial é a chave pública ou, para quem relatou, o protocolo com o token do link, o código pessoal ou o crachá.</li>
+    <li>O link age; o código e o crachá só leem.</li>
+    <li>O que existe e o que não existe respondem igual, para ninguém sondar.</li>
+    <li>O envio passa pelos limites do projeto e, se preciso, por um desafio invisível.</li>
+  </ul>
+</div>
+
+<h2>As rotas</h2>
+
+<p>Nenhuma pede sessão. As de mídia têm corpo, resposta e status em
+<a href="#/endpoints/midia">Mídia: anexar e ler</a>.</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo. <code>TypeId</code> é um dos tipos ativos do projeto; <code>Answers</code>, uma resposta para cada pergunta do tipo, na ordem; <code>Text</code>, a caixa livre (ver abaixo). <code>Title</code> é a resposta a "em poucas palavras, o que aconteceu?": opcional, a não ser que o projeto torne a pergunta obrigatória (aí, sem ela, 400). <code>IdentityToken</code> é opcional: o crachá do sistema do cliente, só no projeto que herda a identidade; fora desse modo é ignorado, e acima de 4096 caracteres é 400; com "exigir o crachá" ligado, sem ele é 401. A resposta traz <code>Identified</code>: nulo fora do modo, <code>true</code> quando o crachá conferiu, <code>false</code> quando o relato entrou sem identidade (ver "A identidade do sistema do cliente", abaixo). Domínio bloqueado, 403; domínio fora da lista de autorizados, ou sem domínio, <strong>recebido e retido</strong>. Passa pelos limites do projeto: 429 com o motivo e, quando é o caso, o desafio (ver "Os limites e o desafio", abaixo).</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking</code></td><td><strong>Sem sessão.</strong> Abre o acompanhamento de um relato, pelo protocolo e pelo token do link. Traz o título que a pessoa escreveu (<code>Title</code>) (<strong>nunca o do time</strong>), o nome do tipo (<code>TypeName</code>) e, quando o tipo tinha perguntas, as respostas dela com as perguntas do envio (<code>Answers</code>). E a frase do topo da página (<code>TrackingIntro</code>), com as variáveis como o projeto as escreveu, a primeira palavra do nome dela (<code>ReporterFirstName</code>, nula sem nome) e o nome do projeto (<code>ProjectName</code>), <strong>só quando a frase usa <code>{{projeto}}</code></strong>; senão, nulo.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code</code></td><td><strong>Sem sessão.</strong> Os relatos ligados a um código pessoal. Código desconhecido devolve <strong>lista vazia</strong>, e não 404. Cada um com o nome do tipo e o título que a pessoa escreveu, quando escreveu.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/open</code></td><td><strong>Sem sessão.</strong> Abre um relato da lista pessoal. Lê, e não age: confirmar, reabrir e responder pedem o token do link.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-identity</code></td><td><strong>Sem sessão.</strong> Os relatos da pessoa que o sistema do cliente identificou, pelo crachá (<code>Key</code>, <code>IdentityToken</code>). Crachá que não confere, pessoa que nunca relatou aqui ou projeto fora do modo devolvem <strong>lista vazia</strong>, e não 404. A mesma lista de <code>by-code</code>, com o mesmo teto.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-identity/open</code></td><td><strong>Sem sessão.</strong> Abre um relato da lista pela identidade (<code>Key</code>, <code>IdentityToken</code>, <code>TrackingCode</code>). Lê, e não age, como <code>by-code/open</code>.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/public/reports/published</code></td><td><strong>Sem sessão.</strong> O que já foi liberado para o público neste projeto. Projeto privado responde <strong>lista vazia</strong>, e não uma recusa.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/confirm</code></td><td><strong>Sem sessão.</strong> Quem relatou diz que resolveu, e dá a nota, ou recusa dá-la.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reopen</code></td><td><strong>Sem sessão.</strong> Diz que não resolveu. O relato volta para a coluna que o projeto configurou.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reply</code></td><td><strong>Sem sessão.</strong> Responde ao pedido de informação. Só enquanto houver pedido aberto.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-launcher</code></td><td><strong>Sem sessão, com CORS aberto.</strong> Só o que o botão precisa para ser desenhado pelo carregador, na página do cliente: <code>IsEnabled</code> e a aparência; cor, canto, distância, ícone, só o ícone, tamanho, formato, cor do texto, sombra, celular, tema, <code>HiddenPaths</code> e <code>LauncherLabel</code>. As mesmas recusas de <code>widget-settings</code> (401, 403), e arquivado volta desligado. Sai com <code>Cache-Control: public, max-age=300</code>. Recebe também o endereço da página.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-settings</code></td><td><strong>Sem sessão.</strong> O que o próprio quadro lê para se desenhar, pela chave pública, quando alguém abre: os tipos de relato ativos inclusive, com as perguntas de cada um, todos os textos do quadro e a aparência do botão, com as páginas onde ele não aparece (<code>HiddenPaths</code>), e <code>IdentityRequired</code>, que é <code>true</code> só no projeto que herda a identidade e exige o crachá, para o quadro pedir para entrar na conta antes de a pessoa escrever. A confirmação vem com as variáveis como foram escritas, e <code>ProjectName</code> só vem quando ela usa <code>{{projeto}}</code>. Recebe também o endereço da página.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/public/media-settings</code></td><td><strong>Sem sessão.</strong> O que o quadro pode oferecer de anexo, pela chave pública e pelo endereço da página. Só os tipos ligados aparecem.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments</code></td><td><strong>Sem sessão, com limitador.</strong> Pede permissão para enviar um arquivo ao relato. Devolve um formulário assinado; o arquivo vai direto ao armazenamento.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments/confirm</code></td><td><strong>Sem sessão, com limitador.</strong> Confirma que o arquivo chegou: a API lê os primeiros bytes e prende o anexo ao relato.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/attachments</code></td><td><strong>Sem sessão.</strong> Os arquivos do relato, pelo link, com endereços de leitura que vencem em minutos.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/attachments</code></td><td><strong>Sem sessão.</strong> A mesma lista, pela porta do código pessoal. Lê, e não age.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-identity/attachments</code></td><td><strong>Sem sessão.</strong> A mesma lista, pela porta da identidade do sistema do cliente. Lê, e não age.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/media-settings</code></td><td><strong>Sem sessão.</strong> O que dá para anexar ao responder e ao reabrir, para a página que chegou pelo link e não tem a chave pública.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td>Abre um relato; o projeto vem da chave do corpo. Domínio bloqueado, 403; fora da lista ou sem domínio, <strong>recebido e retido</strong>. Passa pelos limites do projeto (429).</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-launcher</code></td><td><strong>CORS aberto.</strong> Só o que o carregador precisa para desenhar o botão: <code>IsEnabled</code> e a aparência, com <code>HiddenPaths</code> e <code>LauncherLabel</code>. Guardado por <code>Cache-Control: public, max-age=300</code>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-settings</code></td><td>O que o quadro lê para se desenhar: os tipos ativos com as perguntas, os textos, a aparência, <code>HiddenPaths</code> e <code>IdentityRequired</code>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/public/media-settings</code></td><td>O que o quadro pode oferecer de anexo. Só os tipos ligados.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/public/reports/published</code></td><td>O que já foi liberado ao público. Projeto privado: <strong>lista vazia</strong>.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking</code></td><td>Abre o acompanhamento, pelo protocolo e pelo token do link.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code</code></td><td>Os relatos de um código pessoal. Código desconhecido: <strong>lista vazia</strong>.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/open</code></td><td>Abre um relato da lista pessoal. Só lê.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-identity</code></td><td>Os relatos da pessoa identificada pelo crachá (<code>Key</code>, <code>IdentityToken</code>). Sem quem achar: <strong>lista vazia</strong>.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-identity/open</code></td><td>Abre um relato pela identidade (<code>Key</code>, <code>IdentityToken</code>, <code>TrackingCode</code>). Só lê.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/confirm</code></td><td>Quem relatou diz que resolveu e dá a nota, ou recusa dá-la.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reopen</code></td><td>Diz que não resolveu; o relato volta para a coluna configurada.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reply</code></td><td>Responde ao pedido de informação, só enquanto houver um aberto.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments</code></td><td><strong>Com limitador.</strong> Pede permissão para enviar um arquivo; devolve um formulário assinado.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments/confirm</code></td><td><strong>Com limitador.</strong> Confere os primeiros bytes e prende o anexo ao relato.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/attachments</code></td><td>Os arquivos do relato, pelo link, com endereços que vencem em minutos.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/attachments</code></td><td>A mesma lista, pelo código pessoal. Só lê.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-identity/attachments</code></td><td>A mesma lista, pela identidade. Só lê.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/media-settings</code></td><td>O que dá para anexar ao responder e ao reabrir, para a página que não tem a chave.</td></tr>
 </table>
 </div>
 
-<p>Corpo, resposta e status das sete de mídia estão em <a href="#/endpoints/midia">Mídia: anexar e ler</a>.</p>
+<details class="mais">
+  <summary>O que cada leitura traz, em detalhe</summary>
+  <ul>
+    <li><code>tracking</code> traz o título que a pessoa escreveu (<code>Title</code>, <strong>nunca o do time</strong>), <code>TypeName</code>, as respostas com as perguntas do envio (<code>Answers</code>), a frase do topo (<code>TrackingIntro</code>, com as variáveis como foram escritas), <code>ReporterFirstName</code> (nula sem nome) e <code>ProjectName</code>, só quando a frase usa <code>{{projeto}}</code>.</li>
+    <li><code>by-code</code> traz cada relato com o nome do tipo e o título da pessoa. <code>by-identity</code> devolve a mesma lista, com o mesmo teto.</li>
+    <li><code>widget-launcher</code> traz cor, canto, distância, ícone, só o ícone, tamanho, formato, cor do texto, sombra, celular e tema. Tem as recusas de <code>widget-settings</code> (401, 403), e o projeto arquivado volta desligado.</li>
+    <li>Em <code>widget-settings</code>, <code>IdentityRequired</code> é <code>true</code> só no projeto que herda a identidade e exige o crachá. A confirmação vem com as variáveis como foram escritas, e <code>ProjectName</code> só quando ela usa <code>{{projeto}}</code>.</li>
+    <li>As três de configuração recebem também o endereço da página.</li>
+  </ul>
+</details>
 
-<h3>O formulário vem do tipo</h3>
+<h2>O formulário vem do tipo</h2>
 
-<p><code>GET /public/widget-settings</code> traz, em <code>Types</code>, os tipos de relato
-<strong>ativos</strong>, na ordem do projeto (cada um com o jeito de perguntar), e em
-<code>DefaultReportType</code> o identificador de um deles: o pré-marcado, e o enviado quando o
-seletor está escondido. Sem escolha, ou com o escolhido desativado, é o primeiro ativo.</p>
+<p><code>GET /public/widget-settings</code> traz em <code>Types</code> os tipos
+<strong>ativos</strong>, na ordem do projeto, com as perguntas de cada um. <code>DefaultReportType</code>
+é o pré-marcado, e o enviado quando o seletor está escondido; sem escolha, ou desativado, é o
+primeiro ativo.</p>
 
 <pre><code>{
   "Success": true,
@@ -50,30 +74,58 @@ seletor está escondido. Sem escolha, ou com o escolhido desativado, é o primei
             "SubmitLabel": "Enviar", "ProjectName": null, ... }
 }</code></pre>
 
-<p>O tipo não traz a cor: a ferramenta se pinta com o acento do cliente, e uma cor por botão
-brigaria com ele. O texto que a caixa guarda escondida também não sai: é da tela de configuração,
-e não do formulário. Os tipos moram em outra tabela e vêm aqui pelo mesmo critério do resto da
-resposta: ela é tudo o que o quadro precisa para aparecer, e as perguntas de cada tipo são o
-próprio formulário. Ver <a href="#/endpoints/tipos-de-relato">Tipos de relato</a>.</p>
+<p>O tipo não traz a cor, porque a ferramenta usa o acento do cliente. O texto que a caixa guarda
+escondida também não sai. Ver <a href="#/endpoints/tipos-de-relato">Tipos de relato</a>.</p>
 
-<h3>Os limites e o desafio</h3>
+<h2>O envio do relato</h2>
+
+<pre><code>POST /public/reports
+{ "Key": "pk_ABC123", "TypeId": "3f9a...",
+  "Title": "O botão de pagar não responde",
+  "Answers": [ "Pagar com cartão, no celular.", "O botão fica cinza e nada acontece.", "" ],
+  "Questions": [ "O que você tentou fazer?", "O que aconteceu?", "O que você esperava que acontecesse?" ],
+  "Text": null, "Route": "/checkout", "Origin": "loja.exemplo.com", ... }</code></pre>
+
+<ul>
+  <li><code>TypeId</code>: um tipo ativo do projeto. De fora, ou desativado depois de a ferramenta abrir, é 400.</li>
+  <li><code>Answers</code>: uma resposta por pergunta, na ordem, até 1000 caracteres cada; a pulada vai em branco.</li>
+  <li><code>Questions</code>: as perguntas como a ferramenta mostrou. Diferentes das de agora, 400.</li>
+  <li><code>Text</code>: a caixa livre, só no tipo que a mostra (senão, 400).</li>
+  <li><code>Title</code>: "em poucas palavras, o que aconteceu?". Opcional, a não ser que o projeto o exija (400 sem ele).</li>
+  <li><code>IdentityToken</code>: o crachá, opcional, só no projeto que herda a identidade (ver abaixo). A resposta traz <code>Identified</code>.</li>
+</ul>
+
+<details class="mais">
+  <summary>As regras das respostas</summary>
+  <p>Lista de outro tamanho ou perguntas diferentes, letra por letra, são 400: as perguntas mudaram
+  depois de a ferramenta abrir, e a mensagem pede para fechar e abrir de novo. O tamanho sozinho não
+  bastaria, porque uma pergunta reescrita ou duas trocadas mantêm a quantidade. Sem
+  <code>Questions</code>, só o tamanho é conferido; sem <code>Answers</code>, nada foi respondido. No
+  tipo sem perguntas, as duas vêm vazias ou não vêm.</p>
+  <p>A caixa sozinha vai até 5000 caracteres; junto de perguntas, até 1000. Pelo menos uma resposta,
+  ou a caixa, vem preenchida (400).</p>
+  <p>O relato guarda as respostas com a pergunta copiada como estava, e a caixa no fim. Guarda também
+  o texto inteiro (respostas e caixa separadas por linha em branco), até 5000: passar disso é
+  recusado, e não cortado. É desse texto que leem a busca, o título automático e a lista
+  pública.</p>
+  <p><code>IdentityToken</code> fora do modo é ignorado; acima de 4096 caracteres, 400; sem ele, com
+  "exigir o crachá" ligado, 401. <code>Identified</code> é nulo fora do modo, <code>true</code> com o
+  crachá conferido e <code>false</code> sem identidade.</p>
+</details>
+
+<h2>Os limites e o desafio</h2>
 
 <p><code>POST /public/reports</code> passa pelas camadas de limite do projeto (ver
-<a href="#/endpoints/configuracoes">Configurações do projeto</a>): quem relata, o mesmo IP, o mesmo
-domínio e o projeto inteiro, e o intervalo mínimo entre dois relatos da mesma pessoa ou do mesmo
-IP. "Quem relata" é o <code>ReporterCode</code> só quando ele tem a forma de um código (três
-blocos de quatro); no projeto que herda a identidade, é a pessoa que o crachá identificou, quando
-ele conferiu; senão, o IP, e o código maior que 32 caracteres é recusado com 400. Todas as
-rotas <code>/public/reports</code> aceitam corpo de até 128 KB (<strong>413</strong> acima). A
-recusa por limite é <strong>429</strong>, com o cabeçalho <code>Retry-After</code> e o motivo em
-<code>Data.Reason</code>:</p>
+<a href="#/endpoints/configuracoes">Configurações do projeto</a>): quem relata, o IP, o domínio, o
+projeto inteiro e o intervalo mínimo entre dois relatos. A recusa é <strong>429</strong>, com
+<code>Retry-After</code> e o motivo em <code>Data.Reason</code>:</p>
 
 <div class="table-scroll">
 <table>
   <tr><th><code>Reason</code></th><th>Quando</th><th>O que fazer</th></tr>
-  <tr><td><code>TooSoon</code></td><td>Cedo demais depois do relato anterior da mesma pessoa ou do mesmo IP (30 s de fábrica).</td><td>Esperar <code>RetryAfterSeconds</code>. Sem desafio: <code>Espere alguns segundos antes de enviar outro relato.</code></td></tr>
-  <tr><td><code>Challenge</code></td><td>Passou de um limite, e não chegou ao dobro.</td><td>Resolver <code>Data.Challenge</code> e mandar <strong>o mesmo corpo</strong> com <code>ChallengeToken</code> e <code>ChallengeNonce</code>.</td></tr>
-  <tr><td><code>Paused</code></td><td>Chegou ao dobro de um limite: aquela camada pausa por 15 minutos.</td><td>Esperar até <code>ResumesAt</code>. Quem administra recebe <code>ReportsPaused</code> no sino, uma vez por pausa.</td></tr>
+  <tr><td><code>TooSoon</code></td><td>Cedo demais depois do relato anterior da mesma pessoa ou IP (30 s de fábrica).</td><td>Esperar <code>RetryAfterSeconds</code>. Mensagem: <code>Espere alguns segundos antes de enviar outro relato.</code></td></tr>
+  <tr><td><code>Challenge</code></td><td>Passou de um limite, sem chegar ao dobro.</td><td>Resolver <code>Data.Challenge</code> e mandar <strong>o mesmo corpo</strong> com <code>ChallengeToken</code> e <code>ChallengeNonce</code>.</td></tr>
+  <tr><td><code>Paused</code></td><td>Chegou ao dobro: a camada pausa por 15 minutos.</td><td>Esperar até <code>ResumesAt</code>. Quem administra recebe <code>ReportsPaused</code> no sino, uma vez por pausa.</td></tr>
 </table>
 </div>
 
@@ -92,55 +144,42 @@ POST /public/reports            → 200
 
 <div class="note why">
   <strong>O desafio é uma conta, e não um serviço de fora</strong>
-  <p>Achar um <code>ChallengeNonce</code> (só dígitos) tal que o <strong>SHA-256 de
+  <p>Ache um <code>ChallengeNonce</code> (só dígitos) tal que o <strong>SHA-256 de
   <code>Token + ChallengeNonce</code></strong>, em UTF-8, comece com <code>Difficulty</code> bits zero.
-  Com 18 bits são, em média, 262 mil tentativas: um quarto de segundo num computador, um a dois
-  segundos num celular comum. A ferramenta resolve sozinha, em pedaços que não travam a tela, e
-  mostra "Conferindo…" no botão; quem relata não clica em nada. Nada sai para terceiros: nem chave
-  de outro serviço, nem dado de quem visita.</p>
-  <p>O bilhete é <strong>assinado</strong> (HMAC-SHA256, com uma chave derivada da
-  <code>JWT_SIGNING_KEY</code>: nenhuma variável nova) e carrega o projeto, um resumo de quem pediu
-  (nunca o IP em claro), quando vence (<strong>dois minutos</strong>) e a dificuldade. A API confere
-  a assinatura, o projeto, quem pede, o prazo, a conta, e que o bilhete <strong>ainda não foi
-  usado</strong>: vale uma vez. Bilhete vencido, usado, de outro ou com a conta errada recebe outro
-  desafio. A ferramenta tenta duas voltas; na terceira, mostra a mensagem da API.</p>
-  <p><strong>Por que limitar por IP e pelo projeto, se há o domínio.</strong> O domínio é declarado
-  pela página, e fora do navegador quem chama a API declara o que quiser. As camadas de IP e de
-  projeto não dependem do que a página diz. E o código pessoal, que a pessoa escolhe mandar, pode
-  ser trocado a cada envio: por isso a camada da pessoa nunca é a única.</p>
+  Com 18 bits, são umas 262 mil tentativas: um quarto de segundo no computador, um a dois segundos
+  no celular. A ferramenta resolve sozinha, mostrando "Conferindo…", e nada sai para terceiros.</p>
 </div>
 
-<div class="note warn">
-  <strong>As contagens moram na memória, e só ali</strong>
-  <p>Nenhum IP vai para o banco. As janelas (10 minutos para a pessoa, uma hora para o IP, o
-  domínio e o projeto, e 24 horas para o dia do projeto) contam o relato aceito, na memória do
-  processo. A conta é certa com <strong>uma instância</strong> da API; reiniciar zera as contagens e
-  as pausas. Com mais de uma instância, as contagens precisam ir para um armazenamento
-  compartilhado.</p>
-</div>
+<details class="mais">
+  <summary>O bilhete, quem relata e as contagens</summary>
+  <p>O bilhete é assinado (HMAC-SHA256, com chave derivada da <code>JWT_SIGNING_KEY</code>, sem
+  variável nova) e leva o projeto, um resumo de quem pediu (nunca o IP em claro), o prazo (dois
+  minutos) e a dificuldade. Vale uma vez; vencido, usado, de outro ou com a conta errada recebe novo
+  desafio. A ferramenta tenta duas voltas e, na terceira, mostra a mensagem da API.</p>
+  <p>"Quem relata" é o <code>ReporterCode</code> quando tem a forma de um código (três blocos de
+  quatro); no projeto que herda a identidade, a pessoa do crachá conferido; senão, o IP. Código acima
+  de 32 caracteres é 400. Toda rota <code>/public/reports</code> aceita corpo de até 128 KB
+  (<strong>413</strong> acima).</p>
+  <p>O domínio é declarado pela página, e o código pode ser trocado a cada envio: por isso as camadas
+  de IP e de projeto existem e a da pessoa nunca é a única.</p>
+  <p>As contagens ficam só na memória, sem IP no banco: 10 minutos para a pessoa, uma hora para IP,
+  domínio e projeto, e 24 horas para o dia do projeto. A conta é certa com <strong>uma
+  instância</strong>; reiniciar zera contagens e pausas. Com mais de uma, precisariam de um
+  armazenamento compartilhado.</p>
+</details>
 
-<h3>O relato retido</h3>
+<h2>O relato retido</h2>
 
-<p>O relato de um domínio fora da lista de autorizados (inclusive com a lista vazia) ou que não
-diz de onde veio é <strong>recebido</strong>: a resposta é a mesma de sempre, com protocolo e token,
-e o acompanhamento, a etapa pública e a lista pessoal funcionam como para qualquer relato. Só o
-time não o vê, até decidir em "Aguardando liberação", e ele também não entra na lista pública. O
-domínio do próprio painel nunca é retido: é o relato de teste.</p>
+<p>O relato de domínio fora da lista de autorizados (inclusive vazia), ou sem domínio, é
+<strong>recebido</strong> normalmente: protocolo, token, acompanhamento e lista pessoal funcionam. Só
+o time não o vê até decidir em "Aguardando liberação", e ele não entra na lista pública. O domínio
+do próprio painel nunca é retido.</p>
 
-<h3>O botão, antes do quadro</h3>
+<h2>O botão, antes do quadro</h2>
 
-<p><strong>Quem desenha o botão é o carregador</strong>, e o quadro só é criado quando alguém pede
-para abrir. Para isso ele lê <code>GET /public/widget-launcher</code> (a aparência e nada do
-formulário, uma tabela só) em toda visita, e o navegador guarda a resposta cinco minutos: a visita
-que passa por várias páginas lê uma vez, e a mudança feita no painel chega a todo mundo em poucos
-minutos. A recusa não é guardada.</p>
-
-<p><strong>O endereço conferido é o do cabeçalho <code>Origin</code></strong>, que o navegador
-carimba nesta chamada da página do cliente e que a página não consegue trocar. O
-<code>origin</code> da consulta só vale sem o cabeçalho: um pedido de fora do navegador, onde
-nenhum dos dois é prova. A resposta sai com <code>Vary: Origin</code>. A recusa é a mesma das
-outras rotas da ferramenta: 403 para o domínio bloqueado. O domínio fora da lista de autorizados
-recebe o botão: o relato dele chega e fica retido até o time decidir.</p>
+<p><strong>Quem desenha o botão é o carregador</strong>; o quadro só nasce quando alguém o abre. O
+carregador lê <code>GET /public/widget-launcher</code> a cada visita, e o navegador guarda a resposta
+por cinco minutos. A recusa não é guardada.</p>
 
 <pre><code>GET /public/widget-launcher?key=pk_ABC123&amp;origin=loja.exemplo.com
 {
@@ -154,215 +193,136 @@ recebe o botão: o relato dele chega e fica retido até o time decidir.</p>
             "HiddenPaths": [ "/checkout", "/login/*" ], "LauncherLabel": "Relatar" }
 }</code></pre>
 
-<p><strong>É a única rota chamada da página do cliente</strong>, e não de um documento nosso: por
-isso tem política de CORS própria: qualquer origem, só <code>GET</code>, sem credencial. Quem decide
-se a ferramenta abre naquele site continua sendo a lista de bloqueados do projeto, conferida dentro
-da rota como nas outras. Recusa (401, 403), ferramenta desligada ou rede fora: o carregador não
-desenha nada.</p>
+<p>É a única rota chamada da página do cliente, com CORS próprio: qualquer origem, só
+<code>GET</code>, sem credencial. Com recusa (401, 403), ferramenta desligada ou rede fora, o
+carregador não desenha nada.</p>
 
-<h3>Onde o botão aparece</h3>
+<details class="mais">
+  <summary>Origem, páginas escondidas, abertura e posição</summary>
+  <ul>
+    <li>O endereço conferido é o do cabeçalho <code>Origin</code>, que a página não troca. O <code>origin</code> da consulta só vale sem ele. A resposta sai com <code>Vary: Origin</code>. Domínio bloqueado, 403; fora da lista, recebe o botão, e o relato fica retido.</li>
+    <li>O carregador compara <code>HiddenPaths</code> com o caminho a cada navegação: na página da lista (ou no celular, com <code>MobileMode: Hidden</code>), o botão some. A lista não é segredo. <code>RelatoFacil.open()</code> abre em qualquer página.</li>
+    <li><code>OpenAnimation</code> e <code>OpenAnimationSpeed</code> vêm aqui porque o carregador anima o quadro. Com movimento reduzido no sistema, o quadro só esmaece.</li>
+    <li>Aberto, o quadro pede canto (um dos quatro) e distância (0 a 200, até onde a janela deixa), conferidos antes de aplicar. O quadro antigo, sem esses campos, fica no lugar de sempre.</li>
+  </ul>
+</details>
 
-<p><strong>Quem compara a lista <code>HiddenPaths</code> é o carregador</strong>, com o caminho
-da página, a cada navegação: numa página da lista (ou no celular, com
-<code>MobileMode: Hidden</code>), o botão some. A lista não é segredo: quem visita vê onde o botão
-some. O cliente que abre pelo próprio botão (<code>RelatoFacil.open()</code>) abre em qualquer página.</p>
-
-<p><strong>A abertura também vem nesta leitura</strong> (<code>OpenAnimation</code> e
-<code>OpenAnimationSpeed</code>), porque quem anima o quadro é o carregador, na página do cliente.
-Quem visita com o movimento reduzido ligado no sistema vê o quadro só esmaecer, qualquer que seja
-a escolha.</p>
-
-<p>Aberto, o carregador posiciona o quadro pelo pedido de tamanho que recebe dele, conferido antes
-de aplicar: o canto (um dos quatro) e a distância do canto (de 0 a 200, e só até onde a janela
-deixa); os mesmos do botão, para o formulário sair de onde ele estava. O quadro antigo, que não
-manda esses campos, fica no lugar de sempre.</p>
-
-<pre><code>POST /public/reports
-{ "Key": "pk_ABC123", "TypeId": "3f9a...",
-  "Title": "O botão de pagar não responde",
-  "Answers": [ "Pagar com cartão, no celular.", "O botão fica cinza e nada acontece.", "" ],
-  "Questions": [ "O que você tentou fazer?", "O que aconteceu?", "O que você esperava que acontecesse?" ],
-  "Text": null, "Route": "/checkout", "Origin": "loja.exemplo.com", ... }</code></pre>
+<h2>Quem relatou volta</h2>
 
 <div class="note why">
-  <strong>Uma resposta para cada pergunta, na ordem, e a pulada vai em branco</strong>
-  <p><code>Answers</code> vem alinhada às perguntas do tipo <strong>no momento do envio</strong>:
-  uma para cada, cada uma até 1000 caracteres. Junto vai <code>Questions</code>, as perguntas
-  <strong>como a ferramenta as mostrou</strong>. Uma lista de outro tamanho, ou perguntas diferentes
-  das de agora, letra por letra, é recusada (400): é o sinal de que elas mudaram depois de a
-  ferramenta abrir, e casar cada resposta com a pergunta errada estragaria o relato sem ninguém ver.
-  O tamanho sozinho não bastaria: uma pergunta reescrita, ou duas trocadas de lugar, deixam a
-  quantidade igual. A mensagem pede para fechar e abrir a ferramenta de novo. Sem
-  <code>Questions</code>, só o tamanho é conferido; sem <code>Answers</code>, nenhuma pergunta foi
-  respondida. No tipo sem perguntas, as duas vêm vazias ou não vêm.</p>
-  <p><code>Text</code> é a caixa livre, <strong>só no tipo que a mostra</strong>: texto num tipo sem
-  caixa é recusado (400), porque aceitar em silêncio guardaria o que ninguém pediu. Sozinha, a caixa
-  vai até 5000 caracteres; junto de perguntas, é mais uma resposta, até 1000. <strong>Pelo menos uma
-  resposta, ou a caixa, vem preenchida</strong> (400). O tipo que não é do projeto, ou foi
-  desativado depois de a ferramenta abrir, também é 400, com a mensagem de escolher outro.</p>
-  <p>O relato guarda as respostas preenchidas <strong>com a pergunta copiada como estava</strong>, e
-  a caixa no fim, sem pergunta: mudar a pergunta depois não reescreve o que a pessoa respondeu. E
-  guarda também o relato inteiro em texto (as respostas e a caixa juntas, separadas por linha em
-  branco, sem as perguntas), até 5000; passar disso só acontece com tudo no máximo, e a API recusa
-  em vez de cortar o fim do que a pessoa escreveu. É desse texto que a busca, o começo que vira
-  título e a lista pública leem.</p>
+  <strong>Uma leitura que é <code>POST</code></strong>
+  <p><code>POST /public/reports/tracking</code> não cria nada, mas leva o token, que é
+  <strong>segredo</strong>. Em query string, ele cairia no log, no histórico e no
+  <code>Referer</code>. Pelo mesmo motivo o token vai no <strong>fragmento</strong> do link
+  (<code>#t=</code>) e o crachá em <code>#i=</code>.</p>
+  <p>Vale também para <code>tracking/attachments</code>, <code>by-code/attachments</code>,
+  <code>by-identity/attachments</code>, <code>tracking/media-settings</code> e as três rotas
+  <code>by-identity</code>.</p>
+</div>
+
+<details class="mais">
+  <summary>As leituras que gravam</summary>
+  <p><code>tracking</code> grava a visualização com origem <code>public_page</code>, como
+  <code>by-code/open</code> e <code>by-identity/open</code>, com <code>by: reporter_code</code> e
+  <code>by: inherited_identity</code> na carga. A volta de quem relatou mede se a camada pública
+  serve, e não se reconstrói depois.</p>
+</details>
+
+<div class="note why">
+  <strong>Três portas</strong>
+  <ul>
+    <li><b>Link:</b> oito rotas com protocolo e token entram por <code>TrackedReportGate.RequireAsync</code>: acompanhar, confirmar, reabrir, responder, pedir e confirmar anexo, ler os arquivos e ler o que dá para anexar.</li>
+    <li><b>Código:</b> <code>by-code/open</code> e <code>by-code/attachments</code> (chave, código e protocolo) entram por <code>ReporterCodeGate.RequireAsync</code>.</li>
+    <li><b>Crachá:</b> <code>by-identity/open</code> e <code>by-identity/attachments</code> entram por <code>InheritedIdentityGate.RequireAsync</code>.</li>
+  </ul>
+  <p>As que abrem o relato respondem por <code>BuildPublicAsync</code>, sem nome do time nem nome
+  interno das colunas. O código e o crachá provam que o relato é da pessoa; só o link dá poder de
+  confirmar, reabrir, responder e anexar. <code>tracking_code_can_act</code> fica gravado e é
+  ignorado.</p>
 </div>
 
 <div class="note why">
-  <strong>Uma leitura que é <code>POST</code>, e por quê</strong>
-  <p><code>POST /public/reports/tracking</code> não cria nada, e não é um <code>GET</code> por
-  duas razões. O token é um <strong>segredo</strong>, e segredo em query string entra no log de
-  acesso do servidor, no histórico do navegador e no <code>Referer</code> que sai da página; no
-  corpo, não entra em nenhum dos três. É o mesmo cuidado que põe o token no
-  <strong>fragmento</strong> do link (<code>#t=</code>), que é a parte que o navegador nunca
-  envia a servidor nenhum.</p>
-  <p>O mesmo vale para <code>tracking/attachments</code>, <code>by-code/attachments</code>,
-  <code>by-identity/attachments</code> e <code>tracking/media-settings</code>, que também só leem e
-  também levam segredo no corpo. O crachá do sistema do cliente segue a regra do token: entra no
-  corpo das três rotas <code>by-identity</code>, e a página de acompanhamento o carrega no fragmento
-  (<code>#i=</code>).</p>
-  <p>E <code>tracking</code> não é leitura pura: grava o evento de visualização com origem
-  <code>public_page</code>, como <code>by-code/open</code> e <code>by-identity/open</code>, que
-  gravam com <code>by: reporter_code</code> e <code>by: inherited_identity</code> na carga. O intervalo entre o relato e a primeira olhada do time mede a reação;
-  a volta de quem relatou mede se a camada pública serve para alguma coisa. Nenhum dos dois é
-  reconstituível depois.</p>
-</div>
-
-<div class="note why">
-  <strong>Três portas, e cada rota entra por uma delas</strong>
-  <p>Oito rotas levam as mesmas credenciais no corpo (protocolo e token) e todas entram por um
-  único método, <code>TrackedReportGate.RequireAsync</code>: acompanhar, confirmar, reabrir,
-  responder, pedir permissão de anexo, confirmar o anexo, ler os arquivos e ler o que dá para
-  anexar. Conferência espalhada por oito rotas seria conferência que uma nona esqueceria.</p>
-  <p><code>by-code/open</code> e <code>by-code/attachments</code> chegam com <strong>outra
-  credencial</strong> (chave pública, código pessoal e protocolo, sem token nenhum) e entram por
-  <code>ReporterCodeGate.RequireAsync</code>, com as recusas possíveis colapsadas numa mensagem
-  só. Fazê-las entrar pela porta do link significaria afrouxar a conferência das outras para caber
-  um caso sem token, que é o oposto do que a porta única existe para garantir.</p>
-  <p><code>by-identity/open</code> e <code>by-identity/attachments</code> entram pela terceira,
-  <code>InheritedIdentityGate.RequireAsync</code> (chave pública, crachá do sistema do cliente e
-  protocolo), o espelho da porta do código, com a mesma recusa única.</p>
-  <p>As que abrem o relato <strong>compartilham</strong> a saída: respondem por
-  <code>BuildPublicAsync</code>, a mesma visão montada campo a campo, sem nome de quem é do time e
-  sem o vocabulário interno das colunas. E há uma assimetria de propósito: pelo link as ações
-  chegam ligadas; pelo código e pelo crachá, não. O código, ou o crachá, prova que o relato é dela; o
-  link é que dá poder sobre ele: confirmar, reabrir, responder e anexar só aceitam o token.
-  <code>tracking_code_can_act</code> fica gravado e é ignorado: obedecê-lo mostraria botões que a
-  própria API recusaria.</p>
-</div>
-
-<div class="note why">
-  <strong>Código que existe e código que não existe respondem igual</strong>
-  <p><code>POST /public/reports/by-code</code> devolve <strong>lista vazia</strong> para um código
-  desconhecido, e não 404. É a decisão central da rota. Qualquer diferença entre "não existe" e
-  "existe e está vazio" a transformaria num oráculo, e tentar códigos até a resposta mudar é
-  exatamente como se enumera código alheio.</p>
-  <p>Projeto que não usa este modo responde igual, pelo mesmo motivo: dizer "aqui não tem código"
-  contaria a configuração do cliente a qualquer um que colasse a chave pública numa requisição.
-  <code>by-identity</code> responde pela mesma regra: crachá que não confere, pessoa que nunca
-  relatou aqui e projeto fora do modo recebem a mesma lista vazia.</p>
-  <p>Em <code>by-code/open</code> e <code>by-code/attachments</code> o mesmo rigor vira uma recusa
-  só: código em branco, código que não existe, protocolo que não existe, protocolo que é
-  <strong>de outra pessoa</strong> e projeto que não usa o código recebem a mesma mensagem. Sem a
-  quarta, qualquer código válido abriria qualquer protocolo do projeto. Em
-  <code>by-identity/open</code> e <code>by-identity/attachments</code>, a mesma recusa única, com a
-  mesma mensagem: crachá em branco ou que não confere, projeto fora do modo, protocolo inexistente
-  ou de outra pessoa.</p>
-</div>
-
-<h3>A identidade do sistema do cliente</h3>
-
-<p><strong>O crachá chega pela página, e nunca pela URL.</strong> No projeto que herda a
-identidade, o servidor do cliente assina quem é a pessoa e põe o crachá no mesmo
-<code>&lt;script&gt;</code> do carregador em que vai <code>data-key</code>, num de dois formatos,
-o que o projeto escolheu (<code>IdentityFormat</code>):</p>
-<ul>
-  <li><strong>Assinatura simples (HMAC), de fábrica:</strong> <code>data-user-id</code>,
-  <code>data-user-expires</code> (em segundos, Unix), <code>data-user-signature</code> (o
-  HMAC-SHA256 de <code>id.expires</code> com a chave secreta do projeto, em hexadecimal) e, se
-  quiser, <code>data-user-name</code>, que não entra na assinatura porque só sugere o campo do
-  nome. O carregador junta os quatro num crachá (<code>rfh1.</code>…) e o resto do caminho é o
-  mesmo. A chave secreta não é guardada: sai da chave mestra da instalação, e o banco sozinho
-  não forja nada.</li>
-  <li><strong>JWT:</strong> um JWT ES256 dedicado em <code>data-identity</code>.</li>
-</ul>
-<p> O carregador lê o atributo ao iniciar e <strong>a cada abertura</strong>,
-porque a sessão do site renova e a pessoa entra e sai sem recarregar a página, e o passa ao quadro
-por mensagem; dali ele viaja no corpo do <code>POST</code>, como o token do link e o código pessoal,
-nunca no endereço do quadro nem em query string. Quem não está na conta fica sem o atributo.</p>
-
-<p><strong>A API confere a assinatura, e não chama o sistema do cliente.</strong> No HMAC, a
-comparação é em tempo constante, e a validade segue a mesma regra do JWT abaixo. No JWT, a chave é a
-pública ECDSA P-256 que o projeto colou em Privacidade: assimétrica de propósito: um vazamento do
-nosso banco não deixa forjar identidade nenhuma, nem por nós. O <code>alg</code> é só
-<code>ES256</code> (<code>none</code> e <code>HS256</code> são recusados: o segundo trataria a chave
-pública como segredo); <code>aud</code> é a chave pública do projeto apresentada no envio, o que
-amarra o crachá ao projeto; <code>exp</code> é obrigatório, sem tolerância de relógio, e o que falta
-para vencer cabe em <code>IdentityTokenMaxMinutes</code> (1 a 60, 15 de fábrica); um crachá de
-horas seria um token de login disfarçado; <code>sub</code> é obrigatório (até 256) e opaco para nós;
-<code>name</code> é opcional (até 120) e só sugere o nome no formulário. <code>iss</code> e
-<code>jti</code> não são conferidos, e o crachá inteiro tem teto de 4096.</p>
-
-<p><strong>Sem crachá, quem decide é <code>IdentityRequired</code>.</strong> Desligado (fábrica), o
-relato entra como protocolo, sem identidade, e a resposta diz <code>Identified: false</code>. Ligado,
-o envio é recusado com 401 (<code>Entre na sua conta para relatar.</code> sem crachá, e
-<code>Identidade nao reconhecida. Recarregue a pagina e tente de novo.</code> com um que não confere), e <code>GET /public/widget-settings</code> já diz <code>IdentityRequired: true</code>, para o
-quadro pedir para entrar na conta antes de a pessoa escrever. Fora do modo, o crachá é
-<strong>ignorado</strong>, e não recusado como o código pessoal é: o código é digitado pela pessoa, e
-o atributo pode ter ficado na página depois de o projeto trocar de modo; recusar derrubaria todo
-relato daquele site por uma configuração antiga.</p>
-
-<p>Da pessoa fica <strong>só um hash</strong> do <code>sub</code>, com um sal do projeto que nunca
-muda, numa linha de <code>reporter_codes</code> que nasce no primeiro relato dela. É por essa linha
-que <code>by-identity</code>, <code>by-identity/open</code> e <code>by-identity/attachments</code>
-funcionam: o espelho das rotas do código, com o crachá no lugar dele. E o crachá lê e não age:
-confirmar, reabrir, responder e anexar continuam pedindo o token do link.</p>
-
-<div class="note why">
-  <strong>Uma consulta pública que é <code>GET</code>, e as outras não</strong>
-  <p><code>GET /public/reports/published</code> destoa de propósito. Nas outras consultas públicas
-  de relato o corpo carrega um <strong>segredo</strong> (o token do link, o código pessoal, o
-  crachá do sistema do cliente), e
-  segredo em query string entra no log do servidor, no histórico do navegador e no
-  <code>Referer</code>.</p>
-  <p>Aqui não há segredo nenhum: a chave pública já está no código-fonte da página do cliente.
-  Fazer <code>POST</code> só por simetria esconderia que esta é a única consulta de relatos que não
-  identifica ninguém. É o mesmo motivo de <code>/public/widget-launcher</code>,
-  <code>/public/widget-settings</code> e <code>/public/media-settings</code> serem <code>GET</code>.</p>
-</div>
-
-<div class="note warn">
-  <strong>Escrever de fora só é possível quando o produto convidou</strong>
-  <p><code>POST /public/reports/reply</code> é recusada quando não há pedido de informação aberto,
-  e <code>reopen</code> quando o projeto desligou a reabertura. A vez volta para a equipe assim
-  que a pessoa responde. Anexar segue a mesma regra: o arquivo só entra junto de um envio (a
-  criação, uma resposta, uma reabertura) e nos minutos logo depois dele.</p>
-  <p>Canal sempre aberto viraria caixa de entrada sem dono. Quem relatou escreve
-  <strong>quando lhe perguntaram</strong>, e isso continua valendo depois de a moderação existir:
-  a fila decide o que vira público, e não quem pode escrever.</p>
+  <strong>O que existe e o que não existe respondem igual</strong>
+  <p><code>POST /public/reports/by-code</code> devolve <strong>lista vazia</strong> para código
+  desconhecido e para projeto fora do modo, e não 404: senão daria para testar códigos até a resposta
+  mudar. <code>by-identity</code> segue a mesma regra.</p>
+  <p>Em <code>by-code/open</code>, <code>by-code/attachments</code>, <code>by-identity/open</code> e
+  <code>by-identity/attachments</code>, tudo vira uma recusa só: credencial em branco ou que não
+  confere, protocolo inexistente ou <strong>de outra pessoa</strong>, e projeto fora do modo.</p>
 </div>
 
 <div class="note why">
   <strong>O protocolo identifica, o token abre</strong>
-  <p>A rota exige os dois, e <strong>protocolo inexistente e token errado recebem a mesma recusa
-  404</strong>, com a mesma mensagem. O protocolo é curto e falado de propósito (logo
-  adivinhável), então responder diferente contaria a quem sonda que ele acertou metade. E 404 em
-  vez de 403 pela razão de sempre aqui: confirmar que o relato existe já é informação.</p>
-  <p>A comparação do token é em tempo constante
-  (<code>ProjectKeyGenerator.Matches</code>): um <code>==</code> comum para no primeiro caractere
-  diferente, e com o protocolo em mãos a diferença de tempo permitiria descobrir o token
-  caractere a caractere.</p>
+  <p>Protocolo inexistente e token errado recebem <strong>o mesmo 404</strong>, com a mesma
+  mensagem: o protocolo é curto e adivinhável, e responder diferente contaria que ele acertou. A
+  comparação do token é em tempo constante (<code>ProjectKeyGenerator.Matches</code>): um
+  <code>==</code> comum para no primeiro caractere diferente, e o tempo revelaria o token caractere a
+  caractere.</p>
 </div>
 
-<div class="note why">
-  <strong>Por que as rotas públicas ficam fora do padrão</strong>
-  <p>Das cento e trinta e seis rotas, cento e dezesseis exigem token e resolvem, pelo <code>uid</code> que vem dentro dele, quem
-  é a pessoa e os projetos que ela enxerga. As dezenove de <code>/public</code> não podem: quem chega
-  ali é um visitante anônimo do site de um cliente, e o projeto ainda não é conhecido. A credencial é a <strong>chave pública</strong>,
-  que não autentica ninguém (ela apenas diz para qual projeto o relato vai), ou, nas rotas de
-  quem relatou, o protocolo junto do token do link, do código pessoal ou do crachá do sistema do
-  cliente.</p>
-  <p>Chave ausente, desconhecida, revogada ou secreta recebem a mesma recusa, com a mesma
-  mensagem: responder "esta chave existe, mas foi revogada" contaria a quem tenta que ele
-  acertou metade. Ver <a href="#/isolamento/consultas-que-atravessam">a consulta que resolve o projeto pela chave</a>.</p>
+<div class="note warn">
+  <strong>De fora, só se escreve quando o produto convida</strong>
+  <p><code>POST /public/reports/reply</code> é recusada sem pedido de informação aberto, e
+  <code>reopen</code> quando o projeto desligou a reabertura. Anexo só entra junto de um envio e nos
+  minutos logo depois dele. Canal sempre aberto viraria caixa de entrada sem dono.</p>
 </div>
+
+<h2>A identidade do sistema do cliente</h2>
+
+<p>No projeto que herda a identidade, o servidor do cliente assina quem é a pessoa e põe o crachá
+no mesmo <code>&lt;script&gt;</code> do carregador, junto de <code>data-key</code>, no formato
+escolhido (<code>IdentityFormat</code>):</p>
+
+<ul>
+  <li><strong>Assinatura simples (HMAC), de fábrica:</strong> <code>data-user-id</code>,
+  <code>data-user-expires</code> (segundos, Unix), <code>data-user-signature</code> (o HMAC-SHA256 de
+  <code>id.expires</code> com a chave secreta do projeto, em hexadecimal) e, se quiser,
+  <code>data-user-name</code>, fora da assinatura. O carregador junta tudo num crachá
+  (<code>rfh1.</code>…). A chave secreta sai da chave mestra da instalação, e o banco sozinho não
+  forja nada.</li>
+  <li><strong>JWT:</strong> um JWT ES256 dedicado em <code>data-identity</code>.</li>
+</ul>
+
+<p>O carregador lê o atributo ao iniciar e a cada abertura, e o crachá viaja no corpo do
+<code>POST</code>, nunca no endereço. Fora do modo, é <strong>ignorado</strong>, e não recusado: o
+atributo pode ter ficado na página depois de uma troca de modo.</p>
+
+<p><strong>Sem crachá, quem decide é <code>IdentityRequired</code>.</strong> Desligado (fábrica), o
+relato entra sem identidade, com <code>Identified: false</code>. Ligado, é 401
+(<code>Entre na sua conta para relatar.</code> sem crachá, <code>Identidade nao reconhecida. Recarregue a pagina e tente de novo.</code>
+com um que não confere), e <code>GET /public/widget-settings</code> já avisa com
+<code>IdentityRequired: true</code>.</p>
+
+<details class="mais">
+  <summary>Como a API confere o crachá</summary>
+  <p>A API confere a assinatura sem chamar o sistema do cliente. No HMAC, a comparação é em tempo
+  constante. No JWT, a chave é a pública ECDSA P-256 colada em Privacidade, para um vazamento do
+  banco não permitir forjar identidade.</p>
+  <ul>
+    <li><code>alg</code> só <code>ES256</code> (<code>none</code> e <code>HS256</code> recusados).</li>
+    <li><code>aud</code> é a chave pública do projeto, o que amarra o crachá a ele.</li>
+    <li><code>exp</code> obrigatório, sem tolerância de relógio, dentro de <code>IdentityTokenMaxMinutes</code> (1 a 60, 15 de fábrica). O HMAC segue a mesma validade.</li>
+    <li><code>sub</code> obrigatório (até 256) e opaco; <code>name</code> opcional (até 120), só sugere o nome.</li>
+    <li><code>iss</code> e <code>jti</code> não são conferidos; o crachá inteiro vai até 4096.</li>
+  </ul>
+  <p>Da pessoa fica só um hash do <code>sub</code>, com sal fixo do projeto, numa linha de
+  <code>reporter_codes</code> criada no primeiro relato. É ela que faz <code>by-identity</code>,
+  <code>by-identity/open</code> e <code>by-identity/attachments</code> funcionarem.</p>
+</details>
+
+<h2>Por que ficam fora do padrão</h2>
+
+<p>Das 138 rotas, 118 exigem token e resolvem a pessoa pelo
+<code>uid</code> dentro dele. As dezenove de <code>/public</code> recebem um visitante anônimo, e o
+projeto ainda não é conhecido: a credencial é a <strong>chave pública</strong>, que só diz para qual
+projeto o relato vai, ou o protocolo com o token, o código ou o crachá.</p>
+
+<div class="note why">
+  <strong>Uma consulta pública que é <code>GET</code></strong>
+  <p><code>GET /public/reports/published</code> não leva segredo: a chave pública já está na página
+  do cliente. Pelo mesmo motivo <code>/public/widget-launcher</code>,
+  <code>/public/widget-settings</code> e <code>/public/media-settings</code> são <code>GET</code>.</p>
+</div>
+
+<p>Chave ausente, desconhecida, revogada ou secreta recebem a mesma recusa. Ver
+<a href="#/isolamento/consultas-que-atravessam">a consulta que resolve o projeto pela chave</a>.</p>

@@ -58,3 +58,12 @@
 .swagger-ui .opblock.opblock-head .opblock-summary-method {
   background: var(--pds-accent);
 }
+
+/* Barras de rolagem discretas, como na documentação: finas, sem trilho, e só com o mouse
+   sobre a área que rola. */
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+*:hover { scrollbar-color: rgba(107, 102, 96, 0.3) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: transparent; border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
+:hover::-webkit-scrollbar-thumb { background-color: rgba(107, 102, 96, 0.3); }

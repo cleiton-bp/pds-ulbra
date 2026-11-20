@@ -1,18 +1,21 @@
 <h2>Vínculos entre cards</h2>
+<p class="lead">Duplicado, bloqueia ou relacionado: como dois cards se ligam.</p>
 
-<p>Dois cards do mesmo projeto se ligam de três jeitos: um é <strong>duplicado</strong> do outro, um
-<strong>bloqueia</strong> o outro, ou os dois estão <strong>relacionados</strong>. O vínculo mora
-numa tabela própria, <code>card_links</code>, gravado na direção em que vale: o duplicado aponta
-para o original, quem bloqueia aponta para o bloqueado.</p>
-
-<div class="note warn">
-  <strong>Interno, como os campos do card</strong>
-  <p>Nenhuma rota pública lê esta tabela. O que o vínculo muda lá fora (a etapa e o encerramento
-  do relato duplicado) é gravado no <strong>próprio relato</strong>, pelas colunas e eventos de
-  sempre, e a página de acompanhamento continua lendo só o relato que abriu.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>O vínculo mora em <code>card_links</code>, na direção em que vale.</li>
+    <li>O duplicado vai para o arquivo e segue a etapa e o encerramento do original.</li>
+  </ul>
 </div>
 
+<p>Dois cards do mesmo projeto se ligam de três jeitos: um é <strong>duplicado</strong> do outro, um
+<strong>bloqueia</strong> o outro, ou os dois estão <strong>relacionados</strong>. Nenhuma rota
+pública lê esta tabela.</p>
+
 <h2>card_links</h2>
+
+<p>Tabela própria, e não coluna em <code>reports</code>, porque um card se liga a vários.</p>
 
 <div class="table-scroll">
 <table>
@@ -24,52 +27,36 @@ para o original, quem bloqueia aponta para o bloqueado.</p>
 </table>
 </div>
 
-<p>As travas do banco: ninguém se vincula a si mesmo (<code>ck_card_links_not_self</code>); o tipo
-fica na lista (<code>ck_card_links_type</code>); um vínculo por par na mesma direção, entre os que
-valem (índice único com <code>deleted_at IS NULL</code>); e <strong>um original por
-duplicado</strong> (índice único em <code>from_report_id</code> só para <code>duplicate_of</code>).
-Os dois cards ficam com <code>Restrict</code>: card não se apaga, e o vínculo não some debaixo
-dele. Desfazer é exclusão lógica.</p>
-
-<p>O que o banco não vê, o serviço confere: <strong>um vínculo por par em qualquer
-direção</strong> ("A bloqueia B" e "B relacionado a A" juntos diriam duas coisas sobre a mesma
-relação), os dois cards do mesmo projeto e fora do arquivo, o relato só duplicado de relato, e o
-original que não é duplicado de ninguém.</p>
-
-<div class="note why">
-  <strong>Por que uma tabela, e não uma coluna em <code>reports</code></strong>
-  <p>O pai da subtarefa é uma coluna porque cada card tem no máximo um. Vínculo não: um card
-  bloqueia vários, é bloqueado por vários e se relaciona com quantos o time quiser. Em coluna,
-  cada tipo novo seria uma migração na tabela que mais cresce.</p>
-</div>
+<details class="mais">
+  <summary>As travas do banco e do serviço</summary>
+  <ul>
+    <li>Ninguém se vincula a si mesmo (<code>ck_card_links_not_self</code>), e o tipo fica na lista (<code>ck_card_links_type</code>).</li>
+    <li>Um vínculo por par na mesma direção, entre os que valem (índice único com <code>deleted_at IS NULL</code>).</li>
+    <li><strong>Um original por duplicado</strong> (índice único em <code>from_report_id</code> só para <code>duplicate_of</code>).</li>
+    <li>Os dois cards ficam com <code>Restrict</code>, e desfazer é exclusão lógica.</li>
+    <li>O serviço confere o resto: um vínculo por par em qualquer direção, cards do mesmo projeto e fora do arquivo, relato só duplicado de relato, e original que não é duplicado.</li>
+  </ul>
+</details>
 
 <h2>O que o duplicado grava no relato</h2>
 
 <p>Marcado como duplicado, o card vai para o arquivo (<code>reports.archived_at</code>, com as
-subtarefas, no mesmo instante). Quando é relato, quem o escreveu passa a acompanhar o original, e
-isso não é lido do vínculo na hora de mostrar a página: é <strong>gravado no relato
-duplicado</strong>, para cada leitura pública continuar sendo a de sempre.</p>
+subtarefas). O que muda para quem o escreveu fica <strong>gravado no próprio relato</strong>:</p>
 
 <ul>
-  <li><strong>A etapa pública</strong>: cada passo do original grava o mesmo passo no duplicado;
-  <code>reports.project_public_stage_id</code> e um <code>report_public_stage_changed</code> com o
-  número do original no payload (<code>original</code>), que dá a data à jornada. Ao marcar, o
-  duplicado já vai para a etapa do original, e a espera agendada dele é descartada.</li>
-  <li><strong>O encerramento</strong>: quando o original encerra, cada relato duplicado sem
-  encerramento ganha uma linha em <code>report_closures</code> com o mesmo desfecho, o mesmo
-  motivo e <strong>o mesmo <code>closed_at</code></strong>. É o instante que, depois, separa o
-  encerramento que veio do original de um que o duplicado já tinha: quando o encerramento do
-  original deixa de valer (o time sai da coluna que encerra, ou quem relatou o original reabre),
-  sai junto o do duplicado que tem o mesmo instante e não foi confirmado.</li>
+  <li><strong>A etapa pública</strong>: cada passo do original grava o mesmo em
+  <code>reports.project_public_stage_id</code>, com um <code>report_public_stage_changed</code> que
+  leva o número do original no payload (<code>original</code>).</li>
+  <li><strong>O encerramento</strong>: quando o original encerra, o duplicado ganha uma linha em
+  <code>report_closures</code> com o mesmo desfecho, motivo e <code>closed_at</code>. Se o do
+  original deixa de valer, sai junto o do duplicado não confirmado.</li>
 </ul>
 
-<p>Quem relatou o duplicado confirma, dá a nota e reabre o <strong>próprio</strong> encerramento,
-como sempre. Reabrir, ou responder a uma pergunta do time, traz o card de volta ao quadro e
-transforma o vínculo em <code>relates_to</code>: o caso dele passou a ser dele.</p>
+<p>Reabrir ou responder ao time traz o duplicado de volta ao quadro, e o vínculo vira
+<code>relates_to</code>.</p>
 
 <h2>O filtro de acesso</h2>
 
-<p>A tabela passa pelo filtro global pela coluna do projeto, como o relato, e some junto com
-qualquer um dos dois cards. Duas leituras atravessam o filtro, porque a etapa e o encerramento do
-original também mudam pela página de quem relatou e pela fila, sem sessão: estão em
+<p>A tabela passa pelo filtro global pelo projeto e some com qualquer um dos cards. Duas leituras
+atravessam o filtro: veja
 <a href="#/isolamento/consultas-que-atravessam">As consultas que atravessam o filtro</a>.</p>

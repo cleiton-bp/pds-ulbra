@@ -17,6 +17,7 @@
   --danger: #a52a2a;
   --code-bg: #f5f3ef;
   --radius: 10px;
+  --curva: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -37,6 +38,15 @@
 }
 
 * { box-sizing: border-box; }
+
+/* Barras de rolagem discretas: finas, sem trilho, e só aparecem com o mouse sobre a área que
+   rola (a página, o menu, um bloco de código ou uma tabela larga). */
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+*:hover { scrollbar-color: color-mix(in srgb, var(--text-soft) 30%, transparent) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: transparent; border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
+:hover::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--text-soft) 30%, transparent); }
 
 body {
   margin: 0;
@@ -109,12 +119,16 @@ pre code { background: none; border: none; padding: 0; white-space: pre; font-si
   background: var(--surface); color: var(--text);
   font-size: 13.5px; font-weight: 600;
 }
-.swagger-link:hover { background: var(--accent-soft); border-color: var(--accent); text-decoration: none; }
+.swagger-link { transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s var(--curva); }
+.swagger-link:hover { background: var(--accent-soft); border-color: var(--accent); text-decoration: none; transform: translateY(-1px); }
+.swagger-link:active { transform: scale(0.98); }
 
 nav a {
   display: block; padding: 7px 11px; margin-bottom: 1px;
   border-radius: 7px; font-size: 14px; color: var(--text-soft);
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.25s ease, transform 0.2s var(--curva);
 }
+nav a:active { transform: scale(0.98); }
 nav a:hover { background: var(--surface-alt); color: var(--text); text-decoration: none; }
 nav a.active {
   background: var(--accent-soft); color: var(--accent); font-weight: 600;
@@ -124,19 +138,52 @@ nav a.active {
 /* Cada secao e um grupo, e os passos dela so aparecem com a secao aberta: com
    todos abertos o menu nao caberia na tela, e a secao aberta ja diz onde a
    pessoa esta. */
-nav .steps { display: none; margin: 2px 0 8px 12px; padding-left: 8px; border-left: 1px solid var(--line); }
-nav .group.open .steps { display: block; }
+nav .steps {
+  display: grid; grid-template-rows: 0fr; opacity: 0;
+  margin: 0 0 0 12px; padding-left: 8px; border-left: 1px solid var(--line);
+  transition: grid-template-rows 0.32s var(--curva), opacity 0.25s ease, margin 0.32s var(--curva);
+}
+nav .steps > div { overflow: hidden; min-height: 0; }
+nav .group.open .steps { grid-template-rows: 1fr; opacity: 1; margin: 2px 0 8px 12px; }
 nav .steps a { font-size: 13px; padding: 5px 10px; }
 nav .group.open > a:not(.active) { color: var(--text); font-weight: 600; }
 
 main { padding: 38px 46px 100px; min-width: 0; }
-#content { animation: fade 0.18s ease; }
-@keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes chega { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+#content.entrando > * { animation: chega 0.45s var(--curva) both; }
+#content.entrando > :nth-child(2) { animation-delay: 0.04s; }
+#content.entrando > :nth-child(3) { animation-delay: 0.08s; }
+#content.entrando > :nth-child(4) { animation-delay: 0.12s; }
+#content.entrando > :nth-child(5) { animation-delay: 0.16s; }
+#content.entrando > :nth-child(n+6) { animation-delay: 0.2s; }
+
+/* Bloco mais abaixo aparece quando chega à tela, uma vez só. */
+.revela { opacity: 0; transform: translateY(12px); transition: opacity 0.5s ease, transform 0.6s var(--curva); }
+.revela.visivel { opacity: 1; transform: none; }
+
+/* A barra fina no topo mostra quanto da página já foi lido. */
+.progresso { position: fixed; inset: 0 0 auto 0; height: 2px; z-index: 50; background: var(--accent); opacity: 0.35; transform-origin: 0 50%; transform: scaleX(0); pointer-events: none; transition: transform 0.12s linear; }
+
+/* Voltar ao topo: aparece depois de rolar um pouco. */
+.topo {
+  position: fixed; right: 22px; bottom: 22px; z-index: 40;
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  font-size: 18px; cursor: pointer; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  opacity: 0; transform: translateY(10px) scale(0.9); pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.3s var(--curva), border-color 0.2s ease;
+}
+.topo.visivel { opacity: 1; transform: none; pointer-events: auto; }
+.topo:hover { border-color: var(--accent); color: var(--accent); }
+.topo:active { transform: scale(0.94); }
+
 
 /* Quem pediu menos movimento no sistema nao recebe a transicao. Vale tambem para
    captura automatizada, que costuma congelar a animacao no meio. */
 @media (prefers-reduced-motion: reduce) {
-  #content { animation: none; }
+  #content.entrando > * { animation: none; }
+  .revela { opacity: 1; transform: none; transition: none; }
+  nav .steps, .topo, details.mais > div, .sidebar .gaveta { transition: none; }
   html { scroll-behavior: auto; }
 }
 
@@ -205,14 +252,83 @@ td code { white-space: nowrap; }
   border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--surface); color: var(--text);
 }
-.steps-index a:hover { border-color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+.steps-index a { position: relative; padding-right: 40px; transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.25s var(--curva), box-shadow 0.25s ease; }
+.steps-index a::after { content: "→"; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--text-soft); transition: transform 0.25s var(--curva), color 0.2s ease; }
+.steps-index a:hover { border-color: var(--accent); background: var(--accent-soft); text-decoration: none; transform: translateY(-2px); box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.25); }
+.steps-index a:hover::after { transform: translate(4px, -50%); color: var(--accent); }
+.steps-index a:active { transform: scale(0.99); }
 .steps-index strong { display: block; font-size: 14.5px; margin-bottom: 2px; }
 .steps-index span { color: var(--text-soft); font-size: 13.5px; line-height: 1.5; }
 
 .pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 14px; }
+.pager a { padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); max-width: 48%; transition: border-color 0.2s ease, transform 0.25s var(--curva), background-color 0.2s ease; }
+.pager a:hover { text-decoration: none; border-color: var(--accent); background: var(--accent-soft); }
+.pager a:first-child:hover { transform: translateX(-3px); }
+.pager a:last-child:hover { transform: translateX(3px); }
+
+/* O botão do menu só existe no celular. */
+.menu-botao {
+  display: none; float: right; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--text);
+  font: 600 13.5px/1 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s var(--curva);
+}
+.menu-botao:active { transform: scale(0.97); }
+.menu-botao span { display: inline-block; transition: transform 0.3s var(--curva); }
+.sidebar.aberta .menu-botao { border-color: var(--accent); color: var(--accent); }
+.sidebar.aberta .menu-botao span { transform: rotate(180deg); }
+
+/* ---------- Blocos para leitura leve ---------- */
+
+/* O resumo no topo: a página inteira numa frase ou três itens. */
+.resumo { background: var(--accent-soft); border-radius: var(--radius); padding: 14px 18px; margin: 0 0 24px; font-size: 15px; }
+.resumo > strong:first-child { display: block; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+.resumo ul { margin: 0; }
+.resumo p:last-child, .resumo ul:last-child { margin-bottom: 0; }
+
+/* Cartões curtos lado a lado, um assunto em cada. */
+.cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+.cartoes > div { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 14px 16px; font-size: 14.5px; transition: border-color 0.2s ease, transform 0.25s var(--curva); }
+.cartoes > div:hover { border-color: var(--accent); transform: translateY(-2px); }
+.cartoes strong { display: block; margin-bottom: 4px; }
+.cartoes p { margin: 0; color: var(--text-soft); }
+
+/* Detalhe para quem quer ir fundo: fechado por padrão, abre deslizando. */
+details.mais { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); margin: 16px 0; }
+details.mais > summary { list-style: none; cursor: pointer; padding: 11px 16px; font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 10px; border-radius: var(--radius); transition: background-color 0.2s ease; }
+details.mais > summary::-webkit-details-marker { display: none; }
+details.mais > summary::before { content: "›"; display: inline-block; color: var(--accent); font-size: 18px; line-height: 1; transition: transform 0.25s var(--curva); }
+details.mais[open] > summary::before { transform: rotate(90deg); }
+details.mais > summary:hover { background: var(--surface-alt); }
+details.mais > div { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.35s var(--curva); }
+details.mais > div > div { overflow: hidden; min-height: 0; padding: 0 16px; }
+details.mais.aberto > div { grid-template-rows: 1fr; }
+details.mais.aberto > div > div { padding-bottom: 6px; }
+
+/* Botão de copiar no código. */
+.com-copia { position: relative; }
+.copiar {
+  position: absolute; top: 8px; right: 8px; padding: 4px 10px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text-soft);
+  font: 600 12px/1.4 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; cursor: pointer;
+  opacity: 0; transition: opacity 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.com-copia:hover .copiar, .copiar:focus-visible { opacity: 1; }
+.copiar:hover { color: var(--accent); border-color: var(--accent); }
+.copiar.feito { color: var(--ok); border-color: var(--ok); opacity: 1; }
 
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; }
-  .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  .sidebar { position: sticky; top: 0; z-index: 30; height: auto; max-height: 100vh; padding: 14px 18px; border-right: 0; border-bottom: 1px solid var(--line); background: var(--bg); }
+  .sidebar .brand-tag { display: none; }
+  .sidebar .brand { display: inline-block; font-size: 18px; line-height: 36px; }
+  /* No celular o menu fica recolhido atrás do botão e abre deslizando. */
+  .menu-botao { display: inline-flex; }
+  .sidebar .gaveta { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.35s var(--curva); }
+  .sidebar .gaveta > div { overflow: hidden; min-height: 0; }
+  .sidebar.aberta .gaveta { grid-template-rows: 1fr; }
+  .sidebar.aberta .gaveta > div { overflow-y: auto; max-height: calc(100vh - 80px); padding-top: 14px; }
   main { padding: 28px 22px 70px; }
+  /* No celular, o caminho longo de uma rota quebra a linha em vez de empurrar a página para o lado. */
+  p code, li code, h2 code, h3 code, .resumo code, .note code, summary code { white-space: normal; overflow-wrap: anywhere; }
 }

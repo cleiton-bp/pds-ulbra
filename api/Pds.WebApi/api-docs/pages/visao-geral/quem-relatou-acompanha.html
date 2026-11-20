@@ -1,81 +1,70 @@
 <h2>Quem relatou acompanha</h2>
-<p class="lead">A jornada pública, o mapa versionado entre as duas listas, e o motor que traduz uma na outra.</p>
+<p class="lead">A jornada pública, o mapa que a liga ao quadro e o motor que traduz um no outro.</p>
 
-<p>Quem relatou acompanha pela <strong>jornada pública</strong>. O cliente desenha os passos
-que essa pessoa vê: rótulo, a frase que explica cada um e, se quiser, o que
-vem depois. <strong>Não é a fila de trabalho com outro nome</strong>: várias colunas de dentro
-cabem numa etapa daqui, e é essa perda de detalhe que é o produto.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Quem relatou vê uma jornada curta, de três a sete etapas, desenhada pelo cliente.</li>
+    <li>Cada coluna do quadro aponta para uma etapa, e várias colunas podem cair na mesma.</li>
+    <li>O motor decide, a cada movimento e a cada relato novo, o que a jornada mostra.</li>
+  </ul>
+</div>
 
-<p>Ela tem teto e piso, entre três e sete, e o motivo de cada um está escrito na tela: abaixo de
-três não se conta uma história, acima de sete volta a ser o organograma interno com palavras mais
-bonitas. Projeto novo já nasce com a jornada do modelo escolhido ao criar (a de fábrica, ou a do
-Suporte, com a etapa em que a vez é de quem relatou), e quem foi criado antes de a jornada existir
-preenche com um clique, sempre com o conjunto de fábrica, porque tela em branco não se preenche sozinha. No painel, a tela se chama <strong>Andamento
-público</strong>.</p>
+<h2>A jornada pública</h2>
 
-<p>A etapa em que o relato termina carrega o <strong>desfecho</strong>, de uma lista curta e
-nossa: foi feito, não será feito, sem retorno, já existia. Sem os três últimos só existiria
-"concluído", e o relato que não vai ser feito ficaria pendurado esperando um fim que nunca
-chega.</p>
+<p>O cliente desenha as etapas que quem relatou vê: rótulo, uma frase que explica e, se quiser, o
+que vem depois. No painel, a tela se chama <strong>Andamento público</strong>. São de três a sete
+etapas: com menos não se conta uma história, com mais vira o organograma interno.</p>
 
-<p>E as duas listas <strong>já estão ligadas</strong>: o cliente aponta cada coluna do quadro para
-um passo da jornada, sem digitar nada; os dois lados já existem, escolher é tudo que há para
-fazer. Várias colunas no mesmo passo é o caminho normal, e não um jeito de economizar. O projeto
-novo já nasce com o mapa: A fazer → Recebido, Fazendo → Em desenvolvimento, Feito → Concluído. E a
-tela de <strong>Colunas</strong> mostra, em cada coluna, o que quem relatou vê quando o card está
-nela (escolher ali grava o mapa também), e a coluna nova nasce ligada à etapa da última coluna de
-antes, para não ficar fora do mapa sem ninguém perceber.</p>
+<p>Projeto novo nasce com a jornada do modelo escolhido (a de fábrica, ou a do Suporte, com a etapa
+em que a vez é de quem relatou). Projeto antigo preenche com um clique. A etapa final carrega o
+<strong>desfecho</strong>: foi feito, não será feito, sem retorno ou já existia.</p>
 
-<p>O mapa se grava <strong>inteiro</strong>, e cada gravação cria uma versão. Alterar hoje não
-reescreve o passado: são as versões antigas que explicam por onde um relato de três meses atrás
-passou. Sem isso, reorganizar a jornada mudaria em silêncio o que já aconteceu, e não haveria como
-perceber depois: o dado necessário para perceber seria justamente o apagado.</p>
+<h2>O mapa entre quadro e jornada</h2>
 
-<p>Coluna sem mapeamento não é erro, e a tela conta quantas são: é nelas que o relato pararia de
-andar do lado de fora.</p>
+<p>O cliente aponta cada coluna para uma etapa, só escolhendo. Projeto novo já vem mapeado pelo modelo. No Quadro simples: A fazer
+→ Recebido, Fazendo → Em desenvolvimento, Feito → Concluído.</p>
 
-<p>E o <strong>motor que traduz</strong> está no ar. Ele mora num projeto que não referencia
-nada (nem o domínio, nem o acesso a dados), e isso não é arrumação: é o que torna "o motor não
-conhece banco nem HTTP" uma coisa que o compilador recusa, em vez de uma promessa escrita num
-comentário.</p>
+<ul>
+  <li>A tela de <strong>Colunas</strong> mostra o que quem relatou vê em cada coluna, e escolher ali também grava o mapa.</li>
+  <li>A coluna nova nasce ligada à etapa da última coluna, para não ficar de fora.</li>
+  <li>Coluna sem mapa não é erro, mas a tela conta quantas são: ali o relato para de andar lá fora.</li>
+  <li>O mapa se grava <strong>inteiro</strong>, e cada gravação vira uma versão. Mudar hoje não reescreve por onde um relato antigo passou.</li>
+</ul>
 
-<p>Ele decide entre quatro coisas: <strong>avançar</strong>, <strong>ficar na mesma etapa</strong>
-(o caso mais comum, e o produto funcionando), <strong>segurar uma regressão</strong> e
-<strong>marcar como não mapeado</strong>. A regressão pública é segurada por decisão de produto:
-ver o relato desandar destrói a confiança de quem acompanha, e a volta continua gravada como
-evento interno. Só etapa marcada como "pode voltar" retrocede.</p>
+<h2>O motor que traduz</h2>
 
-<p>Ele roda em dois momentos, e o segundo é o que se esquece: quando o time <strong>move</strong>
-o relato, e quando ele <strong>entra</strong>. Traduzir só no movimento deixaria invisível o
-relato que chega e nunca é movido: justamente no momento em que quem escreveu mais quer
-olhar.</p>
+<p>O motor mora num projeto que não referencia nada, então o compilador garante que ele não conhece
+banco nem HTTP. Ele escolhe entre quatro saídas:</p>
 
-<p>Cada tradução que muda alguma coisa vira evento, com os rótulos da época e a
-<strong>versão do mapa</strong> que decidiu. E o painel mostra o outro lado junto do controle que
-move o relato: quem decide precisa ver, na hora, o que o movimento causa lá fora.</p>
+<div class="cartoes">
+  <div><strong>Avançar</strong><p>O relato passa para a próxima etapa.</p></div>
+  <div><strong>Ficar</strong><p>O caso mais comum: o time mexe, e lá fora nada muda.</p></div>
+  <div><strong>Segurar a volta</strong><p>Só a etapa marcada como "pode voltar" retrocede; a volta fica como evento interno.</p></div>
+  <div><strong>Não mapeado</strong><p>A coluna não aponta para etapa nenhuma.</p></div>
+</div>
 
-<p>E a <strong>página de acompanhamento mostra o andamento</strong>. Ela desenha a jornada
-inteira, com o passo em que o relato está, as datas por onde ele passou e o que vem depois, e
-a jornada avança sozinha conforme a equipe move o card do lado de dentro, sem ninguém avisar
-nada manualmente. Projeto que não configurou jornada devolve a lista vazia, e aí a página volta
-a dizer que não há andamento, em vez de prometer.</p>
+<p>Ele roda quando o time <strong>move</strong> o relato e quando o relato <strong>entra</strong>.
+Cada tradução que muda algo vira evento, com os rótulos da época e a <strong>versão do mapa</strong>
+que decidiu. No painel, o controle que move o relato mostra junto o efeito lá fora, e arrastar no
+<strong>quadro</strong> passa pela mesma espera.</p>
 
-<p>Quem anda é a jornada, e não a página: ela busca uma vez, ao abrir. Uma aba deixada aberta
-não muda sozinha, e <strong>o texto da tela diz isso</strong>: é a diferença entre a pessoa
-voltar quando quiser e ficar esperando uma tela que nunca se mexe. Buscar de novo por conta
-própria seria pior: cada leitura grava um evento de visualização, e a página passaria a registrar
-leituras que ninguém fez. Avisar quando algo anda é papel do aviso por e-mail, que é
-<strong>Planejado</strong>.</p>
+<h2>A página de acompanhamento</h2>
 
-<p>O que sai nessa resposta é montado <strong>campo a campo</strong>, e nenhuma entidade é
-serializada nela. É a única resposta do sistema que vai para alguém de fora do time do cliente:
-com serialização, a coluna acrescentada amanhã a uma tabela interna apareceria ali sem ninguém
-decidir, e vazamento por serialização não dá erro em teste nenhum.</p>
+<p>Ela mostra a jornada inteira: a etapa atual, as datas por onde o relato passou e o que vem
+depois. Sem jornada configurada, a página diz que não há andamento.</p>
 
-<p>No painel, arrastar um card no <strong>quadro</strong> é o mesmo movimento do seletor de coluna: a
-etapa pública anda pela mesma espera. Ficam três ressalvas. O motor <strong>não tem teste</strong> do lado C#, e o teste de vazamento não foi
-escrito: os dois esperam o projeto de testes da API, e são <strong>Planejado</strong>. E a página
-pública <strong>não é renderizada no servidor</strong>, também <strong>Planejado</strong>: ela é
-uma aplicação React que baixa cerca de 86 kB de JavaScript comprimido, uns 60 deles o próprio
-React, para desenhar uma tela quase sem interação. O sintoma foi tratado (um esqueleto escrito no
-próprio HTML aparece antes de qualquer script, e não há tela branca), mas o peso continua lá.</p>
+<p>A página busca uma vez, ao abrir, e <strong>o texto da tela diz isso</strong>: cada leitura grava
+um evento, e buscar sozinha registraria leituras que ninguém fez. Avisar quando algo anda é papel do
+aviso por e-mail, <strong>Planejado</strong>.</p>
+
+<details class="mais">
+  <summary>A resposta pública e o que fica para depois</summary>
+  <p>A resposta do acompanhamento é montada <strong>campo a campo</strong>, sem serializar entidade.
+  É a única que vai para fora do time: com serialização, uma coluna nova numa tabela interna
+  apareceria ali sem ninguém decidir.</p>
+  <ul>
+    <li>O teste do motor no lado C# e o teste de vazamento esperam o projeto de testes da API: <strong>Planejado</strong>.</li>
+    <li>A renderização da página pública no servidor é <strong>Planejado</strong>. Hoje é uma aplicação React de cerca de 86 kB de JavaScript comprimido (uns 60 do React), com um esqueleto no HTML que aparece antes de qualquer script.</li>
+  </ul>
+</details>

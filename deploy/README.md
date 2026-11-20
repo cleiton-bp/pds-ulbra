@@ -93,8 +93,9 @@ quais faltam.
 Guarde uma cópia do `.env.producao` num gerenciador de senhas do time, nunca no git nem num
 documento compartilhado em texto aberto.
 
-**A documentação da API e o Swagger não ficam no ar:** abrem só no desenvolvimento. Em produção, a
-raiz da API responde 404, e o `implantar.sh` confere isso. Variável nova no modelo se resolve
+**A documentação da API e o Swagger ficam no ar, abertos:** a documentação na raiz do endereço da
+API e o Swagger em `/swagger`, e o `implantar.sh` confere os dois. Ler as rotas não dá acesso a
+nada, porque toda rota que lê ou grava dado continua pedindo a sessão, a chave ou o token do relato. Variável nova no modelo se resolve
 rodando o `gerar-segredos.sh` de novo: ele acrescenta o que faltar sem mexer no resto.
 
 ## Primeiro deploy

@@ -1,49 +1,52 @@
 <h2>Visão geral</h2>
-<p class="lead">O que a API faz hoje, e o que ela ainda não faz.</p>
+<p class="lead">O que a API faz, em poucos minutos de leitura.</p>
 
-<p>Quem relata um problema num software fica sem notícia. O relato chega por WhatsApp,
-e-mail ou telefone, alguém do time transcreve para a ferramenta interna, e ali ele deixa
-de existir para quem o originou: sem protocolo, sem link, sem aviso de resolução.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Quem relata um problema recebe um protocolo e acompanha o andamento por um link.</li>
+    <li>O time trabalha o relato num quadro, e cada movimento vira uma etapa que quem relatou entende.</li>
+    <li>Nada do que é interno aparece do lado de fora.</li>
+  </ul>
+</div>
 
-<p>O absurdo é que <strong>a informação existe</strong>. O registro se moveu três vezes hoje,
-tem responsável e posição na fila. Ela só está trancada numa ferramenta interna à qual o
-relator não tem acesso, e nem deveria ter, porque ali estão outros clientes e discussão
-interna.</p>
+<p>Hoje, quem relata um problema num software costuma ficar sem notícia. O relato chega por
+mensagem ou e-mail, alguém do time copia para a ferramenta interna, e a pessoa nunca mais sabe o
+que aconteceu.</p>
 
-<p>O Relato Fácil é a camada pública que traduz o que acontece lá dentro para uma jornada curta que o
-relator entende, do mesmo jeito que se acompanha uma entrega. E, do lado de dentro, é a ferramenta
-em que o time trabalha os relatos (lista e quadro, sprints, avisos), ligada a essa jornada: o que
-o time move por dentro, quem relatou vê andar por fora.</p>
+<p>A informação existe, só que fica presa do lado de dentro. O Relato Fácil abre uma janela para
+fora: o que o time move no quadro, quem relatou vê andar na página de acompanhamento, como quem
+acompanha uma entrega.</p>
+
+<div class="cartoes">
+  <div><strong>Do lado de fora</strong><p>O botão no site do cliente, o formulário e a página de acompanhamento, sem conta.</p></div>
+  <div><strong>Do lado de dentro</strong><p>O painel do time: lista, quadro, sprints, avisos e a configuração do projeto.</p></div>
+  <div><strong>No meio</strong><p>O motor que traduz cada coluna do quadro numa etapa da jornada pública.</p></div>
+</div>
 
 <h2>Como ler esta documentação</h2>
 
-<p>As páginas seguem a ordem do menu e vão do geral ao concreto: primeiro a
-<a href="#/arquitetura">arquitetura</a> e a <a href="#/modelagem">modelagem</a>, depois as
-três decisões que sustentam o resto (<a href="#/autenticacao">autenticação</a>,
-<a href="#/isolamento">isolamento</a> e <a href="#/seguranca">segurança das chaves</a>) e
-por fim o operacional: <a href="#/endpoints">rotas</a>, <a href="#/fluxo">fluxo</a> e
-<a href="#/como-rodar">como rodar</a>.</p>
+<p>O menu vai do geral ao concreto: <a href="#/arquitetura">arquitetura</a> e
+<a href="#/modelagem">modelagem</a>, depois <a href="#/autenticacao">autenticação</a>,
+<a href="#/isolamento">isolamento</a> e <a href="#/seguranca">segurança</a>, e por fim
+<a href="#/endpoints">rotas</a>, <a href="#/fluxo">fluxo</a> e <a href="#/como-rodar">como rodar</a>.</p>
 
-<p>Cada seção do menu <strong>abre em passos</strong>, e a página da seção é só a porta: ela
-enquadra o assunto e lista o que vem dentro. A leitura inteira de uma seção é a sequência dos
-passos dela, na ordem, e o rodapé de cada página leva ao seguinte, atravessando a fronteira
-das seções. Quem procura uma coisa específica vai direto pelo menu; quem está aprendendo lê em
-frente.</p>
+<p>Cada seção abre em passos curtos, e o rodapé de cada página leva ao próximo. Está procurando
+algo específico? Vá direto pelo menu.</p>
 
-<p>A única seção sem passos é a <a href="#/autenticacao">autenticação</a>, e é de propósito: são
-cem linhas e uma história só, do clique no botão do Google até o token expirar.</p>
-
-<p>A lista de rotas com corpo de requisição e resposta fica no
-<a href="/swagger">Swagger</a>, gerado a partir do próprio código. Esta documentação
-explica o <em>porquê</em>; o Swagger mostra o <em>quê</em>.</p>
+<div class="note why">
+  <strong>Documentação ou Swagger?</strong>
+  <p>Aqui você encontra o porquê de cada decisão. O <a href="/swagger">Swagger</a> mostra o quê:
+  cada rota com o corpo da requisição e da resposta, gerado do próprio código.</p>
+</div>
 
 <h2>Nesta seção</h2>
 
 <div class="steps-index">
-  <a href="#/visao-geral/o-relato-entra"><strong>O relato entra, e o time trabalha</strong><span>Conta, projeto e chaves; o relato entrando pela ferramenta; e o time trabalhando o relato numa fila que o cliente desenha.</span></a>
-  <a href="#/visao-geral/quem-relatou-acompanha"><strong>Quem relatou acompanha</strong><span>A jornada pública, o mapa versionado entre as duas listas, e o motor que traduz uma na outra.</span></a>
-  <a href="#/visao-geral/o-ciclo-fecha"><strong>O ciclo fecha</strong><span>Encerrar com motivo, confirmar, reabrir, o pedido de informação com prazo e a espera antes de quem relatou ver.</span></a>
-  <a href="#/visao-geral/identidade-e-visibilidade"><strong>Identidade e visibilidade</strong><span>Como quem relata é reconhecido, quem pode ver os relatos, e a fila de moderação por onde todo relato passa.</span></a>
-  <a href="#/visao-geral/imagens-e-arquivos"><strong>Imagens e arquivos no relato</strong><span>O que dá para anexar, em que envio, quem anexa e quem lê; a captura de uma área da página, o editor da imagem, e por que o arquivo nunca abre na página.</span></a>
-  <a href="#/visao-geral/o-que-existe"><strong>O que existe, e o que fica para depois</strong><span>A lista inteira do que existe hoje, e a do que está declarado para depois, cada item com a sua situação.</span></a>
+  <a href="#/visao-geral/o-relato-entra"><strong>O relato entra, e o time trabalha</strong><span>Conta, projeto, o relato chegando e o quadro do time.</span></a>
+  <a href="#/visao-geral/quem-relatou-acompanha"><strong>Quem relatou acompanha</strong><span>A jornada pública e o motor que traduz o quadro para ela.</span></a>
+  <a href="#/visao-geral/o-ciclo-fecha"><strong>O ciclo fecha</strong><span>Encerrar com motivo, confirmar, reabrir e pedir informação.</span></a>
+  <a href="#/visao-geral/identidade-e-visibilidade"><strong>Identidade e visibilidade</strong><span>Como quem relata é reconhecido e quem pode ver cada relato.</span></a>
+  <a href="#/visao-geral/imagens-e-arquivos"><strong>Imagens e arquivos no relato</strong><span>O que dá para anexar, a captura de tela e o editor de imagem.</span></a>
+  <a href="#/visao-geral/o-que-existe"><strong>O que existe, e o que fica para depois</strong><span>A lista do que já funciona e do que vem depois.</span></a>
 </div>

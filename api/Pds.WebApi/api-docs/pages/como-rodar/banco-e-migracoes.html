@@ -1,24 +1,26 @@
-<h2>O banco</h2>
+<h2>O banco e as migrações</h2>
+<p class="lead">Um PostgreSQL hospedado, compartilhado pelo grupo.</p>
 
-<p>PostgreSQL hospedado, compartilhado pelo grupo. Não há banco local nem serviço de banco no
-<code>docker-compose.yml</code>: subir um ao lado seria convite a rodar migração no lugar
-errado sem perceber.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Não há banco no <code>docker-compose.yml</code>, para ninguém migrar o lugar errado.</li>
+    <li>Migração aplicada vale para todos na hora: combine antes.</li>
+  </ul>
+</div>
 
-<p>Duas armadilhas na string de conexão:</p>
+<h2>A string de conexão</h2>
 
 <ul>
-  <li><strong>O hostname interno não serve da sua máquina.</strong> A hospedagem dá dois: o
-  interno só resolve de dentro dela própria. De fora é preciso o externo, com domínio
-  completo. Quando a API for publicada lá, vale trocar pelo interno, que não sai para a
-  internet e responde mais rápido.</li>
-  <li><strong><code>SSL Mode=Require</code> é obrigatório.</strong> A hospedagem recusa
-  conexão em texto claro.</li>
+  <li><strong>Use o endereço externo.</strong> O interno só resolve de dentro da hospedagem; vale
+  trocar por ele quando a API rodar lá.</li>
+  <li><strong>No banco hospedado, <code>SSL Mode=Require</code>.</strong> A hospedagem recusa texto claro. A API não exige: o banco da produção, na rede interna, vai sem.</li>
 </ul>
 
 <div class="note warn">
   <strong>O banco é compartilhado</strong>
-  <p>Migração aplicada vale para todo mundo na hora. Combine com o grupo antes de rodar
-  <code>database update</code>.</p>
+  <p>Combine com o grupo antes de rodar <code>database update</code>.</p>
+  <p>A produção tem banco próprio, na mesma máquina da API, e é migrada pelo deploy (<code>deploy/scripts/implantar.sh</code>) antes de a API nova subir.</p>
 </div>
 
 <h2>Migrações</h2>
@@ -26,6 +28,9 @@ errado sem perceber.</p>
 <pre><code>dotnet ef migrations add &lt;Nome&gt; --project Pds.Data --startup-project Pds.WebApi --output-dir Migrations
 dotnet ef database update --project Pds.Data --startup-project Pds.WebApi</code></pre>
 
-<p>Usa o <code>dotnet-ef</code> global. O pacote <code>Microsoft.EntityFrameworkCore.Tools</code>
-não está no projeto de propósito: era redundante com o <code>Design</code> já presente na
-<code>WebApi</code> e arrastava uma dependência transitiva com vulnerabilidade conhecida.</p>
+<details class="mais">
+  <summary>Por que o <code>dotnet-ef</code> global</summary>
+  <p>O <code>Microsoft.EntityFrameworkCore.Tools</code> ficou fora do projeto: repetia o
+  <code>Design</code> da <code>WebApi</code> e trazia uma dependência com vulnerabilidade
+  conhecida.</p>
+</details>

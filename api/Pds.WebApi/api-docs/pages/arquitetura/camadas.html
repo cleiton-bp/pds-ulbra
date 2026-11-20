@@ -1,5 +1,17 @@
 <h2>O que cada camada carrega</h2>
+<p class="lead">Os dez projetos, o que cada um guarda e o que não pode guardar.</p>
 
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>A regra de negócio fica em <code>Service</code>, o acesso ao banco em <code>Data</code> e os controladores em <code>WebApi</code>.</li>
+    <li><code>Translation</code> não referencia nada, nem <code>Domain</code>.</li>
+    <li>Fila, armazenamento e e-mail só conectam: nada de transação, consulta ou regra.</li>
+  </ul>
+</div>
+
+
+<div class="table-scroll">
 <table>
   <tr><th>Camada</th><th>Contém</th><th>Não pode conter</th></tr>
   <tr>
@@ -34,7 +46,7 @@
   </tr>
   <tr>
     <td><code>Workers</code></td>
-    <td>Conexão com a fila, agendamento, os consumidores: o das esperas e o do e-mail</td>
+    <td>Conexão com a fila, agendamento, os consumidores: o das esperas (a etapa pública, o prazo do pedido e a exclusão da conta) e o do e-mail</td>
     <td>Transação, consulta, <strong>regra</strong></td>
   </tr>
   <tr>
@@ -50,9 +62,10 @@
   <tr>
     <td><code>WebApi</code></td>
     <td>Controladores, middleware, configuração</td>
-    <td>Regra de negócio, consulta direta: com uma exceção de propósito: o
+    <td>Regra de negócio e consulta direta, com uma exceção de propósito: o
     <code>AccountMiddleware</code> lê do banco quem é a pessoa e os projetos que ela enxerga,
     antes de qualquer serviço existir na requisição. Ver
     <a href="#/isolamento/de-onde-vem-a-conta">De onde vem o acesso</a>.</td>
   </tr>
 </table>
+</div>

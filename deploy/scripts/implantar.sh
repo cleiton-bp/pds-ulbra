@@ -283,7 +283,9 @@ conferir "$API_URL/health/ready"
 conferir "$PAINEL_URL/"
 conferir "$EDITOR_URL/api/modeling/files"
 conferir "$PAINEL_URL/embed.html" 404
-conferir "$API_URL/" 404
+# A documentacao da API na raiz e o Swagger ficam abertos.
+conferir "$API_URL/"
+conferir "$API_URL/swagger/v1/swagger.json"
 
 passo "Pronto"
 docker service ls --filter label=com.docker.stack.namespace=relatofacil --format '{{.Name}}  {{.Replicas}}  {{.Image}}'

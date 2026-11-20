@@ -1,7 +1,18 @@
+<h2>O envelope e os erros</h2>
+<p class="lead">A forma de toda resposta e o que cada status quer dizer.</p>
+
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Toda resposta vem no mesmo envelope, menos o 401 de token ausente ou vencido, que sai sem corpo.</li>
+    <li>JSON em PascalCase, datas em UTC com "Z", identificadores GUID.</li>
+    <li>O 500 nunca conta o motivo.</li>
+  </ul>
+</div>
+
 <h2>O envelope</h2>
 
-<p>Toda resposta tem a mesma forma, com sucesso ou sem. O painel lê o resultado num lugar só,
-em vez de descobrir o formato do erro a cada rota.</p>
+<p>Com uma forma só, o painel lê o resultado sempre no mesmo lugar.</p>
 
 <pre><code>{
   "Success": true,
@@ -10,16 +21,19 @@ em vez de descobrir o formato do erro a cada rota.</p>
   "Total": 3
 }</code></pre>
 
+<div class="table-scroll">
 <table>
   <tr><th>Campo</th><th>Quando aparece</th></tr>
   <tr><td><code>Success</code></td><td>Sempre.</td></tr>
-  <tr><td><code>Message</code></td><td>Texto para quem está usando. Nulo quando não há o que dizer.</td></tr>
-  <tr><td><code>Data</code></td><td>O retorno da rota. Nulo quando falha.</td></tr>
+  <tr><td><code>Message</code></td><td>Texto para quem usa, ou nulo.</td></tr>
+  <tr><td><code>Data</code></td><td>O retorno da rota. Nulo quando falha, menos no 429 da entrada do relato, que traz o motivo.</td></tr>
   <tr><td><code>Total</code></td><td>Só em listagem.</td></tr>
 </table>
+</div>
 
 <h2>Formato do JSON</h2>
 
+<div class="table-scroll">
 <table>
   <tr><th>Item</th><th>Formato</th><th>Exemplo</th></tr>
   <tr><td>Propriedade</td><td>PascalCase</td><td><code>"PublicId"</code></td></tr>
@@ -27,37 +41,44 @@ em vez de descobrir o formato do erro a cada rota.</p>
   <tr><td>Data e hora</td><td>ISO-8601 UTC com Z</td><td><code>"2026-08-17T22:13:43.1828520Z"</code></td></tr>
   <tr><td>Identificador</td><td>GUID</td><td><code>"2be49b28-0000-4000-8000-000000000000"</code></td></tr>
 </table>
-
-<div class="note why">
-  <strong>Por que PascalCase, se o banco é snake_case</strong>
-  <p>É o oposto de propósito. A fronteira fica visível a olho nu: quem lê
-  <code>account_id</code> sabe que está olhando banco, quem lê <code>AccountId</code> sabe
-  que está olhando contrato.</p>
 </div>
 
-<div class="note why">
-  <strong>Por que o "Z" na data importa</strong>
-  <p>As datas são gravadas em UTC, mas voltam do PostgreSQL sem informação de fuso. Sem o
-  "Z", o navegador leria cada uma como horário local e a linha do tempo apareceria
-  deslocada: três horas, no nosso caso.</p>
-</div>
+<details class="mais">
+  <summary>Por que PascalCase, e por que o "Z"</summary>
+  <p>O banco é snake_case de propósito: <code>account_id</code> é banco, <code>AccountId</code> é
+  contrato. As datas voltam do PostgreSQL sem fuso; sem o "Z", o navegador as leria como horário
+  local, três horas deslocadas.</p>
+</details>
 
 <h2>Erros</h2>
 
+<div class="table-scroll">
 <table>
   <tr><th>Status</th><th>Quando</th></tr>
-  <tr><td><code>400</code></td><td>Requisição inválida, por exemplo nome de projeto vazio. Na mídia, o pedido que só um cliente com defeito manda (tipo ou tamanho não informados, resposta e reabertura juntas, posição fora de 0 a 9, vídeo na configuração) e o arquivo que mudou depois de conferido, que subir de novo resolve.</td></tr>
-  <tr><td><code>401</code></td><td>Sem sessão, sessão expirada ou encerrada ao sair, ou token do Google inválido. Nas rotas públicas que pedem a chave, chave ausente, desconhecida ou revogada.</td></tr>
-  <tr><td><code>403</code></td><td>Regra de negócio negou o acesso: relato novo em projeto arquivado, reabertura em projeto que não a aceita, pedido de informação em projeto que não os faz ou a quem não aceitou perguntas, e endereço declarado que o projeto bloqueou; conferido em <code>POST /public/reports</code>, <code>GET /public/widget-settings</code>, <code>GET /public/widget-launcher</code> e <code>GET /public/media-settings</code>. No painel, o papel: quem está no projeto e não é administrador, ao tentar mudar a configuração ou ler as chaves, recebe <code>So administradores do projeto podem fazer isto.</code>, antes de o corpo ser lido. E duas conferências que moram no serviço: tirar outra pessoa do time sem administrar, e corrigir ou apagar o comentário interno de outra pessoa; esse, nem quem administra.</td></tr>
-  <tr><td><code>404</code></td><td>Não existe, ou existe num projeto em que a pessoa não está. Nas rotas de quem relatou, o link ou o código que não abre nenhum relato, sempre com a mesma mensagem. Ver <a href="#/isolamento/de-onde-vem-a-conta">por que 404, e não 403</a>.</td></tr>
-  <tr><td><code>409</code></td><td>Conflito, por exemplo nome de projeto já usado na conta, ou o título ou a descrição do card que outra pessoa salvou depois do <code>Base</code> da edição. Também o estado da instalação, sem armazenamento, pedir envio, confirmar, salvar a configuração de mídia e ler os anexos de um relato que tem anexo respondem 409; as leituras da configuração respondem 200, com o anexo desligado, e, no anexo, toda recusa que tentar de novo não muda: regra do projeto, formato, tamanho, envio cheio ou vencido. A ferramenta mostra "não enviado", com o motivo, e não oferece tentar de novo.</td></tr>
-  <tr><td><code>429</code></td><td>Limite de requisições por IP: no login, 20 por minuto; no pedido de permissão e na confirmação de anexo, que dividem a mesma janela, <code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code> por minuto (20 de fábrica). Sai no mesmo envelope, com a mensagem "Muitas tentativas. Espere um minuto e tente de novo." Na entrada do relato (<code>POST /public/reports</code>), os limites do projeto: cedo demais depois do anterior, o desafio invisível a resolver, ou a pausa de 15 minutos; com <code>Retry-After</code> e o motivo em <code>Data.Reason</code> (ver <a href="#/endpoints/rotas-publicas">Rotas públicas</a>).</td></tr>
+  <tr><td><code>400</code></td><td>Requisição inválida, como nome de projeto vazio.</td></tr>
+  <tr><td><code>401</code></td><td>Sem sessão, sessão vencida ou encerrada, token do Google inválido, ou chave pública ausente, desconhecida ou revogada.</td></tr>
+  <tr><td><code>403</code></td><td>Uma regra de negócio ou o papel negou.</td></tr>
+  <tr><td><code>404</code></td><td>Não existe, ou está num projeto em que a pessoa não está. Ver <a href="#/isolamento/de-onde-vem-a-conta">por que 404, e não 403</a>.</td></tr>
+  <tr><td><code>409</code></td><td>Conflito, como nome de projeto repetido ou texto do card salvo por outra pessoa depois do <code>Base</code>.</td></tr>
+  <tr><td><code>429</code></td><td>Muitas tentativas.</td></tr>
   <tr><td><code>500</code></td><td>Erro não previsto.</td></tr>
 </table>
+</div>
+
+<details class="mais">
+  <summary>Os casos de cada status</summary>
+  <ul>
+    <li><strong>400 na mídia:</strong> o que só um cliente com defeito manda (tipo ou tamanho faltando, resposta e reabertura juntas, posição fora de 0 a 9, vídeo na configuração) e o arquivo que mudou depois de conferido.</li>
+    <li><strong>403 de fora:</strong> relato novo em projeto arquivado, reabertura que o projeto não aceita e endereço bloqueado, este em <code>POST /public/reports</code>, <code>GET /public/widget-settings</code>, <code>GET /public/widget-launcher</code> e <code>GET /public/media-settings</code>. Arquivado, a configuração e o botão voltam desligados, sem 403.</li>
+    <li><strong>403 no painel:</strong> quem não administra recebe <code>So administradores do projeto podem fazer isto.</code> antes de o corpo ser lido. Também: tirar outra pessoa do time sem administrar, mexer no comentário interno alheio (nem quem administra), criar card em projeto arquivado, arquivar relato sem a regra do ciclo e pedir informação que o projeto não faz ou a quem não aceitou perguntas.</li>
+    <li><strong>404 de quem relatou:</strong> link ou código que não abre relato, sempre com a mesma mensagem.</li>
+    <li><strong>409 na mídia:</strong> sem armazenamento, pedir envio, confirmar, salvar a configuração e ler anexos de um relato que os tem dão 409 (ler a configuração dá 200, desligada). A recusa de anexo que tentar de novo não muda também é 409, e a ferramenta mostra "não enviado".</li>
+    <li><strong>429:</strong> login, 20 por minuto por IP; envio de anexo, <code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code> (20 de fábrica), com "Muitas tentativas. Espere um minuto e tente de novo." Na entrada do relato, os limites do projeto, com <code>Retry-After</code> e <code>Data.Reason</code> (ver <a href="#/endpoints/rotas-publicas">Rotas públicas</a>).</li>
+  </ul>
+</details>
 
 <div class="note warn">
   <strong>O 500 não conta o motivo</strong>
-  <p>A resposta é sempre "Erro ao processar a requisição". Mensagem interna vazada em
-  resposta conta ao curioso como o sistema é por dentro; o detalhe vai para o log do
-  servidor.</p>
+  <p>A resposta é sempre "Erro ao processar a requisição", para não mostrar o sistema por dentro.
+  O detalhe vai para o log.</p>
 </div>

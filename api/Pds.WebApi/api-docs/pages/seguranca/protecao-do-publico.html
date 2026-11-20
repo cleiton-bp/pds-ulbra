@@ -1,48 +1,45 @@
+<h2>O que protege o público</h2>
+<p class="lead">A varredura que avisa sem bloquear, e as rotas que nunca dizem o que existe.</p>
+
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>A moderação mostra o dado sensível que a varredura achou, sem recusar o relato.</li>
+    <li>As rotas públicas respondem igual para "não existe" e "está vazio".</li>
+    <li>Nada do que é do time sai nas respostas de fora.</li>
+  </ul>
+</div>
+
 <h2>A varredura sinaliza, e não bloqueia</h2>
 
-<p>Antes de um relato virar público, a fila de moderação mostra o que
-<code>SensitiveDataScanner</code> encontrou no texto: CPF, CNPJ, cartão, e-mail, telefone e
-credencial. Cada achado vem com posição e uma <strong>amostra mascarada</strong> (os dois
-primeiros e os dois últimos caracteres), para quem lê localizar sem o achado virar uma segunda
-cópia do dado.</p>
+<p>Antes de um relato virar público, a fila de moderação mostra o que <code>SensitiveDataScanner</code>
+achou no texto: CPF, CNPJ, cartão, e-mail, telefone e credencial. Cada achado vem com posição e uma
+<strong>amostra mascarada</strong> (os dois primeiros e os dois últimos caracteres; no e-mail, a primeira letra
+e o domínio), para não virar uma
+segunda cópia do dado.</p>
 
-<div class="note why">
-  <strong>Por que ela não recusa</strong>
-  <p>Ela erra, e tem de poder errar. Um detector que recusasse sozinho transformaria cada falso
-  positivo num relato perdido, e perdido para quem escreveu, que nem fica sabendo. Aqui o erro
-  custa uma etiqueta a mais para alguém ignorar.</p>
-  <p>Dígito verificador e Luhn entram na conta de propósito: sem eles, qualquer número de pedido de
-  onze dígitos viraria CPF, e o time aprenderia a ignorar a etiqueta; o único jeito de uma
-  varredura que não bloqueia falhar de verdade.</p>
+<div class="cartoes">
+  <div><strong>Não recusa</strong><p>Ela erra, e um detector que recusasse transformaria cada falso positivo num relato perdido. Aqui o erro custa uma etiqueta a mais.</p></div>
+  <div><strong>Confere o dígito</strong><p>Dígito verificador e Luhn evitam que todo número de pedido vire CPF e o time aprenda a ignorar a etiqueta.</p></div>
+  <div><strong>Roda na leitura</strong><p>Gravado na criação, o achado envelheceria. É função pura sobre o texto, sem estado nem rede.</p></div>
 </div>
 
-<div class="note why">
-  <strong>Roda na leitura da fila, e não na gravação</strong>
-  <p>O achado não é um fato sobre o relato: é o que temos a dizer a quem está decidindo agora.
-  Gravado na criação, envelheceria: melhorar um padrão deixaria o passado marcado pelo detector
-  velho, e reavaliar o que já estava na fila exigiria migração. É função pura sobre uma string,
-  sem estado, sem configuração e sem rede.</p>
-  <p>Dois tetos: 8000 caracteres varridos (o texto já para em 5000 na entrada) e
-  <strong>12 achados</strong> por relato; um log colado tem centenas de tokens iguais, e a partir
-  de um punhado a resposta é a mesma.</p>
-</div>
-
-<div class="note warn">
-  <strong>O que ela não vê</strong>
-  <p>Nome plausível, número de pedido sem dígito verificador, e nada do que vem anexado: ela lê
-  o texto, e só ele; a imagem e o arquivo não passam por varredura nenhuma. As respostas às
-  perguntas do tipo, sim: o texto do relato é montado delas, e é ele que a varredura lê. A varredura é a
-  segunda linha; a primeira é a fila, que mostra o texto inteiro justamente porque o detector
-  deixa passar de propósito.</p>
-  <p>Hoje isso não chega ao público, porque os anexos não saem da conversa entre quem relatou e o
-  time: a lista pública mostra só o texto. A lista com as imagens é <strong>Adiado</strong>.</p>
-</div>
+<details class="mais">
+  <summary>Os tetos e o que ela não vê</summary>
+  <p>Varre até 8000 caracteres (o texto já para em 5000 na entrada) e guarda até <strong>12
+  achados</strong> por relato, porque um log colado repete o mesmo token centenas de vezes.</p>
+  <p>Ela não vê nome plausível, número de pedido sem dígito verificador, nem anexo: lê só o texto, que é
+  montado das respostas às perguntas do tipo. A primeira linha de defesa é a fila, que mostra o texto
+  inteiro. Hoje anexo não chega ao público, porque a lista pública mostra só o texto; a lista com imagens
+  é <strong>Adiado</strong>.</p>
+</details>
 
 <h2>Sem oráculo nas rotas públicas</h2>
 
-<p>Sete rotas respondem sem sessão e sem credencial além da chave pública, que está no
-HTML do cliente. A regra que atravessa as sete: <strong>a resposta nunca diz o que existe</strong>.</p>
+<p>Sete rotas respondem só com a chave pública, que está no HTML do cliente. A regra das sete:
+<strong>a resposta nunca diz o que existe</strong>.</p>
 
+<div class="table-scroll">
 <table>
   <tr><th>Rota</th><th>Engano</th><th>Resposta</th></tr>
   <tr><td><code>by-code</code></td><td>código desconhecido, ou projeto que não usa o modo</td><td>lista vazia, e não 404</td></tr>
@@ -53,46 +50,37 @@ HTML do cliente. A regra que atravessa as sete: <strong>a resposta nunca diz o q
   <tr><td><code>by-identity/attachments</code></td><td>os mesmos de <code>by-identity/open</code></td><td>a mesma recusa única, e nenhum link assinado antes de ela passar</td></tr>
   <tr><td><code>published</code></td><td>projeto privado</td><td>lista vazia, e não uma recusa</td></tr>
 </table>
+</div>
 
-<p>Qualquer diferença entre "não existe" e "existe e está vazio" viraria um oráculo: tentar
-códigos até a resposta mudar é como se enumera código alheio, e "aqui não publica" contaria a
-configuração do cliente a qualquer um com a chave. Por isso o código pessoal é sorteado pelo
-sistema, nunca escolhido, e a lista pessoal tem <strong>teto</strong> de 50 em vez de paginação:
-paginar daria a quem sonda um jeito de medir o tamanho da lista alheia. O crachá do sistema do
-cliente segue a mesma regra: a lista pela identidade responde vazia, com o mesmo teto, e abrir tem a
-mesma recusa única, e da pessoa fica só um hash do identificador, com um sal do projeto, que não se
-desfaz.</p>
+<p>Se a resposta mudasse, daria para tentar códigos até acertar, ou descobrir a configuração do cliente.
+Por isso o código pessoal é sorteado pelo sistema, e a lista pessoal tem <strong>teto</strong> de 50 em
+vez de paginação, que deixaria medir a lista alheia. O crachá segue a mesma regra, e da pessoa fica só
+um hash do identificador, com sal do projeto.</p>
 
 <h2>O que é do time não sai</h2>
 
-<p>O número do card (#42), o card do time inteiro, o título e a descrição dele, o arquivamento, o
-título que o time deu a um relato, o responsável, a prioridade, as etiquetas e o prazo são do lado
-de dentro. Nenhuma resposta pública os leva: as respostas de fora são montadas campo a campo, e
-nenhuma lista esses campos.</p>
+<p>As respostas de fora são montadas campo a campo, e nenhuma leva o que é do lado de dentro: o número do
+card (#42), o card do time, o arquivamento, o título dado pelo time, o responsável, a prioridade, as
+etiquetas e o prazo.</p>
 
-<p><strong>O único título que sai é o que a própria pessoa escreveu</strong>, e só para ela: no
-acompanhamento e na lista pessoal, por código ou pela identidade do seu sistema. A lista pública, que outros visitantes leem, continua
-sem título nenhum, só o texto que a moderação liberou.</p>
-
-<p>Do tipo do relato sai <strong>só o nome</strong>, como o projeto o chama agora: a cor e o desenho
-são do painel e da ferramenta. E as respostas às perguntas do tipo voltam só para quem as escreveu,
-no acompanhamento, cada uma com a pergunta do envio; a lista pública mostra o texto liberado, que
-já é o relato inteiro: as respostas juntas, sem as perguntas.</p>
+<ul>
+  <li><strong>O título da própria pessoa</strong> sai só para ela, no acompanhamento e na lista pessoal.
+  A lista pública não tem título, só o texto liberado.</li>
+  <li><strong>Do tipo</strong> sai só o nome atual; cor e desenho ficam no painel e na ferramenta.</li>
+  <li><strong>As respostas às perguntas</strong> voltam só para quem as escreveu, cada uma com a pergunta.
+  A lista pública mostra o texto liberado, sem as perguntas.</li>
+</ul>
 
 <div class="note warn">
   <strong>O card do time nem tem por onde sair</strong>
-  <p>As portas públicas acham relato pelo protocolo, pelo código pessoal ou por estar liberado na
-  moderação. O banco recusa card do time com protocolo, token, código pessoal, etapa pública ou
-  moderação diferente de pendente, então não há porta que o encontre, mesmo que uma consulta
-  esqueça o filtro do tipo. E o montador das respostas de fora falha alto se receber um card do
-  time, em vez de devolver um relato em branco.</p>
+  <p>O banco recusa card do time com protocolo, token, código pessoal, etapa pública ou moderação diferente
+  de pendente, então nenhuma porta pública o encontra. E o montador das respostas de fora falha alto se
+  receber um.</p>
 </div>
 
 <div class="note why">
   <strong>A descrição em Markdown não abre porta para código</strong>
-  <p>O painel desenha a descrição do card transformando o texto em elementos, nunca em HTML: o que
-  alguém escrever com sinal de menor e maior aparece como texto. Link só com <code>http</code>,
-  <code>https</code> ou <code>mailto</code> (<code>javascript:</code> fica como o texto que era),
-  abre em outra aba sem levar a página junto, e imagem não carrega, para um card aberto não avisar
-  servidor nenhum de que alguém o leu.</p>
+  <p>O painel transforma o texto em elementos, nunca em HTML. Link só com <code>http</code>,
+  <code>https</code> ou <code>mailto</code> (<code>javascript:</code> fica como texto) e abre em outra aba.
+  Imagem não carrega, para o card aberto não avisar ninguém de que foi lido.</p>
 </div>

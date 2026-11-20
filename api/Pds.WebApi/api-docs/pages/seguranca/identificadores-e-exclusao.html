@@ -1,69 +1,78 @@
+<h2>Identificadores e exclusão</h2>
+<p class="lead">O id interno não sai, e apagar quase sempre é só esconder.</p>
+
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Todo identificador exposto é um GUID aleatório.</li>
+    <li>Excluir preenche <code>deleted_at</code>, e o filtro global esconde a linha.</li>
+    <li>São apagados de verdade só o card de origem bloqueada, com confirmação escrita, e a conta excluída,
+    24 horas depois do pedido.</li>
+  </ul>
+</div>
+
 <h2>O id interno não sai</h2>
 
-<p>Todo identificador exposto é um GUID aleatório. Um inteiro sequencial na URL entrega
-quantos registros existem e quais são os vizinhos, e convida a trocar o número para ver o do
-lado.</p>
-
-<p>A garantia está em três camadas: o GUID é sorteado pelo contexto ao gravar, os view models
-só expõem <code>PublicId</code>, e as rotas só aceitam GUID.</p>
+<p>Número sequencial na URL convida a trocar o número para ver o do lado. O contexto sorteia o GUID ao
+gravar, os view models só expõem <code>PublicId</code> e as rotas só aceitam GUID.</p>
 
 <h2>Apagar não é apagar</h2>
 
-<p>A exclusão preenche <code>deleted_at</code> e o filtro global esconde a linha. Serve para
-desfazer engano e para manter integridade referencial.</p>
+<p>Esconder a linha permite desfazer engano e mantém a integridade referencial.</p>
 
-<div class="note todo">
-  <strong>Nenhuma rota apaga projeto ou conta</strong>
-  <p>A máquina existe (<code>BaseRepository.SoftDeleteAsync</code> preenche a data e
-  propaga aos filhos marcados com <code>[SoftDeleteDependent]</code>) e é usada no que é
-  miúdo: tirar um endereço autorizado ou bloqueado ou uma etapa pública, desfazer um encerramento,
-  descartar um anexo recusado. A propagação, que só existe em projeto, relato e conta, ainda não tem
-  chamador. Projeto se arquiva, não se apaga, e apagar de vez depende de decidir o que fazer
-  com os relatos que apontam para ele.</p>
+<div class="note info">
+  <strong>Projeto se arquiva, e a conta se exclui pelo Perfil</strong>
+  <p>Em <strong>Excluir a conta</strong> (<code>POST /me/deletion</code>), a conta e os projetos dela ganham o
+  mesmo <code>deleted_at</code> e saem do ar na hora, e as sessões da pessoa se encerram. Entrar de novo com o
+  mesmo Google em 24 horas desfaz tudo. Vencido o prazo, a fila apaga de verdade os projetos, os relatos e os
+  arquivos, e anonimiza a pessoa.</p>
+  <p><code>BaseRepository.SoftDeleteAsync</code> continua no miúdo (endereço, etapa pública, encerramento,
+  anexo recusado), e a propagação aos filhos marcados com <code>[SoftDeleteDependent]</code> ainda não tem
+  chamador.</p>
 </div>
 
-<h3>A exceção: apagar de vez o card de origem bloqueada</h3>
+<h2>A exceção: o card de origem bloqueada</h2>
 
-<p>Só os relatos que o time recusa como de outro site são apagados de verdade, e por três
-caminhos, todos de quem administra: <code>POST .../reports/blocked-origin/delete</code>, para os
-que vieram de um domínio bloqueado (a escolha do time diante de quem copiou a chave pública para
-outro site); bloquear um domínio, que apaga junto, na mesma transação, os relatos dele que
-aguardavam liberação; e <code>POST .../origins/pending/delete</code>, que nega os retidos de um
-endereço. Nela, <strong>apagar é <code>DELETE</code></strong>,
-e não <code>deleted_at</code>: sai o card e tudo que identifica quem relatou (texto, respostas,
-títulos, nome, contexto, comentários, encerramentos, pedidos de informação, etiquetas, anexos (a
-linha e o arquivo no balde), avisos do sino e vínculos), com as subtarefas junto. Fica o que não é
-dado de ninguém: os eventos, sem o card e sem o caminho da página, e um evento do projeto com
-quantos e de quais domínios. O link de acompanhamento passa a responder 404.</p>
+<p>Os relatos que o time recusa como de outro site são apagados de verdade, por três caminhos, todos de
+quem administra:</p>
 
-<p>Por não ter volta, ela pede a confirmação escrita (a palavra <code>apagar</code>, ou o domínio
-de onde todos os cards vieram) na tela e de novo na API, e o painel oferece antes o
-<strong>manter</strong>, que só tira a marca: o domínio pode ter sido bloqueado por engano.</p>
+<ul>
+  <li><code>POST .../reports/blocked-origin/delete</code>, para os que vieram de um domínio bloqueado.</li>
+  <li>Bloquear um domínio, que apaga na mesma transação os relatos dele que aguardavam liberação.</li>
+  <li><code>POST .../origins/pending/delete</code>, que nega os retidos de um endereço.</li>
+</ul>
+
+<p>Aqui <strong>apagar é <code>DELETE</code></strong>: sai o card com tudo que identifica quem relatou.
+Ficam os eventos e um evento do projeto com quantos e de quais domínios. O link de acompanhamento passa a
+responder 404.</p>
+
+<p>No primeiro caminho, pede confirmação escrita (a palavra <code>apagar</code>, ou o domínio de origem) na tela e na API.
+Antes, o painel oferece <strong>manter</strong>, que só tira a marca.</p>
+
+<details class="mais">
+  <summary>O que sai junto com o card</summary>
+  <p>As subtarefas, e de cada card: texto, respostas, títulos, nome, contexto, comentários, encerramentos, pedidos de informação,
+  etiquetas, anexos (a linha e o arquivo no balde), avisos do sino e vínculos. Os eventos ficam sem o card
+  e sem o caminho da página.</p>
+</details>
 
 <div class="note warn">
   <strong>Exclusão lógica não atende à LGPD</strong>
-  <p>Um pedido de exclusão de dados exige apagar de verdade ou anonimizar. As colunas
-  <code>purge_at</code> e <code>anonymized_at</code> em <code>accounts</code> existem para
-  isso, mas <strong>a rotina ainda não foi implementada</strong>.</p>
-  <p>E a mídia aceita só sai do balde com o card de origem bloqueada apagado de vez. Fora dele, o
-  que se apaga fisicamente é só o que não virou anexo: o arquivo recusado, a cópia de envio que sobra da confirmação, a miniatura que não passa
-  na conferência. Por quanto tempo a mídia fica guardada, e apagá-la quando vencer, é
-  <strong>Adiado</strong>.</p>
+  <p>A lei pede apagar de verdade ou anonimizar, e é o que a exclusão da conta faz quando vence o prazo:
+  <code>purge_at</code> em <code>accounts</code> guarda quando, e <code>anonymized_at</code>, quando foi feito.</p>
+  <p>Fora o card de origem bloqueada e a conta excluída, do balde só sai o que não virou anexo. O prazo de guarda da mídia é <strong>Adiado</strong>.</p>
 </div>
 
-<h3>O que a anonimização precisará fazer</h3>
+<h2>O que a exclusão da conta faz</h2>
 
-<p>Não basta limpar <code>users</code>. O nome da conta e o nome do projeto identificam
-igual, e o que vem pendurado neles (domínios autorizados, os próprios relatos, os prints)
-identifica ainda mais. A rotina é <strong>Planejado</strong>.</p>
+<p>Limpar <code>users</code> não basta. Vencidas as 24 horas, a limpeza roda pela fila, numa transação só, e
+os arquivos saem do balde logo depois.</p>
 
 <ul>
-  <li><code>users</code>: saem nome, e-mail, avatar e <code>google_subject</code>. Limpar o
-  <code>google_subject</code> é o que impede a conta de ser reencontrada num login futuro.</li>
-  <li><code>accounts</code>: sai o nome; a linha fica como âncora do histórico.</li>
-  <li>Projeto, chaves e relatos: apagados de verdade.</li>
-  <li>Os arquivos no balde: apagados de verdade também. Apagar a linha do anexo e deixar o
-  objeto seria guardar o print, e um print mostra a tela de alguém, às vezes com o nome, o
-  e-mail ou o pedido dele.</li>
-  <li>Sobram contagem e tempo, que não identificam ninguém e são o que a pesquisa precisa.</li>
+  <li><code>users</code>: o nome vira "Pessoa removida" e saem e-mail, avatar e <code>google_subject</code>, para a
+  conta não ser reencontrada num login futuro. Saem também os avisos, os sons e o lugar nos times de outras
+  contas.</li>
+  <li><code>accounts</code>: sai o nome, e a linha fica como âncora do histórico.</li>
+  <li>Projeto, chaves, relatos e arquivos no balde: apagados de verdade.</li>
+  <li>Sobram contagem e tempo, que não identificam ninguém e servem à pesquisa.</li>
 </ul>

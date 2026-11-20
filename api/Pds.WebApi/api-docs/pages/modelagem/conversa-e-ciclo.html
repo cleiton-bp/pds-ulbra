@@ -1,139 +1,95 @@
+<h2>Conversa e ciclo</h2>
+<p class="lead">Os comentários, o encerramento e o pedido de informação.</p>
+
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Comentário interno e público moram em tabelas separadas, para o interno nunca vazar.</li>
+    <li>O time encerra, e quem relatou confirma depois: são dois momentos.</li>
+    <li>O pedido de informação guarda só o relógio; a pergunta é um comentário público.</li>
+  </ul>
+</div>
+
 <h2>report_internal_comments, report_public_comments</h2>
 
+<p>Com um campo de visibilidade, vazar o interno seria esquecer um filtro, sem erro nenhum. Com
+duas tabelas, vazar exige escrever uma consulta que ninguém teria motivo para escrever.</p>
+
+<div class="table-scroll">
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>report_id</code></td><td>Relato comentado.</td></tr>
-  <tr><td><code>user_id</code></td><td>Quem escreveu, do lado de dentro. <b>Obrigatório no interno</b>: comentário sem autor não serve para decidir nada depois. <b>Anulável no público</b>, e ali nulo quer dizer que quem escreveu foi <b>quem relatou</b>, respondendo a um pedido de informação.</td></tr>
-  <tr><td><code>body</code></td><td>O texto. 5000 nas duas: limites separados de propósito, porque o público sai para fora e pode ganhar regra própria.</td></tr>
+  <tr><td><code>user_id</code></td><td>Quem escreveu, do lado de dentro. <b>Obrigatório no interno</b>. <b>Anulável no público</b>: nulo quer dizer que foi <b>quem relatou</b>, respondendo a um pedido de informação.</td></tr>
+  <tr><td><code>body</code></td><td>O texto, até 5000 nas duas. Limites separados de propósito: o público sai para fora e pode ganhar regra própria.</td></tr>
 </table>
-
-<div class="note warn">
-  <strong>Duas tabelas, e não uma com campo de visibilidade</strong>
-  <p>É a decisão mais importante desta parte do banco. Com um sinalizador, vazar o comentário interno é
-  esquecer um filtro numa consulta, e o esquecimento não dá erro em lugar nenhum: a resposta sai
-  com uma linha a mais. Com tabelas separadas, vazar exige escrever uma consulta que não existe e
-  que ninguém teria motivo para escrever.</p>
-  <p>A separação vai até o fim: duas entidades, dois repositórios <b>sem interface comum</b>,
-  dois métodos de serviço, duas rotas e dois tipos de evento. Uma base compartilhada convidaria a
-  escrever uma consulta genérica "comentários do relato", e é exatamente ela o vazamento.</p>
-  <p><b>O texto não entra no evento.</b> A tabela de eventos só cresce e nunca é apagada; copiar
-  o texto interno para lá criaria uma segunda cópia do dado mais perigoso num lugar que não se
-  consegue limpar.</p>
 </div>
 
-<div class="note why">
-  <strong>O interno se corrige, e sem coluna nova</strong>
-  <p>Quem escreveu um comentário interno pode corrigir o texto e apagá-lo, só essa pessoa. A
-  correção reescreve <code>body</code>, e é o <code>updated_at</code> de sempre que diz que houve:
-  passando de um segundo depois de <code>created_at</code>, o comentário volta com
-  <code>EditedAt</code>, e a tela o marca como editado. O segundo de folga é para não marcar como
-  editado o que só foi gravado. Apagar é exclusão lógica, como o resto.</p>
-  <p><b>Nenhum evento novo.</b> O histórico registra que houve comentário, e não o que foi dito; a
-  correção fica no próprio comentário, e a linha "comentário entre o time" fica mesmo depois de
-  apagado: houve comentário.</p>
-  <p><b>O público não se corrige.</b> O que foi para quem relatou já saiu da empresa: a pessoa pode
-  ter lido, e trocar o texto depois seria reescrever uma conversa.</p>
-</div>
+<ul>
+  <li><strong>Separação até o fim</strong>: duas entidades, dois repositórios sem interface comum, dois métodos de serviço, duas rotas e dois tipos de evento.</li>
+  <li><strong>O texto não entra no evento</strong>: a tabela de eventos nunca se apaga, e não pode guardar cópia do dado interno.</li>
+  <li><strong>O público não se corrige</strong>: quem relatou pode já ter lido.</li>
+</ul>
+
+<details class="mais">
+  <summary>Como o interno se corrige</summary>
+  <p>Só quem escreveu corrige ou apaga. A correção reescreve <code>body</code>; se o
+  <code>updated_at</code> passa um segundo do <code>created_at</code>, o comentário volta com
+  <code>EditedAt</code> e a tela marca como editado. Apagar é exclusão lógica. Nenhum evento novo:
+  o histórico registra que houve comentário, e não o que foi dito.</p>
+</details>
 
 <h2>report_closures</h2>
 
+<p>Uma linha por encerramento. Ela nasce <b>esperando resposta</b>: o time diz que acabou
+(<code>closed_at</code>) e quem relatou diz se resolveu (<code>confirmed_at</code>).</p>
+
+<div class="table-scroll">
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>report_id</code></td><td>Relato encerrado.</td></tr>
   <tr><td><code>outcome</code></td><td><code>done</code> | <code>wont_do</code> | <code>no_answer</code> | <code>duplicate</code>.</td></tr>
-  <tr><td><code>reason</code></td><td>Por que acabou, escrito por quem encerrou. <b>Obrigatório</b>: sem ele a pessoa fica sabendo que acabou e não o que aconteceu.</td></tr>
+  <tr><td><code>reason</code></td><td>Por que acabou, escrito por quem encerrou. <b>Obrigatório</b>: sem ele a pessoa sabe que acabou, mas não o que aconteceu.</td></tr>
   <tr><td><code>closed_by_user_id</code></td><td>Quem do time encerrou. <b>Nulo quer dizer que foi o sistema</b>, no fim do prazo do pedido de informação.</td></tr>
-  <tr><td><code>closed_at</code></td><td>Quando encerrou, em UTC. Separado de <code>created_at</code> porque encerramento agendado é gravado quando a fila o consome.</td></tr>
-  <tr><td><code>public_at</code></td><td>Quando este fechamento passa a valer <b>para quem relatou</b>. Igual a <code>closed_at</code> quando não há espera; adiante dele durante a janela de desfazer. O painel não lê esta coluna.</td></tr>
+  <tr><td><code>closed_at</code></td><td>Quando encerrou, em UTC. Separado de <code>created_at</code> porque o encerramento agendado é gravado quando a fila o consome.</td></tr>
+  <tr><td><code>public_at</code></td><td>Quando o fechamento passa a valer <b>para quem relatou</b>. Igual a <code>closed_at</code> sem espera; adiante dele durante a janela de desfazer. O painel não lê.</td></tr>
   <tr><td><code>confirmed_at</code></td><td>Quando quem relatou confirmou que resolveu. Nulo enquanto não respondeu.</td></tr>
-  <tr><td><code>satisfaction</code></td><td>Nota de 1 a 5 dada na confirmação. Nula quando não houve resposta, e nula também quando houve recusa, que é outra coisa.</td></tr>
+  <tr><td><code>satisfaction</code></td><td>Nota de 1 a 5 da confirmação. Nula sem resposta e nula na recusa.</td></tr>
   <tr><td><code>satisfaction_declined</code></td><td>A pessoa clicou em "prefiro não responder".</td></tr>
-  <tr><td><code>reopened_at</code></td><td>Quando quem relatou reabriu. Preenchido, esta linha deixou de ser o fim do relato.</td></tr>
-  <tr><td><code>reopen_comment</code></td><td>Por que reabriu, nas palavras de quem relatou. Obrigatório quando o projeto pede; sem o pedido, pode ficar em branco. É para quem for pegar o trabalho de novo, e não para justificar o pedido, e é lido dos dois lados: no relato aberto no painel e na página de quem relatou, com os arquivos que vieram na reabertura logo junto dele.</td></tr>
+  <tr><td><code>reopened_at</code></td><td>Quando quem relatou reabriu. Preenchido, a linha deixou de ser o fim do relato.</td></tr>
+  <tr><td><code>reopen_comment</code></td><td>Por que reabriu. Obrigatório quando o projeto pede. Aparece no painel e na página de quem relatou, com os arquivos da reabertura.</td></tr>
 </table>
-
-<div class="note why">
-  <strong>"Concluído" e "Confirmado" são momentos diferentes</strong>
-  <p>É o coração da metáfora do produto: o time diz que acabou, e quem relatou diz que resolveu.
-  Uma coluna só ("encerrado") juntaria os dois e devolveria exatamente o que o README denuncia,
-  que é a pessoa ficar sabendo que o caso foi fechado sem ter dito se o problema sumiu.</p>
-  <p>Por isso <code>closed_at</code> e <code>confirmed_at</code> convivem, e por isso a linha
-  <b>espera resposta</b> depois de gravada. Ela é o único registro do sistema que nasce sabendo
-  que ainda falta alguém falar.</p>
 </div>
 
-<div class="note warn">
-  <strong>Recusar opinar não é ausência de opinião</strong>
-  <p><code>satisfaction</code> e <code>satisfaction_declined</code> são colunas separadas, com
-  uma <em>check constraint</em> proibindo as duas preenchidas. Pôr a recusa dentro da escala (um
-  zero, um sexto valor) faria dela a pior avaliação possível, e a média contaria como
-  insatisfação quem só não quis responder.</p>
-  <p>A outra trava limita a nota a 1 a 5. As duas existem porque os dois erros são fáceis de
-  gravar e impossíveis de enxergar depois.</p>
-</div>
+<ul>
+  <li><strong>Recusar não é nota</strong>: <code>satisfaction</code> e <code>satisfaction_declined</code> são separadas e nunca preenchidas juntas, senão a média contaria a recusa como insatisfação. Outra trava limita a nota a 1 a 5.</li>
+  <li><strong>A espera vale para o motivo também</strong>: <code>public_at</code> segura o fechamento inteiro, e não só o passo da jornada.</li>
+  <li><strong>Sair da coluna que encerra desfaz o encerramento</strong>: a linha é apagada logicamente e nasce um <code>report_closure_cancelled</code>. Fechamento já confirmado não se desfaz.</li>
+  <li><strong>As linhas antigas ficam</strong>: reaberto e fechado de novo ganha linha nova, e o histórico mostra quantas vezes quem relatou discordou.</li>
+</ul>
 
-<div class="note warn">
-  <strong>A espera vale para o fechamento, e não só para a jornada</strong>
-  <p>É o que <code>public_at</code> existe para resolver. Sem ela, um projeto com espera
-  configurada segurava o passo da jornada e deixava o <b>motivo</b> escapar na hora, e o motivo é
-  justamente o que a pessoa lê primeiro. A janela de desfazer cobria a metade menos importante.</p>
-  <p>E sair da coluna que encerra <b>desfaz o encerramento</b>: a linha é apagada logicamente e
-  nasce um <code>report_closure_cancelled</code>. Sem isso, desfazer um movimento errado devolvia o
-  relato para a fila e o deixava encerrado: a pessoa continuava lendo "acabou" sobre um relato que
-  o time voltou a trabalhar.</p>
-  <p><b>Fechamento já confirmado não se desfaz.</b> Ali quem relatou respondeu, e a resposta dela é
-  o dado que o produto existe para colher.</p>
-</div>
-
-<div class="note why">
-  <strong>Uma linha por fechamento, e as antigas ficam</strong>
-  <p>Relato reaberto e fechado de novo ganha linha nova. A anterior continua com o motivo, a
-  nota e a data: é o histórico de quantas vezes o time achou que tinha acabado e quem relatou
-  discordou, que é justamente o que se vai querer medir.</p>
-  <p><code>closed_by_user_id</code> usa <code>Restrict</code>: quem encerrou não some enquanto
-  houver fechamento dele. A conta excluída esvazia o usuário e o nome sai junto, mas a linha
-  fica, porque apagá-la apagaria a decisão que ela explica.</p>
-</div>
+<p><code>closed_by_user_id</code> usa <code>Restrict</code>. A conta excluída perde o nome, mas a
+linha fica, porque explica a decisão.</p>
 
 <h2>report_info_requests</h2>
 
+<p>Guarda <b>o relógio</b> do pedido: quem perguntou, quando e os dois prazos. O texto da pergunta
+é um comentário público, então a conversa continua depois de o pedido fechar.</p>
+
+<div class="table-scroll">
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>report_id</code></td><td>Relato devolvido com uma pergunta.</td></tr>
   <tr><td><code>asked_by_user_id</code></td><td>Quem do time perguntou. <b>Obrigatório</b>, ao contrário de <code>closed_by_user_id</code>: o sistema encerra sozinho, mas nunca pergunta sozinho.</td></tr>
   <tr><td><code>asked_at</code></td><td>Quando a equipe perguntou.</td></tr>
   <tr><td><code>warn_at</code></td><td>Quando a página passa a avisar que o relato vai encerrar.</td></tr>
-  <tr><td><code>close_at</code></td><td>Quando encerra como "sem retorno". <b>É este o momento agendado na fila.</b></td></tr>
-  <tr><td><code>answered_at</code></td><td>Quando quem relatou respondeu. Fecha o pedido pelo caminho bom.</td></tr>
-  <tr><td><code>expired_at</code></td><td>Quando o prazo venceu sem resposta. Fecha o pedido pelo outro caminho.</td></tr>
+  <tr><td><code>close_at</code></td><td>Quando encerra como "sem retorno". <b>É o momento agendado na fila.</b></td></tr>
+  <tr><td><code>answered_at</code></td><td>Quando quem relatou respondeu.</td></tr>
+  <tr><td><code>expired_at</code></td><td>Quando o prazo venceu sem resposta.</td></tr>
 </table>
-
-<div class="note why">
-  <strong>A pergunta não mora aqui</strong>
-  <p>O texto que a equipe escreveu é um comentário público como qualquer outro: a conversa
-  acontece pelo próprio relato, numa lista só. Esta tabela guarda <b>o relógio</b>: quem
-  perguntou, quando, e os dois prazos.</p>
-  <p>Separar as duas coisas é o que permite a conversa continuar depois de o pedido fechar, sem
-  que a resposta fique presa a um registro que já acabou.</p>
 </div>
 
-<div class="note why">
-  <strong>Os dois prazos são gravados, e não lidos da configuração</strong>
-  <p><code>warn_at</code> e <code>close_at</code> nascem do <code>project_cycle_settings</code> no
-  instante do pedido e ficam. Mudar a configuração depois não move o relógio de um pedido já
-  aberto: quem relatou leu uma data na tela, e a data tem de continuar valendo.</p>
-  <p>Duas <em>check constraints</em> guardam o desenho: <code>asked_at ≤ warn_at ≤ close_at</code>,
-  porque avisar depois de encerrar não avisa nada; e <code>answered_at</code> e
-  <code>expired_at</code> nunca preenchidos juntos, porque respondido e vencido são caminhos
-  opostos.</p>
-</div>
-
-<div class="note warn">
-  <strong>O primeiro prazo é estado de tela, e não um envio</strong>
-  <p>Só <code>close_at</code> é agendado na fila. O aviso do <code>warn_at</code> é a página
-  mudando de tom quando a data passa, enquanto não houver canal de comunicação, avisar é isso,
-  e não há nada a disparar naquele instante.</p>
-  <p>E o aviso diz que encerrado assim <b>continua reabrível</b>. Sem essa frase ele viraria
-  ameaça: quem não respondeu em duas semanas pode voltar no mês seguinte, e o produto existe
-  justamente para quem foi esquecido.</p>
-</div>
+<ul>
+  <li><strong>Os prazos ficam gravados</strong>: <code>warn_at</code> e <code>close_at</code> nascem do <code>project_cycle_settings</code> e não mudam depois, porque quem relatou já leu a data.</li>
+  <li><strong>Duas travas</strong>: <code>asked_at ≤ warn_at ≤ close_at</code>, e <code>answered_at</code> e <code>expired_at</code> nunca juntos.</li>
+  <li><strong>Só <code>close_at</code> vai para a fila</strong>: o <code>warn_at</code> é a página mudando de tom, e o aviso diz que o relato encerrado assim <b>continua reabrível</b>.</li>
+</ul>

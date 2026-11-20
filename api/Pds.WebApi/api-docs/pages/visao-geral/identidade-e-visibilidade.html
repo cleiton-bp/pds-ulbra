@@ -1,67 +1,69 @@
 <h2>Identidade e visibilidade</h2>
-<p class="lead">Como quem relata é reconhecido, quem pode ver os relatos, e a fila de moderação por onde todo relato passa.</p>
+<p class="lead">Como quem relata é reconhecido, quem vê os relatos e a moderação por onde todos passam.</p>
 
-<p>O projeto escolhe <strong>como quem relata é reconhecido</strong>, entre três modos. Por
-protocolo, que é o comportamento de sempre. Por um <strong>código pessoal</strong> que o sistema
-sorteia e a pessoa guarda: digitado num navegador qualquer, ele reencontra tudo que ela já relatou,
-sem login nenhum. Ou pela <strong>identidade do sistema do cliente</strong>: a pessoa já entrou na
-conta do site onde a ferramenta está, e é o servidor dele que diz quem ela é; ela não digita nem
-guarda nada.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>O projeto reconhece quem relata por protocolo, por código pessoal ou pela conta do site do cliente.</li>
+    <li>A visibilidade pode ser privada, pública anônima ou pública identificada.</li>
+    <li>Todo relato nasce pendente e só vai para a lista pública depois que o time libera.</li>
+  </ul>
+</div>
 
-<p>Nesse modo, o servidor do cliente assina um <strong>crachá</strong> (nunca o token de login) e o
-coloca no script do carregador, ao lado de <code>data-key</code>; quem não está na conta fica sem
-ele. São dois formatos, à escolha do projeto: a <strong>assinatura simples (HMAC)</strong>, de
-fábrica, uma linha em qualquer linguagem com a chave secreta do projeto, nos atributos
-<code>data-user-*</code>; e o <strong>JWT ES256</strong>, em <code>data-identity</code>, conferido
-com a <strong>chave pública ECDSA P-256</strong> que o cliente cola na tela Privacidade. Nos dois, a
-API <strong>nunca chama o sistema dele</strong>, e um vazamento do nosso banco não deixa forjar
-identidade nenhuma: no JWT o banco só tem a chave pública, e no HMAC a chave secreta nem é
-guardada, porque sai da chave mestra da instalação. O crachá vale para um
-projeto só (o <code>aud</code> é a chave pública) e por pouco tempo, até a validade máxima que o
-projeto define, 15 minutos de fábrica: um crachá que vale por horas seria um token de login
-disfarçado.</p>
+<h2>Três jeitos de reconhecer quem relata</h2>
 
-<p>Da pessoa, guarda-se <strong>só um hash</strong> do <code>sub</code>, com um sal próprio do
-projeto, na mesma tabela <code>reporter_codes</code> do código pessoal, numa linha que nasce no
-primeiro relato dela: a lista dela funciona igual, e quem abre o banco não descobre quem ela é no
-sistema do cliente. O projeto também decide o que fazer com o relato <strong>sem crachá</strong>:
-de fábrica ele entra como protocolo, sem identidade, e a resposta diz isso; com a exigência ligada,
-é recusado, e a ferramenta pede para entrar na conta antes de a pessoa escrever. Fora do modo, o
-crachá é <strong>ignorado</strong>, e não recusado como o código pessoal é: o código é digitado
-pela pessoa, mas o atributo pode ter ficado na página depois de o projeto trocar de modo, e
-recusá-lo derrubaria todo relato daquele site por uma configuração antiga.</p>
+<div class="cartoes">
+  <div><strong>Protocolo</strong><p>O de sempre: o relato tem um protocolo e um link.</p></div>
+  <div><strong>Código pessoal</strong><p>Um código sorteado que, em qualquer navegador, reencontra tudo o que a pessoa relatou, sem login.</p></div>
+  <div><strong>Conta do site do cliente</strong><p>A pessoa já entrou no site, e o servidor dele diz quem ela é.</p></div>
+</div>
 
-<p>É essa escolha que decide o que a <strong>visibilidade</strong> pode ser: privado, público
-anônimo ou público identificado, e o último só onde existe identidade, pelo código pessoal ou
-pelo sistema do cliente, porque sem ela não há nome nenhum a mostrar. Os dois campos vivem na
-mesma tela (<strong>Privacidade</strong>) e são gravados juntos, para a tela não oferecer uma
-combinação que a regra não permite. Perguntar o nome fica em <strong>Textos e tema</strong>, junto do
-texto da pergunta.</p>
+<h2>O crachá da conta do cliente</h2>
 
-<p><strong>Gravar público não publica nada.</strong> Todo relato nasce pendente (inclusive em
-projeto privado) e só aparece na lista pública depois de alguém do time liberar. É isso que faz
-marcar um projeto como público não jogar na rua o histórico inteiro de uma vez. A recusa não apaga
-nem encerra: fala só da vitrine, e quem relatou continua acompanhando pelo link. Em projeto
-privado, a tela de Moderação diz isso no topo, e a fila não conta: ela só importa quando o projeto
-abre os relatos ao público.</p>
+<p>O servidor do cliente assina um <strong>crachá</strong> (nunca o token de login) e o põe no
+script do carregador, ao lado de <code>data-key</code>. A API <strong>nunca chama o sistema do
+cliente</strong>, e o crachá vale por pouco tempo, 15 minutos de fábrica.</p>
 
-<p>Liberar o relato libera o <strong>texto</strong>. Imagem e arquivo nunca saem para o público:
-mostrá-los pediria moderar cada imagem, e a moderação olha só o texto. A lista pública com as
-imagens, e a página própria de um relato público aprovado, são <strong>Adiado</strong>.</p>
+<details class="mais">
+  <summary>Os dois formatos do crachá e o que se guarda</summary>
+  <ul>
+    <li><strong>Assinatura simples (HMAC)</strong>, de fábrica, com a chave secreta do projeto, nos atributos <code>data-user-*</code>. A chave nem é guardada: sai da chave mestra da instalação.</li>
+    <li><strong>JWT ES256</strong>, em <code>data-identity</code>, conferido com a <strong>chave pública ECDSA P-256</strong> colada na tela Privacidade. O banco só tem a chave pública.</li>
+    <li>O <code>aud</code> é a chave pública do projeto, e a validade máxima é do projeto.</li>
+    <li>Da pessoa, só um hash do <code>sub</code>, com sal do projeto, na tabela <code>reporter_codes</code>, numa linha que nasce no primeiro relato dela.</li>
+  </ul>
+</details>
 
-<p>A fila de moderação mostra o texto inteiro e, sobre ele, o que a <strong>varredura de dado
-sensível</strong> encontrou: CPF, CNPJ, cartão, e-mail, telefone e credencial, com a amostra
-mascarada. Ela <strong>sinaliza e não bloqueia</strong>: um detector que recusasse sozinho
-transformaria cada falso positivo num relato perdido para quem escreveu. E roda na leitura da fila,
-não na gravação: melhorar um padrão amanhã reavalia o que ainda espera decisão, sem migração.</p>
+<p>Relato <strong>sem crachá</strong> entra como protocolo, ou é recusado se o projeto exigir. Fora
+desse modo, o crachá é <strong>ignorado</strong>.</p>
 
-<p>O nome de quem relata é opcional em toda configuração, nasce interno e só sai lá fora com
-<strong>três travas</strong> abertas ao mesmo tempo: o projeto pergunta o nome, está em público
-identificado, e a pessoa escolheu assinar aquele relato.</p>
+<h2>Quem vê os relatos</h2>
 
-<p>Pelo código pessoal e pelo crachá, quem relatou <strong>lê e não age</strong>: abre o relato e vê
-o que mandou, inclusive os arquivos, mas confirmar, reabrir, responder e anexar continuam pedindo o
-link. O código ou o crachá prova que o relato é dela; o link é que dá poder sobre ele. Por isso
-<code>tracking_code_can_act</code> (se quem chega pelo código também age) fica gravado,
-<strong>escondido na tela de Encerramento</strong>, e a API o ignora enquanto essas ações aceitarem só o
-link. Fazê-las aceitar o código ou o crachá é <strong>Adiado</strong>.</p>
+<p>A <strong>visibilidade</strong> pública identificada só vale com código pessoal ou conta do
+cliente. Modo e visibilidade ficam juntos na tela <strong>Privacidade</strong>; perguntar o nome fica
+em <strong>Textos e tema</strong>.</p>
+
+<p>O nome nasce interno e só sai lá fora com <strong>três travas</strong> abertas: o projeto pergunta
+o nome, está em público identificado e a pessoa escolheu assinar aquele relato.</p>
+
+<h2>A moderação</h2>
+
+<p><strong>Gravar público não publica nada.</strong> Todo relato nasce pendente, e recusar não apaga
+nem encerra, só tira da vitrine. Em projeto privado, a Moderação avisa que a fila não conta.</p>
+
+<p>Liberar libera só o <strong>texto</strong>. Na fila, a <strong>varredura de dado sensível</strong>
+aponta CPF, CNPJ, cartão, e-mail, telefone e credencial, mascarados. Ela <strong>sinaliza e não
+bloqueia</strong>, e roda na leitura, então um padrão melhorado reavalia o que ainda espera.</p>
+
+<h2>Ler não é agir</h2>
+
+<p>Pelo código pessoal e pelo crachá, quem relatou <strong>lê e não age</strong>: vê o relato e os
+arquivos, mas confirmar, reabrir, responder e anexar pedem o link.</p>
+
+<details class="mais">
+  <summary>O que fica para depois</summary>
+  <ul>
+    <li><code>tracking_code_can_act</code> fica gravado, <strong>escondido na tela de Encerramento</strong>, e a API o ignora. Fazer as ações aceitarem o código ou o crachá é <strong>Adiado</strong>.</li>
+    <li>A lista pública com as imagens e a página própria de um relato público aprovado são <strong>Adiado</strong>.</li>
+  </ul>
+</details>

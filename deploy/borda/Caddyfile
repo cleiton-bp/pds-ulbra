@@ -19,9 +19,9 @@
 	}
 }
 
-# A raiz da API e da midia nao tem pagina nenhuma, e quem abre o endereco no navegador (vindo
-# de um link, por exemplo) caia num erro. So a raiz e so a leitura vao para o painel: nenhuma
-# chamada do sistema usa a raiz desses enderecos.
+# A raiz da midia nao tem pagina nenhuma, e quem abre o endereco no navegador (vindo de um
+# link, por exemplo) caia num erro. So a raiz e so a leitura vao para o painel: nenhuma chamada
+# do sistema usa a raiz desse endereco. A raiz da API e a documentacao dela, aberta.
 (raiz-para-o-painel) {
 	@raiz {
 		path /
@@ -37,12 +37,11 @@
 	reverse_proxy painel:80
 }
 
-# A API, o tempo real (WebSocket) e a documentacao da API. Os cabecalhos de seguranca, o HSTS
-# inclusive, a API poe sozinha. O IP de quem chama segue no X-Forwarded-For, e a API so le
-# dele porque a rede da borda esta no TRUSTED_PROXIES.
+# A API, o tempo real (WebSocket), a documentacao (na raiz) e o Swagger (em /swagger). Os
+# cabecalhos de seguranca, o HSTS inclusive, a API poe sozinha. O IP de quem chama segue no
+# X-Forwarded-For, e a API so le dele porque a rede da borda esta no TRUSTED_PROXIES.
 {$API_URL} {
 	import discreto
-	import raiz-para-o-painel
 	encode zstd gzip
 	reverse_proxy api:8080
 }

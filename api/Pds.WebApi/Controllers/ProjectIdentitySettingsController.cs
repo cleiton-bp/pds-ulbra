@@ -52,7 +52,7 @@ public class ProjectIdentitySettingsController : BaseController
 
     /// <summary>O modo de identificação e a visibilidade deste projeto.</summary>
     /// <remarks>
-    /// Quem nunca abriu a tela recebe os **padrões** — `Protocol` e `Private` —, e não uma
+    /// Quem nunca abriu a tela recebe os **padrões**, `PersonalCode` e `Private`, e não uma
     /// resposta vazia: o projeto dele já se comporta desse jeito, e dizer "não
     /// encontrado" sobre algo que está funcionando seria mentira.
     ///

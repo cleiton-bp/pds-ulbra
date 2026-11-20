@@ -1,7 +1,18 @@
 <h2>O primeiro relato chegando</h2>
+<p class="lead">Uma linha no site do cliente, e o relato chega sem sessão nenhuma.</p>
 
-<p>Com a chave pública em mãos, o site do cliente cola uma linha. É a única coisa nossa que
-fica no HTML dele:</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>O site cola um script com a chave pública, e só isso fica no HTML dele.</li>
+    <li>O botão aparece na hora, e o formulário pesado só carrega quando alguém vai clicar.</li>
+    <li>O texto sai primeiro e já devolve o protocolo; os arquivos sobem depois.</li>
+  </ul>
+</div>
+
+<h2>O caminho</h2>
+
+<p>Com a chave pública em mãos, cole esta linha no site:</p>
 
 <pre><code>&lt;script src="https://.../v1/relatofacil.js" data-key="pk_EXEMPLO1" defer&gt;&lt;/script&gt;</code></pre>
 
@@ -33,88 +44,58 @@ com arquivos na lista, eles sobem em seguida, um de cada vez, com o protocolo e 
       ↓
 fechar (o botão do formulário ou Esc) esconde o quadro e devolve o botão: e o foco a ele</div>
 
-<p>O formulário nunca toca a página do cliente, e a página do cliente nunca toca o
-formulário: são origens diferentes, e a única coisa que atravessa é o que as duas pontas
-conferiram.</p>
+<p>O formulário e a página do cliente são origens diferentes e nunca se tocam. Só atravessa o que
+as duas pontas conferiram.</p>
 
-<div class="note why">
-  <strong>Por que nada pesado sai antes do clique</strong>
-  <p>O formulário arrasta o framework inteiro, e quase todo visitante do site do cliente nunca
-  clica. Antes, todo visitante baixava o quadro ao abrir a página; agora o script lê só a
-  aparência do botão (uma resposta pequena, guardada cinco minutos pelo navegador) e desenha o
-  botão ele mesmo. O quadro vem quando alguém mostra que vai clicar, e o clique parece
-  instantâneo. Os números estão no README do painel.</p>
-  <p>Chave recusada, endereço fora da lista, ferramenta desligada ou projeto arquivado: nenhum
-  botão. <strong>Rede fora também</strong>, sem a resposta, o script não adivinha um botão que
-  poderia aparecer onde o projeto não quer.</p>
+<h2>Por que funciona assim</h2>
+
+<div class="cartoes">
+  <div><strong>Nada pesado antes do clique</strong><p>Quase ninguém clica, então o script lê só a aparência do botão (guardada cinco minutos) e desenha ele mesmo.</p></div>
+  <div><strong>O quadro nasce invisível</strong><p>Ele só aparece depois de ler a configuração, já no canto certo e sem pular.</p></div>
+  <div><strong>O texto não espera os arquivos</strong><p>O protocolo aparece na hora, e é o relato existir que dá direito a pedir espaço para anexar.</p></div>
 </div>
 
-<div class="note why">
-  <strong>Por que o quadro nasce invisível</strong>
-  <p>O pedido para aparecer é a <em>mesma</em> mensagem que informa tamanho e canto, e o quadro
-  só a manda depois de ler a configuração. Ele aparece já no canto certo, com o formulário
-  pronto, em vez de pular de lado ou mostrar os padrões trocando na frente de quem já estava
-  lendo; e a ferramenta que não abre diz isso ao script, que tira o "abrindo" e avisa.</p>
-  <p>Se a leitura da configuração falhar, valem os padrões e o formulário abre assim mesmo,
-  "não consegui saber" não pode virar "não abro", porque é justamente quando algo quebrou que
-  alguém precisa avisar.</p>
-</div>
+<p>Chave recusada, endereço bloqueado, ferramenta desligada, projeto arquivado ou rede fora:
+nenhum botão. Já se a configuração do formulário falhar, valem os padrões e ele abre assim mesmo,
+porque é quando algo quebrou que alguém precisa avisar.</p>
 
-<div class="note why">
-  <strong>O cliente pode abrir pelo próprio botão</strong>
-  <p>Com <code>data-button="none"</code> no script, nada é desenhado e <strong>nenhuma
-  requisição sai até alguém pedir</strong>. O sistema do cliente abre pela própria tela, com
-  <code>RelatoFacil.open()</code> (e fecha com <code>RelatoFacil.close()</code>), ou por qualquer elemento
-  marcado com <code>data-relatofacil-open</code>. Chamar <code>RelatoFacil.open()</code> antes de o script
-  terminar de carregar fica na fila. O objeto <code>RelatoFacil</code> é definido uma vez e congelado:
-  duas cópias do script na mesma página não abrem dois quadros.</p>
-  <p>Os nomes antigos continuam valendo, para o site que já os usa: o endereço <code>/v1/pds.js</code>,
-  o objeto <code>Pds</code>, o atributo <code>data-pds-open</code> e a marca <code>data-pds-no-capture</code>.</p>
-</div>
+<p>A leitura de mídia tem até três segundos a mais. Se passar disso, ou falhar, o quadro abre sem o
+botão de anexar: melhor do que chutar limites e o envio falhar depois. O texto continua inteiro.</p>
 
-<div class="note why">
-  <strong>A leitura de mídia tem prazo, e a falha dela vira "sem anexo"</strong>
-  <p>São duas perguntas diferentes (como o quadro se parece, e o que ele aceita receber), e
-  por isso duas rotas. Elas saem juntas e costumam chegar juntas; passar de três segundos depois
-  da configuração já é a leitura de mídia presa. Sem prazo, ela prendia o quadro inteiro: ele
-  nunca aparecia, nem para quem só queria escrever. Com o prazo, o quadro abre sem o botão de
-  anexar, e a resposta que chega depois fica de fora. Chave recusada não espera a mídia.</p>
-  <p>A falha aqui vai para o lado oposto ao da configuração. Lá, os padrões ainda desenham um
-  formulário que funciona; aqui desenhariam um botão com limites chutados, e o envio falharia
-  depois de a pessoa ter escolhido o arquivo: o pior momento para descobrir. Sem anexo, o relato
-  continua inteiro: o texto é a parte que importa.</p>
-</div>
+<details class="mais">
+  <summary>O envio, a chave no corpo e a ordem dos arquivos</summary>
+  <p><code>POST /public/reports</code> leva só o que foi escrito: o tipo, as respostas e a caixa. Os
+  arquivos sobem depois com o protocolo e o token devolvidos (ver
+  <a href="#/fluxo/anexar">Imagens e arquivos no relato</a>).</p>
+  <p>A chave vai no corpo, e não num cabeçalho, porque ela não autentica ninguém: só diz para qual
+  projeto o relato vai.</p>
+  <p>São duas rotas porque são duas perguntas: como o quadro se parece e o que ele aceita receber.
+  Chave recusada não espera a mídia.</p>
+</details>
 
-<div class="note why">
-  <strong>O texto não espera os arquivos</strong>
-  <p><code>POST /public/reports</code> leva só o que foi escrito: o tipo, as respostas e a caixa.
-  O protocolo aparece na hora, e os arquivos
-  sobem depois, usando o protocolo e o token que a criação acabou de devolver: é o relato
-  existir que dá a alguém o direito de pedir espaço no armazenamento. Fazer a pessoa esperar os
-  arquivos para ver o protocolo seria esconder justamente a parte que não pode se perder. A
-  sequência inteira está em <a href="#/fluxo/anexar">Imagens e arquivos no relato</a>.</p>
-</div>
+<h2>Abrir pelo próprio botão</h2>
 
-<div class="note why">
-  <strong>Por que o relato carrega a chave no corpo, e não um cabeçalho</strong>
-  <p>Não há credencial nesta requisição: a chave pública não autentica ninguém, ela só diz
-  para qual projeto o relato vai. Tratá-la como cabeçalho de autorização convidaria o próximo
-  leitor a achar que ela protege alguma coisa.</p>
-</div>
+<p>Com <code>data-button="none"</code> no script, nada é desenhado e nenhuma requisição sai até
+alguém pedir. Aí o sistema do cliente abre de três jeitos:</p>
+
+<ul>
+  <li><code>RelatoFacil.open()</code>, e fecha com <code>RelatoFacil.close()</code>;</li>
+  <li>qualquer elemento marcado com <code>data-relatofacil-open</code>;</li>
+  <li>chamar <code>RelatoFacil.open()</code> antes de a página terminar de carregar fica na fila.</li>
+</ul>
+
+<p>O objeto <code>RelatoFacil</code> é congelado, então duas cópias do script não abrem dois
+quadros. Os nomes antigos continuam valendo: <code>/v1/pds.js</code>, <code>Pds</code>,
+<code>data-pds-open</code> e <code>data-pds-no-capture</code>.</p>
 
 <div class="note warn">
   <strong>A origem é conferida, e continua não sendo prova</strong>
-  <p>O campo <code>Origin</code> é declarado pela própria página que embutiu a ferramenta. O
-  domínio <strong>bloqueado</strong> é recusado (403) nas quatro rotas que a ferramenta usa: a
-  aparência do botão, a configuração, a de mídia e o envio do relato. O que não está na lista de
-  <code>project_origins</code> (inclusive com ela vazia) e o relato que não diz de onde veio são
-  <strong>recebidos e retidos</strong>: quem relatou recebe o protocolo e acompanha como sempre, e o
-  time só vê o relato depois de permitir o domínio, avisado no sino. O domínio do próprio painel
-  nunca é retido: é o relato de teste.</p>
-  <p>Como quem declara é o carregador, que é código nosso, a chave copiada para outro site é
-  pega, e é para isso que a lista serve. Quem chamar a API sem passar pela ferramenta declara o
-  que quiser: <strong>grade de proteção, não muro.</strong> O muro é o
-  <code>frame-ancestors</code> montado da mesma lista, que impede o quadro de abrir fora dela e
-  precisa de um servidor servindo o documento do quadro; <strong>Planejado</strong>, junto do
-  domínio próprio.</p>
+  <p>No navegador, o endereço vem do próprio navegador, e não da página: o cabeçalho <code>Origin</code> na leitura do botão e o <code>location.ancestorOrigins</code> dentro do quadro. O domínio
+  <strong>bloqueado</strong> recebe 403 nas quatro rotas da ferramenta. O que não está em
+  <code>project_origins</code>, ou não diz de onde veio, é <strong>recebido e retido</strong>: quem
+  relatou acompanha normalmente, e o time só vê depois de permitir o domínio, avisado no sino. O
+  domínio do próprio painel nunca é retido.</p>
+  <p>Isso pega a chave copiada para outro site, mas quem chama a API sem a ferramenta declara o
+  que quiser. Barrar de vez é o <code>frame-ancestors</code> montado da mesma lista,
+  <strong>Planejado</strong>: ele pede um servidor para o quadro, que hoje é arquivo estático.</p>
 </div>
