@@ -5,19 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Documentação da API (Relato Fácil)</title>
   <meta name="description" content="Documentação da API do Relato Fácil: arquitetura, modelagem, autenticação, isolamento por projeto, rotas, e as imagens e os arquivos do relato." />
-  <link rel="stylesheet" href="/assets/css/docs.css?v=1" />
+  <link rel="stylesheet" href="/assets/css/docs.css?v=7" />
 </head>
 <body>
   <a class="skip" href="#content">Pular para o conteúdo</a>
 
   <div class="layout">
     <aside class="sidebar">
+      <button class="menu-botao" type="button" aria-expanded="false" aria-controls="gaveta">Menu <span aria-hidden="true">▾</span></button>
       <div class="brand">Relato <span>Fácil</span></div>
       <p class="brand-tag">Camada pública de acompanhamento de relatos</p>
 
-      <a class="swagger-link" href="/swagger">Abrir o Swagger</a>
+      <div class="gaveta" id="gaveta"><div>
+        <a class="swagger-link" href="/swagger">Abrir o Swagger</a>
 
-      <nav id="nav" aria-label="Seções da documentação"></nav>
+        <nav id="nav" aria-label="Seções da documentação"></nav>
+      </div></div>
     </aside>
 
     <main>
@@ -25,6 +28,6 @@
     </main>
   </div>
 
-  <script src="/assets/js/docs.js?v=1"></script>
+  <script src="/assets/js/docs.js?v=7"></script>
 </body>
 </html>

@@ -120,7 +120,7 @@
 
       return `<div class="group" data-section="${section.id}">`
         + `<a href="#/${section.id}" data-id="${section.id}">${section.label}</a>`
-        + (steps ? `<div class="steps">${steps}</div>` : '')
+        + (steps ? `<div class="steps"><div>${steps}</div></div>` : '')
         + '</div>';
     }).join('');
   }
@@ -174,6 +174,7 @@
       if (!response.ok) throw new Error('HTTP ' + response.status);
 
       content.innerHTML = (await response.text()) + pagerHtml(id);
+      prepararPagina();
     } catch (error) {
       content.innerHTML = '<h2>Página não encontrada</h2>'
         + `<p class="lead">Não foi possível carregar <code>${page.file}</code> (${error.message}).</p>`
@@ -181,7 +182,138 @@
     }
 
     window.scrollTo({ top: 0 });
+    aoRolar();
   }
+
+  // ---------- O que deixa a leitura mais leve ----------
+
+  const poucoMovimento = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // Os primeiros blocos da pagina chegam em sequencia; o resto aparece ao rolar.
+  function prepararPagina() {
+    content.classList.remove('entrando');
+    void content.offsetWidth;
+    content.classList.add('entrando');
+
+    tabelasQueRolam();
+    botoesDeCopiar();
+    detalhesQueDeslizam();
+    revelarAoRolar();
+  }
+
+  // Tabela larga rola dentro da própria caixa, e nunca empurra a página para o lado.
+  function tabelasQueRolam() {
+    content.querySelectorAll('table').forEach((tabela) => {
+      if (tabela.parentElement.classList.contains('table-scroll')) return;
+      const caixa = document.createElement('div');
+      caixa.className = 'table-scroll';
+      tabela.before(caixa);
+      caixa.appendChild(tabela);
+    });
+  }
+
+  function botoesDeCopiar() {
+    content.querySelectorAll('pre').forEach((pre) => {
+      pre.classList.add('com-copia');
+      const botao = document.createElement('button');
+      botao.type = 'button';
+      botao.className = 'copiar';
+      botao.textContent = 'Copiar';
+      botao.addEventListener('click', async () => {
+        const texto = (pre.querySelector('code') || pre).innerText;
+        try {
+          await navigator.clipboard.writeText(texto);
+          botao.textContent = 'Copiado';
+        } catch {
+          botao.textContent = 'Selecione e copie';
+        }
+        botao.classList.add('feito');
+        setTimeout(() => { botao.textContent = 'Copiar'; botao.classList.remove('feito'); }, 1600);
+      });
+      pre.appendChild(botao);
+    });
+  }
+
+  // O <details> abre e fecha de uma vez; aqui ele desliza nos dois sentidos.
+  function detalhesQueDeslizam() {
+    content.querySelectorAll('details.mais').forEach((det) => {
+      const resumo = det.querySelector(':scope > summary');
+      if (!resumo || det.dataset.pronto) return;
+      det.dataset.pronto = '1';
+      const miolo = document.createElement('div');
+      const dentro = document.createElement('div');
+      while (resumo.nextSibling) dentro.appendChild(resumo.nextSibling);
+      miolo.appendChild(dentro);
+      det.appendChild(miolo);
+      if (det.open) det.classList.add('aberto');
+      resumo.addEventListener('click', (evento) => {
+        evento.preventDefault();
+        if (det.open) {
+          det.classList.remove('aberto');
+          const fechar = () => { det.open = false; };
+          if (poucoMovimento.matches) fechar(); else setTimeout(fechar, 330);
+        } else {
+          det.open = true;
+          requestAnimationFrame(() => requestAnimationFrame(() => det.classList.add('aberto')));
+        }
+      });
+    });
+  }
+
+  let observador = null;
+  function revelarAoRolar() {
+    if (observador) observador.disconnect();
+    if (poucoMovimento.matches || !('IntersectionObserver' in window)) return;
+    observador = new IntersectionObserver((entradas) => {
+      entradas.forEach((entrada) => {
+        if (!entrada.isIntersecting) return;
+        entrada.target.classList.add('visivel');
+        observador.unobserve(entrada.target);
+      });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    const alturaDaTela = window.innerHeight;
+    content.querySelectorAll(':scope > h2, :scope > .note, :scope > .table-scroll, :scope > table, :scope > .diagram, :scope > pre, :scope > .cartoes, :scope > details, :scope > .steps-index, :scope > .resumo').forEach((el) => {
+      // O que ja esta na tela na chegada fica com a entrada da pagina.
+      if (el.getBoundingClientRect().top < alturaDaTela) return;
+      el.classList.add('revela');
+      observador.observe(el);
+    });
+  }
+
+  // A barra de leitura e o voltar ao topo, criados uma vez so.
+  const progresso = document.createElement('div');
+  progresso.className = 'progresso';
+  document.body.appendChild(progresso);
+  const topo = document.createElement('button');
+  topo.type = 'button';
+  topo.className = 'topo';
+  topo.setAttribute('aria-label', 'Voltar ao topo');
+  topo.textContent = '↑';
+  topo.addEventListener('click', () => window.scrollTo({ top: 0, behavior: poucoMovimento.matches ? 'auto' : 'smooth' }));
+  document.body.appendChild(topo);
+
+  let quadro = 0;
+  function aoRolar() {
+    if (quadro) return;
+    quadro = requestAnimationFrame(() => {
+      quadro = 0;
+      const total = document.documentElement.scrollHeight - window.innerHeight;
+      progresso.style.transform = `scaleX(${total > 0 ? Math.min(1, window.scrollY / total) : 0})`;
+      topo.classList.toggle('visivel', window.scrollY > 600);
+    });
+  }
+  window.addEventListener('scroll', aoRolar, { passive: true });
+  window.addEventListener('resize', aoRolar);
+
+  // No celular, o menu abre e fecha pelo botão, e fecha sozinho ao escolher uma página.
+  const lateral = document.querySelector('.sidebar');
+  const botaoMenu = document.querySelector('.menu-botao');
+  function abrirMenu(abrir) {
+    lateral.classList.toggle('aberta', abrir);
+    botaoMenu.setAttribute('aria-expanded', String(abrir));
+  }
+  botaoMenu.addEventListener('click', () => abrirMenu(!lateral.classList.contains('aberta')));
+  window.addEventListener('hashchange', () => abrirMenu(false));
 
   buildMenu();
   window.addEventListener('hashchange', navigate);
