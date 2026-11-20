@@ -322,49 +322,49 @@ public class Startup
         // Caractere de controle na URL nao chega a rota nenhuma (ver RejectControlCharactersInQuery).
         app.Use(RejectControlCharactersInQuery);
 
-        // Documentacao do projeto servida na raiz, a partir da pasta api-docs, so em
-        // desenvolvimento, como o Swagger: em producao ela mostraria a qualquer um o desenho
-        // do sistema (rotas, isolamento, regras de seguranca), e a raiz responde 404. Vem
-        // antes de tudo por ser conteudo estatico: nao passa por autenticacao nem por limite.
-        if (env.IsDevelopment())
+        // A documentacao do projeto, servida na raiz a partir da pasta api-docs, e o Swagger
+        // ficam abertos em todos os ambientes, inclusive em producao: quem avalia ou integra
+        // le as rotas e as decisoes por tras delas sem precisar rodar o projeto. Mostrar o
+        // desenho nao abre nada, porque toda rota que le ou grava dado continua exigindo a
+        // sessao, a chave do projeto ou o token do relato. Vem antes de tudo por ser conteudo
+        // estatico: nao passa por autenticacao nem por limite.
+        app.UseDefaultFiles();
+        app.UseStaticFiles(new StaticFileOptions
         {
-            app.UseDefaultFiles();
-            app.UseStaticFiles(new StaticFileOptions
+            OnPrepareResponse = context =>
             {
-                OnPrepareResponse = context =>
-                {
-                    // Sem Cache-Control explicito, o navegador decide sozinho por quanto
-                    // tempo guarda o arquivo, e passa a mostrar documentacao velha depois
-                    // de uma edicao. Pior: em localhost varios projetos dividem a mesma
-                    // origem, entao um asset de outro projeto no mesmo caminho pode ser
-                    // reaproveitado no lugar do nosso.
-                    //
-                    // no-cache nao proibe guardar, obriga a perguntar antes de usar: com
-                    // o ETag, arquivo sem mudanca volta como 304 e nao paga download.
-                    context.Context.Response.Headers.CacheControl = "no-cache, must-revalidate";
-                }
-            });
-        }
+                // Sem Cache-Control explicito, o navegador decide sozinho por quanto
+                // tempo guarda o arquivo, e passa a mostrar documentacao velha depois
+                // de uma edicao. Pior: em localhost varios projetos dividem a mesma
+                // origem, entao um asset de outro projeto no mesmo caminho pode ser
+                // reaproveitado no lugar do nosso.
+                //
+                // no-cache nao proibe guardar, obriga a perguntar antes de usar: com
+                // o ETag, arquivo sem mudanca volta como 304 e nao paga download.
+                context.Context.Response.Headers.CacheControl = "no-cache, must-revalidate";
+            }
+        });
+
+        app.UseSwagger();
+        app.UseSwaggerUI(options =>
+        {
+            options.SwaggerEndpoint("/swagger/v1/swagger.json", "Relato Fácil v1");
+            options.DocumentTitle = "Swagger do Relato Fácil";
+            options.DisplayRequestDuration();
+
+            // Alinha as cores do Swagger com as da documentacao do projeto: o
+            // roxo padrao dele nao conversa com o resto.
+            options.InjectStylesheet("/assets/css/swagger-theme.css");
+
+            // Acrescenta na barra do Swagger o caminho de volta para a
+            // documentacao. Sem isto a ida e so de ida: quem clica em "Abrir o
+            // Swagger" na documentacao so volta pelo botao do navegador.
+            options.InjectJavascript("/assets/js/swagger-back.js");
+        });
 
         if (env.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
-            app.UseSwagger();
-            app.UseSwaggerUI(options =>
-            {
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", "Relato Fácil v1");
-                options.DocumentTitle = "Swagger do Relato Fácil";
-                options.DisplayRequestDuration();
-
-                // Alinha as cores do Swagger com as da documentacao do projeto: o
-                // roxo padrao dele nao conversa com o resto.
-                options.InjectStylesheet("/assets/css/swagger-theme.css");
-
-                // Acrescenta na barra do Swagger o caminho de volta para a
-                // documentacao. Sem isto a ida e so de ida: quem clica em "Abrir o
-                // Swagger" na documentacao so volta pelo botao do navegador.
-                options.InjectJavascript("/assets/js/swagger-back.js");
-            });
         }
         else if (TrustedForwarding() is null)
         {
