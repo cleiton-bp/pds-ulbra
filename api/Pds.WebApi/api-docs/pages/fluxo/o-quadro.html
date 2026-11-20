@@ -1,97 +1,73 @@
-<h2>A segunda vista da tela de Trabalho</h2>
+<h2>O quadro</h2>
+<p class="lead">A tela de Trabalho em colunas, para arrastar os cards.</p>
 
-<p>A tela de Trabalho tem duas vistas, em abas: a <strong>lista</strong>, uma tabela que ordena
-pelo cabeçalho (o tipo, o número, o título, a coluna, quem está com o card, a prioridade, as
-etiquetas, o prazo e quando chegou; ver <a href="#/fluxo/filtros-e-busca">Filtros e busca</a>), e o
-<strong>quadro</strong>, uma coluna por coluna do projeto. A vista escolhida fica lembrada no
-navegador, por projeto.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Cada coluna se lê sozinha, cinquenta cards por vez.</li>
+    <li>Arrastar troca de coluna; soltar na coluna que encerra pede o desfecho antes.</li>
+    <li>Raias por responsável ou prioridade, e tudo funciona com mouse, toque e teclado.</li>
+  </ul>
+</div>
 
-<p><strong>O quadro ocupa a altura da janela.</strong> Cada coluna rola por dentro, com o cabeçalho
-e o <em>Criar</em> presos no alto, e a barra de rolar para os lados fica no pé da tela, e não no pé
-da coluna mais alta, milhares de pixels abaixo. Enquanto houver coluna escondida à direita, a borda
-esmaece e um botão com o nome dela (<em>Feito ›</em>) rola o quadro até ela. No celular, uma fila
-de colunas acima do quadro (<em>A fazer 8, Fazendo 15, Feito 3</em>) leva direto a cada uma e
-marca a que está à vista.</p>
+<h2>As vistas</h2>
 
-<p>Cada coluna é uma leitura própria, na ordem do quadro, cinquenta de cada vez:</p>
+<p>A tela de Trabalho tem a <strong>lista</strong> (uma tabela que ordena pelo cabeçalho, ver
+<a href="#/fluxo/filtros-e-busca">Filtros e busca</a>) e o <strong>quadro</strong>. Com sprints, ganha também o <strong>Backlog</strong> (ver <a href="#/fluxo/backlog-e-sprints">Backlog e sprints</a>). A vista fica lembrada no navegador, por projeto.</p>
+
+<ul>
+  <li>O quadro ocupa a altura da janela, e cada coluna rola por dentro.</li>
+  <li>Coluna escondida à direita ganha um botão com o nome dela (<em>Feito ›</em>).</li>
+  <li>No celular, uma fila no topo (<em>A fazer 8, Fazendo 15, Feito 3</em>) leva a cada coluna.</li>
+</ul>
+
+<h2>Ler cada coluna</h2>
 
 <pre><code>GET /projects/2be49b28-.../reports?state=e12fef6c-...&amp;order=board&amp;pageSize=50</code></pre>
 
-<p>"Mostrar mais" fica logo depois do último card (<em>Mostrar mais 6</em>, ou <em>Mostrar mais 50
-de 120</em> quando falta mais de uma página) e continua <strong>depois do último card da
-tela</strong>, e não pela página seguinte: o card que sai de cima, ou chega ao topo, muda as
-páginas, e a seguinte pularia um card ou repetiria outro.</p>
+<p>"Mostrar mais" continua <strong>depois do último card da tela</strong>, e não pela página
+seguinte (que pularia ou repetiria cards quando outros mudam de lugar):</p>
 
 <pre><code>GET /projects/2be49b28-.../reports?state=e12fef6c-...&amp;order=board&amp;pageSize=50&amp;after=5b20...</code></pre>
 
-<p>Se aquele card já saiu da coluna (outra pessoa o moveu ou arquivou), a resposta é 409, e a
-tela lê a coluna de novo.</p>
-
-<p>Com um filtro ligado, o cabeçalho diz quantos passam de quantos há (<em>A FAZER 1 de 8</em>),
-e, quando nenhuma coluna tem card que passe, o quadro diz isso acima das colunas: <em>Nenhum card
-passa nos filtros. Os outros continuam onde estão.</em>, com <strong>Limpar filtros</strong>.</p>
-
-<p>A frente do card é um resumo, com o título primeiro: até três etiquetas, o prazo com o destaque
-(vencido em vermelho, perto em amarelo, sempre com as palavras) e, no pé, o tipo (o desenho e a
-cor que o projeto deu a ele), o número, a prioridade, os pontos (com as sprints ligadas), quantos comentários e anexos, e quem está com ele. <strong>O detalhe só abre
-no clique</strong>, no mesmo diálogo da lista, e é só ali que a leitura é registrada; ver <a
-href="#/fluxo/organizar-o-card">o card aberto</a>. Os arquivados ficam fora do quadro: o botão
-Arquivados mostra a lista deles.</p>
-
-<p>O que outra pessoa muda aparece no quadro sem recarregar (ver <a href="#/fluxo/tempo-real">O
-tempo real</a>).</p>
+<ul>
+  <li>Se aquele card já saiu da coluna, vem 409 e a tela relê a coluna.</li>
+  <li>Com filtro, o cabeçalho diz <em>A FAZER 1 de 8</em>. Sem nada passando: <em>Nenhum card passa nos filtros.</em>, com <strong>Limpar filtros</strong>.</li>
+  <li>A frente do card resume: título, até três etiquetas, prazo, tipo, número, prioridade, pontos, comentários, anexos e responsável.</li>
+  <li><strong>O detalhe só abre no clique</strong>, e só aí a leitura é registrada (ver <a href="#/fluxo/organizar-o-card">o card aberto</a>). Arquivados ficam fora.</li>
+  <li>O que outra pessoa muda aparece sem recarregar (ver <a href="#/fluxo/tempo-real">O tempo real</a>).</li>
+</ul>
 
 <h2>Criar na coluna</h2>
 
-<p><strong>+ Criar</strong>, logo abaixo do cabeçalho de cada coluna que recebe card, abre ali um
-campo de uma linha (<em>Título do card) Enter cria, Esc fecha</em>. <strong>Enter cria
-direto na coluna</strong>: o card nasce logo abaixo do campo, acende por um instante, o leitor de
-tela ouve <em>"#96 criado em Fazendo."</em>, e o campo continua aberto, com o foco, para o próximo;
-criar vários seguidos é digitar e dar Enter. Esc fecha e devolve o foco ao <em>Criar</em>; sair do
-campo vazio também fecha, e com texto ele fica. <strong>Mais detalhes</strong> abre o formulário
-inteiro do <a href="#/fluxo/card-do-time">Novo card</a>, já com a coluna e o título digitado.</p>
+<ol>
+  <li><strong>+ Criar</strong>, abaixo do cabeçalho, abre um campo de uma linha.</li>
+  <li><strong>Enter cria direto na coluna</strong>, e o campo continua aberto para o próximo.</li>
+  <li>Esc fecha. <strong>Mais detalhes</strong> abre o <a href="#/fluxo/card-do-time">Novo card</a> completo.</li>
+</ol>
 
-<p>É o mesmo <code>POST</code> do "Novo card", com o <code>StatePublicId</code> da coluna, e, com
-as sprints ligadas, o <code>SprintPublicId</code> da sprint em andamento, porque o card criado no
-quadro precisa continuar no quadro.</p>
+<p>É o mesmo <code>POST</code> do "Novo card", com o <code>StatePublicId</code> da coluna e, com
+sprints, o <code>SprintPublicId</code> da sprint em andamento (para o card continuar no quadro).</p>
 
 <h2>Arrastar para outra coluna</h2>
-
-<p>Soltar um card noutra coluna é o mesmo movimento do seletor de coluna, com o lugar junto:</p>
 
 <pre><code>PUT /projects/2be49b28-.../reports/9f3e.../state
 { "StatePublicId": "c7d1...", "AfterPublicId": "5b20..." }</code></pre>
 
-<p><code>AfterPublicId</code> é o card que fica logo acima dele. Sem ele (como pelo seletor, ou
-soltando no topo), o card entra no topo. O evento é o de sempre, e a etapa pública anda pela
-mesma espera. A coluna inteira recebe o card, o cabeçalho também; soltar fora das colunas que
-recebem devolve o card ao lugar, sem pedido nenhum.</p>
-
-<p>Se a API recusa ou a rede cai, o card volta, e o aviso diz para onde, na língua do time:
-<em>"Não deu para mover o #17 para Fazendo. Ele voltou para A fazer: tente de novo."</em>, ou, sem
-conexão, <em>"Sem conexão: o #17 voltou para A fazer. Quando a internet voltar, arraste de
-novo."</em>. A recusa com motivo traz o motivo entre as duas frases.</p>
+<ul>
+  <li><code>AfterPublicId</code> é o card logo acima. Sem ele, o card entra no topo.</li>
+  <li>O evento é o de sempre, e a etapa pública anda pela mesma espera.</li>
+  <li>Soltar fora das colunas devolve o card, sem pedido.</li>
+  <li>Se falhar, o card volta e o aviso diz para onde: <em>"Não deu para mover o #17 para Fazendo. Ele voltou para A fazer: tente de novo."</em></li>
+</ul>
 
 <div class="note warn">
-  <strong>Soltar na coluna que encerra pede o desfecho antes</strong>
-  <p>Quando o projeto encerra pela última coluna (a regra da tela Encerramento), um relato aberto solto nela
-  abre o diálogo do desfecho e do motivo (o que quem relatou vai ler) antes de qualquer pedido à
-  API. Desistir devolve o card ao lugar; confirmar manda <code>Outcome</code> e
-  <code>Reason</code> junto do movimento, e, se falhar, o diálogo fica, com o motivo escrito. O
-  aviso confirma: <em>"#10 encerrado. Quem relatou já pode ler o motivo."</em>, ou, com a espera da tela
-  Encerramento, <em>"O motivo aparece para quem relatou em 15 minutos."</em>. O card do time e o relato já
-  encerrado só andam.</p>
-</div>
-
-<div class="note warn">
-  <strong>Tirar da coluna que encerra pergunta antes de reabrir</strong>
-  <p>Tirar um relato encerrado de Feito desfaz o encerramento: quem relatou volta a ver o relato em
-  andamento, e o motivo sai da página de acompanhamento. Por isso o quadro pergunta antes:
-  <em>"Reabrir o relato #10?"</em>, com <strong>Cancelar</strong> e <strong>Reabrir e mover</strong>.
-  Cancelar, ou Esc, devolve o card ao lugar exato; enquanto a pergunta está aberta, o tempo real
-  espera. Vale só no gatilho por última coluna (no gatilho por botão, mover o relato é só mover),
-  e o encerramento que quem relatou já confirmou não se desfaz no movimento. O cabeçalho da coluna
-  avisa: <em>"Soltar um relato aberto aqui encerra; tirar daqui reabre."</em></p>
+  <strong>A coluna que encerra pergunta antes</strong>
+  <p>Com o gatilho pela última coluna (tela Encerramento), soltar um relato aberto nela abre o
+  diálogo do desfecho e do motivo, e o movimento leva <code>Outcome</code> e <code>Reason</code>.
+  Tirar um relato encerrado dela pergunta <em>"Reabrir o relato #10?"</em>, com
+  <strong>Cancelar</strong> e <strong>Reabrir e mover</strong>. O card do time, o relato já
+  encerrado e o encerramento já confirmado só andam.</p>
 </div>
 
 <h2>Arrumar dentro da coluna</h2>
@@ -99,77 +75,39 @@ novo."</em>. A recusa com motivo traz o motivo entre as duas frases.</p>
 <pre><code>PUT /projects/2be49b28-.../reports/9f3e.../position
 { "AfterPublicId": null }</code></pre>
 
-<p>A ordem é a mesma para o time inteiro. Arrumar não muda o card, e por isso <strong>não grava
-evento</strong> nem aparece na história. Dois soltando na mesma coluna ao mesmo tempo esperam um pelo
-outro, e cada um ganha um lugar só dele. A tela que ficou velha (o card de cima, ou o próprio
-card, já saiu dali) recebe 409: diz que outra pessoa mexeu no card enquanto ele estava na mão, lê
-o quadro de novo e mostra o card onde ele está.</p>
-
-<div class="note why">
-  <strong>O que chega fica no topo</strong>
-  <p>O relato novo, o card do time novo, o movido pelo seletor, o reaberto por quem relatou (mude
-  de coluna ou não) e o que quem relatou tira do arquivo ao responder entram no topo da coluna: o
-  que acabou de chegar é o que o time precisa ver. O topo vem de um contador do projeto, no mesmo
-  desenho do número do card, só que contando para baixo: o card que chega fica acima de tudo sem
-  ninguém ler a coluna.</p>
-</div>
+<ul>
+  <li>A ordem é a mesma para o time inteiro, e arrumar <strong>não grava evento</strong>.</li>
+  <li>Dois soltando ao mesmo tempo esperam um pelo outro. A tela velha recebe 409, relê e mostra o card onde ele está.</li>
+  <li>O que chega (relato novo, card novo, movido pelo seletor, reaberto) entra <strong>no topo</strong>, por um contador do projeto que conta para baixo.</li>
+</ul>
 
 <h2>A última coluna</h2>
 
-<p>É onde o trabalho termina, e só cresce. Como nos quadros Kanban, ela mostra só o que entrou nela
-nos últimos dias: de fábrica 14, configurável em Colunas; zero mostra todos. O nome diz isso
-(<em>Últimos 14 dias, 2 na lista</em>), e "2 na lista" leva à lista já nessa coluna. <strong>Com
-uma coluna só, a regra não vale</strong>: ali ela também é a entrada da fila, e esconder o que
-chegou há mais tempo seria esconder o relato que ninguém olhou. O projeto novo nasce com três
-colunas, e a regra vale desde o primeiro dia.</p>
-
-<p>"Sem coluna" aparece primeiro, só quando tem card, e a coluna desativada (que o quadro marca
-como "(desativada)") só enquanto segura algum: nenhuma das duas recebe card, e o card que sai delas
-só sai arrastado até uma coluna que recebe.</p>
+<ul>
+  <li>Mostra só o que entrou nos últimos dias: 14 de fábrica, configurável em Colunas (zero mostra todos). O nome diz <em>Últimos 14 dias, 2 na lista</em>.</li>
+  <li><strong>Com uma coluna só, a regra não vale</strong>, porque ali ela também é a entrada.</li>
+  <li>"Sem coluna" e a coluna "(desativada)" aparecem só enquanto têm card, e não recebem.</li>
+</ul>
 
 <h2>Raias</h2>
 
-<p>Na barra do quadro, <strong>Raias por responsável</strong> ou <strong>Raias por
-prioridade</strong> dividem o quadro em faixas (uma por pessoa, ou por prioridade), com as
-colunas de sempre em cada faixa. <strong>Por prioridade, todas as ativas do projeto</strong>, da mais
-para a menos urgente, com card ou não: soltar na raia vazia dá a prioridade. <strong>Por
-responsável, o time inteiro</strong>: as pessoas com card, em ordem alfabética, e, no fim, uma raia
-compacta para cada pessoa do time sem card (<em>"Elisa Souza, 0) solte um card aqui para passar
-a esta pessoa"</em>. A prioridade desativada e quem saiu do time aparecem enquanto têm card, mas não
-recebem. <em>Sem responsável</em> (ou <em>Sem prioridade</em>) vem por último, sempre. Cada raia
-recolhe. A escolha fica lembrada neste navegador, por projeto, como a vista: é preferência de quem
-olha.</p>
+<p><strong>Raias por responsável</strong> ou <strong>Raias por prioridade</strong> dividem o quadro
+em faixas, com as colunas em cada uma. A escolha fica lembrada neste navegador, por projeto.</p>
 
-<p><strong>Arrastar para outra raia troca o campo</strong>: soltar o card na raia da Ana passa o
-card para a Ana (<code>PUT .../assignee</code>); na de uma prioridade, muda a prioridade
-(<code>PUT .../priority</code>); em <em>Sem responsável</em>, tira. Na diagonal, a coluna e a raia
-mudam juntas: o movimento primeiro, o campo depois. Soltar entre dois cards da raia põe o card logo
-abaixo do de cima, na ordem da coluna inteira; na célula vazia, no topo da coluna. O campo que a API
-recusa deixa o card na coluna em que ficou, de volta na raia do dado dele, e o aviso diz o que
-ficou: <em>"O #17 ficou em Fazendo, mas o responsável não mudou."</em></p>
-
-<p><strong>Enquanto o card está na mão, as raias não mudam de altura</strong>: o alvo não foge do
-ponteiro quando o card atravessa uma raia na diagonal, e a célula debaixo do ponteiro é a que
-recebe. A raia é um recorte do que o quadro já leu: cada coluna continua lida de cinquenta em
-cinquenta. A fileira com o nome das colunas fica presa no alto, com o <em>Criar</em> de cada coluna,
-e o <em>Mostrar mais</em> fica embaixo de todas as raias.</p>
+<ul>
+  <li>Por prioridade: todas as ativas, da mais urgente para a menos.</li>
+  <li>Por responsável: o time inteiro, inclusive quem está sem card (raia compacta).</li>
+  <li><em>Sem responsável</em> ou <em>Sem prioridade</em> vem por último.</li>
+  <li><strong>Arrastar para outra raia troca o campo</strong> (<code>PUT .../assignee</code> ou <code>PUT .../priority</code>). Na diagonal, primeiro a coluna, depois o campo.</li>
+  <li>Se o campo for recusado: <em>"O #17 ficou em Fazendo, mas o responsável não mudou."</em></li>
+</ul>
 
 <h2>Mouse, toque e teclado</h2>
 
-<p><strong>O mouse</strong> pega depois de andar alguns pixels: o clique continua abrindo o card.</p>
+<div class="cartoes">
+  <div><strong>Mouse</strong><p>Pega depois de andar alguns pixels; o clique continua abrindo o card.</p></div>
+  <div><strong>Toque</strong><p>Segure meio segundo para pegar; deslizar continua rolando o quadro.</p></div>
+  <div><strong>Teclado</strong><p>Setas andam, Enter abre, Espaço pega e solta, Esc desiste, com anúncio ao leitor de tela.</p></div>
+</div>
 
-<p><strong>No toque</strong>, segura-se o card perto de meio segundo antes de arrastar (a cópia
-cresce um pouco e o aparelho vibra, onde houver), e deslizar continua rolando o quadro; segurar e
-soltar sem andar devolve o card ao lugar, sem abrir. Levado até a borda, o quadro anda uma coluna
-por vez, com uma pausa entre uma e outra.</p>
-
-<p><strong>No teclado, o quadro é uma parada só do Tab</strong> (o card que teve o foco por
-último, ou o primeiro da tela), e dentro dele as setas andam: para cima e para baixo na coluna,
-para os lados até o card na mesma altura da coluna vizinha; Home e End vão ao primeiro e ao último
-da coluna, e Enter abre o card. <strong>Espaço pega</strong>: as setas escolhem o lugar (para os
-lados, a coluna vizinha na altura em que o card está), o próprio card mostra o lugar com um
-contorno tracejado, espaço ou Enter solta, e Esc desiste. Cada passo é anunciado ao leitor de
-tela.</p>
-
-<p>A dica da barra resume os três jeitos (<em>Arraste para mover, no celular, segure, no
-teclado, as setas andam e espaço pega</em>) e tem ✕: fechada, fica fechada neste navegador.</p>
+<p>O "Como funciona" da barra de filtros resume os três jeitos, recolhido até alguém abrir.</p>

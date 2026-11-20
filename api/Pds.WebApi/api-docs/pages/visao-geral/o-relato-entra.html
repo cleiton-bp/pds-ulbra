@@ -1,60 +1,72 @@
 <h2>O relato entra, e o time trabalha</h2>
-<p class="lead">Conta, projeto e chaves; o relato entrando pela ferramenta; e o time trabalhando o relato numa fila que o cliente desenha.</p>
+<p class="lead">Do script colado no site até o card andando no quadro.</p>
 
-<p>A <strong>base</strong> é a de todo produto com conta: login com Google, projeto, chave
-pública e secreta, e o isolamento por projeto; cada pessoa enxerga só os projetos em que está,
-como administradora, que configura, ou como membro, que trabalha nos relatos. Alguém entra num
-projeto por convite: o administrador convida por e-mail, e a pessoa aceita entrando com o Google
-do mesmo endereço. Sobre ela, <strong>o
-relato entra</strong>, e o caminho funciona nas duas direções: dá para colar o script numa página
-qualquer, ver o relato chegar, lê-lo na lista do painel, e quem relatou volta pelo link e vê o
-próprio relato. O envio em <code>POST /public/reports</code> passa pelos limites de cada projeto
-(por quem relata, IP, domínio e projeto), com um desafio invisível antes da pausa; o login e as
-duas rotas de envio de arquivo têm limitador próprio, e o convite, um teto por hora em cada
-projeto.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Cada pessoa vê só os projetos em que está, como administradora ou como membro.</li>
+    <li>O relato entra pelo botão no site do cliente e cai numa coluna do quadro do time.</li>
+    <li>Colunas, tipos de relato e perguntas são do projeto, e já vêm prontos de fábrica.</li>
+  </ul>
+</div>
 
-<p>O <strong>time trabalha o relato</strong> numa fila que é do cliente: as colunas do quadro, com
-os nomes que a equipe usa, que ela reordena, renomeia e desativa. <strong>E o projeto nasce pronto
-para trabalhar</strong>: com as colunas A fazer, Fazendo e Feito (a última é a que encerra), já
-ligadas ao andamento que quem relatou acompanha. O relato entra nessa fila, e cada tipo de relato
-escolhe a coluna em que entra, ou deixa no padrão, que é a primeira coluna.</p>
+<h2>A base</h2>
 
-<p><strong>Os tipos de relato também são do projeto</strong>, como as prioridades: ele nasce com
-Defeito, Melhoria e Dúvida, e o time renomeia, troca a cor e o desenho, cria outros ou desativa. E
-cada tipo diz <strong>como o formulário pergunta</strong>. Uma caixa só, em branco, produz "não
-funciona"; o Defeito de fábrica pergunta o que a pessoa tentou fazer, o que aconteceu e o que ela
-esperava (um relato que dá para reproduzir), e a Melhoria e a Dúvida trazem a caixa livre com a
-pergunta certa dentro. O card aberto mostra cada resposta embaixo da pergunta que a pediu, como ela
-estava no envio.</p>
+<p>Login com Google, projeto, chave pública e secreta, e o isolamento por projeto. Quem administra
+configura; quem é membro trabalha nos relatos. Para entrar num projeto, a pessoa recebe um convite
+por e-mail e aceita entrando com o Google do mesmo endereço.</p>
 
-<p>Todos entram no projeto pela tela de <strong>Trabalho</strong>; quem administra entra pela
-configuração, com os primeiros passos no topo, só enquanto o sistema do cliente ainda não mandou nenhum relato. A lateral começa pelo trabalho, e a
-configuração vem embaixo, num item só: uma página central com os primeiros passos, a busca e cinco
-áreas pelo assunto (O seu sistema, O formulário, Depois de enviar, O quadro e O time), com os nomes do
-time em cada tela.</p>
+<p>Com isso, o caminho funciona de ponta a ponta: você cola o script numa página, o relato chega na
+lista do painel, e quem relatou volta pelo link e vê o próprio relato.</p>
 
-<p>A lista <strong>filtra por coluna</strong> (várias de uma vez), e cada coluna vem com a sua
-contagem; "Em aberto" esconde o que terminou. É o que responde "o que ainda não tratei", a pergunta
-que uma lista sem recorte não responde. A contagem vem de uma chamada própria: contar as linhas da
-página daria um número errado assim que o projeto passasse de cinquenta relatos. E a tabela ordena
-pelo que a pessoa escolher: o prazo mais perto, a prioridade mais alta, o mais novo.</p>
+<details class="mais">
+  <summary>Os limites que protegem o envio</summary>
+  <p>O envio em <code>POST /public/reports</code> respeita os limites de cada projeto: por quem
+  relata, por IP, por domínio e pelo projeto inteiro. Antes da pausa, aparece um desafio invisível.
+  O login e as duas rotas de envio de arquivo têm limite próprio, e o convite tem um teto por hora
+  em cada projeto.</p>
+</details>
 
-<p>Cada relato tem <strong>endereço próprio</strong>, então dá para mandar o link de um para um
-colega, abrir em outra aba e recarregar sem perdê-lo. Ele abre <em>sobre</em> a lista, que
-continua montada atrás com o recorte e a rolagem onde estavam.</p>
+<h2>O quadro é do time</h2>
 
-<p>E o time <strong>move o relato de coluna</strong>, pela tela do relato aberto ou arrastando o card no
-quadro. Cada mudança
-grava um evento imutável com de onde, para onde, quem e quando, e o evento entra <em>antes</em>
-do cache, na mesma transação. A fila deixou de ser uma foto.</p>
+<p>As colunas têm os nomes que a equipe usa, e ela reordena, renomeia e desativa como quiser. No
+modelo Quadro simples, que já vem marcado, o projeto nasce com <strong>A fazer</strong>, <strong>Fazendo</strong> e <strong>Feito</strong>
+(a última encerra), ligadas ao andamento que quem relatou acompanha. Os outros modelos trazem as próprias colunas.</p>
 
-<p>O time também <strong>comenta</strong>: o que fica entre a equipe e o que é escrito para
-quem relatou, em duas caixas distintas, e a separação é estrutural, com duas tabelas, e não um
-campo que alguém esquece de marcar. O comentário entre a equipe se corrige e se apaga, por quem o
-escreveu; o que vai para quem relatou espera alguns segundos antes de sair, com "Desfazer", e depois
-não volta. O comentário para quem relatou <strong>é lido na página de
-acompanhamento</strong>, junto das respostas dela, numa conversa só; o interno não tem caminho
+<div class="cartoes">
+  <div><strong>Tipos de relato</strong><p>Defeito, Melhoria e Dúvida no Quadro simples; o time cria, renomeia, muda a cor ou desativa.</p></div>
+  <div><strong>Perguntas certas</strong><p>O Defeito pergunta o que a pessoa tentou, o que aconteceu e o que esperava.</p></div>
+  <div><strong>Coluna de entrada</strong><p>Cada tipo escolhe em que coluna o relato cai; o padrão é a primeira.</p></div>
+</div>
+
+<p>Uma caixa em branco costuma virar "não funciona". Por isso cada tipo diz como o formulário
+pergunta, e o card mostra cada resposta embaixo da pergunta que a pediu.</p>
+
+<h2>O dia a dia no painel</h2>
+
+<ul>
+  <li><strong>Trabalho</strong> é a porta de entrada de todos. Quem administra começa pela configuração, com os primeiros passos, até o sistema dele mandar o primeiro relato.</li>
+  <li><strong>Configuração</strong> fica num item só, com busca e cinco áreas: O seu sistema, O formulário, Depois de enviar, O quadro e O time.</li>
+  <li><strong>Filtros</strong> por coluna, com a contagem de cada uma, e o "Em aberto" para ver o que ainda falta tratar.</li>
+  <li><strong>Endereço próprio</strong> para cada relato: dá para mandar o link a um colega. Ele abre por cima da lista, que continua onde estava.</li>
+</ul>
+
+<h2>Mover, comentar e lembrar</h2>
+
+<p>O time move o relato de coluna pelo card aberto ou arrastando no quadro. Cada mudança vira um
+evento com de onde, para onde, quem e quando, e daí sai a <strong>linha do tempo</strong> do relato.</p>
+
+<p>Os comentários têm duas caixas: uma só para a equipe e outra para quem relatou. A segunda aparece
+na página de acompanhamento, numa conversa junto das respostas da pessoa. A interna não tem caminho
 nenhum até lá.</p>
 
-<p>E cada relato tem uma <strong>linha do tempo</strong>, montada a partir dos eventos, com os
-nomes de coluna que valiam na época de cada mudança.</p>
+<details class="mais">
+  <summary>Detalhes para quem vai mexer no código</summary>
+  <ul>
+    <li>O evento entra antes do cache da coluna, na mesma transação: se um falhar, o outro não fica.</li>
+    <li>Interno e público são duas tabelas, e não um campo que alguém pode esquecer de marcar.</li>
+    <li>O comentário interno se corrige e se apaga por quem escreveu. O público espera alguns segundos, com "Desfazer", e depois não volta.</li>
+    <li>A contagem por coluna vem de uma chamada própria, porque contar a página daria número errado depois de cinquenta relatos.</li>
+    <li>A linha do tempo usa os nomes de coluna que valiam na época de cada mudança.</li>
+  </ul>
+</details>

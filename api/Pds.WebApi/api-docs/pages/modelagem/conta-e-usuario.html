@@ -1,8 +1,19 @@
+<h2>Conta, usuário e time</h2>
+<p class="lead">A dona dos dados, quem entra no painel e quem está em cada projeto.</p>
+
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Cada pessoa ganha uma conta própria no primeiro acesso.</li>
+    <li>A pessoa é reconhecida pelo <code>sub</code> do Google, e não pelo e-mail.</li>
+    <li>O time entra por projeto, sempre por um convite aceito; o dono da conta não precisa de linha.</li>
+  </ul>
+</div>
+
 <h2>accounts</h2>
 
-<p>A dona dos dados. Todo projeto pertence a uma, e o que pende dele junto, mas quem enxerga o
-quê é decidido por projeto: o dono da conta enxerga todos os projetos dela, e o time só os projetos
-em que entrou.</p>
+<p>A dona dos dados: todo projeto pertence a uma. Quem enxerga o quê é decidido por projeto: o dono
+da conta vê todos os projetos dela, e o time só aqueles em que entrou.</p>
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
@@ -13,146 +24,122 @@ em que entrou.</p>
 
 <div class="note why">
   <strong>Por que é separada de <code>users</code></strong>
-  <p>Cada pessoa tem uma conta própria, que nasce no primeiro acesso, e pode trabalhar em projetos
-  de outras contas sem que nenhuma delas deixe de ser de quem é.</p>
-  <p>A separação veio antes de ser usada: quando o time chegou, entrou numa tabela nova, e nenhum
-  dado precisou mudar de lugar.</p>
+  <p>A pessoa trabalha em projetos de outras contas sem que nenhuma deixe de ser de quem é. Quando o
+  time chegou, nenhum dado mudou de lugar.</p>
 </div>
 
 <div class="note why">
   <strong>Por que <code>purge_at</code> é coluna, e não <code>deleted_at</code> mais 24h</strong>
-  <p>Se o prazo fosse calculado, mudar a política mudaria o prazo de quem já tinha pedido a
-  exclusão. Gravado no momento do pedido, quem pediu mantém o prazo que foi prometido.</p>
+  <p>Gravado no pedido, o prazo prometido não muda se a política mudar depois.</p>
 </div>
 
 <h2>users</h2>
 
+<p>Quem entra no painel, sempre pelo Google.</p>
+
 <div class="table-scroll">
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
-  <tr><td><code>account_id</code></td><td>Conta própria: nasce no primeiro acesso, e a pessoa é dona dela. Os projetos de outras contas chegam por <code>project_members</code>, e não por aqui.</td></tr>
+  <tr><td><code>account_id</code></td><td>A conta própria, que nasce no primeiro acesso. Projetos de outras contas chegam por <code>project_members</code>.</td></tr>
   <tr><td><code>google_subject</code></td><td>O <code>sub</code> do Google. Único.</td></tr>
   <tr><td><code>email</code></td><td>Para contato. <strong>Sem índice único.</strong></td></tr>
-  <tr><td><code>email_verified</code></td><td>Se o Google confirmou o <code>email</code>. Gravado a cada login, junto com o endereço; quem já existia antes da coluna começa com falso, até entrar de novo. O convite só se aceita com ele verdadeiro.</td></tr>
+  <tr><td><code>email_verified</code></td><td>Se o Google confirmou o <code>email</code>, gravado a cada login. Quem existia antes da coluna começa falso até entrar de novo. O convite só se aceita com ele verdadeiro.</td></tr>
   <tr><td><code>name</code>, <code>avatar_url</code></td><td>Vindos do Google.</td></tr>
   <tr><td><code>last_login_at</code></td><td>Último acesso, em UTC.</td></tr>
-  <tr><td><code>notification_volume</code></td><td>O volume do som dos avisos no painel, de 0 a 100; 70 de fábrica. O som de cada tipo de aviso fica em <a href="#/modelagem/avisos">user_notification_sounds</a>.</td></tr>
+  <tr><td><code>sessions_revoked_at</code></td><td>A partir de quando as sessões valem, em UTC. Sair grava aqui, e todo token anterior deixa de valer em todos os aparelhos. Nulo enquanto a pessoa nunca saiu.</td></tr>
+  <tr><td><code>notification_volume</code></td><td>Volume do som dos avisos, de 0 a 100; 70 de fábrica. O som de cada tipo fica em <a href="#/modelagem/avisos">user_notification_sounds</a>.</td></tr>
 </table>
 </div>
 
 <div class="note warn">
   <strong>O e-mail não é único de propósito</strong>
-  <p>Identificar a pessoa pelo e-mail parece natural e está errado: o e-mail da conta Google
-  pode mudar, o <code>sub</code> não. Quem usa e-mail como chave acaba criando conta
-  duplicada ou, pior, entregando a conta de alguém a quem herdou o endereço.</p>
-  <p>Alguém vai olhar essa tabela depois e achar que faltou um índice. Fica registrado que a
-  ausência é escolha.</p>
+  <p>O e-mail da conta Google pode mudar, o <code>sub</code> não. Usar e-mail como chave cria conta
+  duplicada ou entrega a conta a quem herdou o endereço. A falta do índice é escolha.</p>
 </div>
 
 <h2>project_members</h2>
 
-<p>Quem do time entrou em cada projeto, e com que papel.</p>
+<p>Quem do time está em cada projeto, e com que papel. É por projeto para separar quem trabalha em
+cada cliente.</p>
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
-  <tr><td><code>project_id</code></td><td>Projeto em que a pessoa entrou. <code>Cascade</code>: a linha não existe sem o projeto.</td></tr>
+  <tr><td><code>project_id</code></td><td>O projeto. <code>Cascade</code>: a linha não existe sem ele.</td></tr>
   <tr><td><code>user_id</code></td><td>A pessoa. <code>Restrict</code>: ela não some enquanto estiver num projeto.</td></tr>
-  <tr><td><code>role</code></td><td><code>member</code> | <code>administrator</code>. Membro trabalha nos relatos e lê a configuração, sem mudá-la; administrador configura o projeto e decide quem entra. Uma trava no banco (<code>CHECK</code>) só aceita os dois.</td></tr>
+  <tr><td><code>role</code></td><td><code>member</code> | <code>administrator</code>, com <code>CHECK</code> no banco. Membro trabalha nos relatos e só lê a configuração; administrador configura e decide quem entra.</td></tr>
 </table>
 
-<p>Único por <code>(project_id, user_id)</code> entre os que não foram apagados: o mesmo filtro
-<code>deleted_at IS NULL</code> que <code>projects</code> usa no nome, e pelo mesmo motivo: sem ele,
-quem saiu e voltou esbarraria numa linha que ninguém mais enxerga. E <code>user_id</code> tem
-índice próprio, porque "em que projetos esta pessoa entrou" é a pergunta que o acesso faz a cada
-requisição.</p>
+<p>Único por <code>(project_id, user_id)</code> entre os <code>deleted_at IS NULL</code>, como o nome em <code>projects</code>,
+para quem saiu poder voltar. <code>user_id</code> tem índice próprio porque o acesso o consulta a
+cada requisição.</p>
 
-<div class="note why">
-  <strong>A entrada é por projeto, e não pela conta</strong>
-  <p>Quem atende dois clientes entra no projeto de cada um, e quem tem clientes diferentes na mesma
-  conta separa quem trabalha em qual. A mesma pessoa pode estar em projetos de várias contas.</p>
+<div class="cartoes">
+  <div><strong>O dono não tem linha</strong><p>Ele manda pelo próprio <code>users.account_id</code>, e apagar uma linha errada nunca o tranca fora.</p></div>
+  <div><strong>Sair apaga a linha</strong><p>Preenche <code>deleted_at</code> e vale na requisição seguinte; a pessoa e o que ela escreveu ficam.</p></div>
+  <div><strong>Só o convite cria</strong><p>Aceitar o convite é a única rota que cria linha aqui.</p></div>
 </div>
 
-<div class="note warn">
-  <strong>O dono da conta não tem linha aqui</strong>
-  <p>Ele manda em todos os projetos da conta própria pelo próprio <code>users.account_id</code>.
-  Se dependesse de linha, remover a linha errada trancaria o dono fora do que é dele.</p>
-  <p>É também por isso que a migração que criou a tabela não copiou ninguém para ela: os donos
-  continuaram entrando por onde já entravam.</p>
-</div>
-
-<div class="note why">
-  <strong>Sair apaga a linha, e nunca a pessoa</strong>
-  <p>Sair do projeto preenche <code>deleted_at</code>, e vale na requisição seguinte: o acesso é
-  lido do banco a cada requisição, e não guardado no token. O usuário fica, e o que ele escreveu
-  nos relatos continua com o nome dele.</p>
-</div>
-
-<div class="note why">
-  <strong>A linha nasce do convite aceito, e só dele</strong>
-  <p>A única rota que cria linha aqui é a de aceitar o convite: a tabela seguinte. Mudar o papel e
-  tirar outra pessoa do time são do administrador; <strong>sair é de qualquer um</strong>, apagando a
-  própria linha. O dono não muda de papel nem sai: não tem linha para mudar.</p>
-</div>
+<details class="mais">
+  <summary>Papéis, saída e a migração</summary>
+  <ul>
+    <li>O acesso é lido do banco a cada requisição, e não guardado no token.</li>
+    <li>Mudar o papel e tirar alguém são do administrador; sair é de qualquer um. O dono não faz nenhum dos dois.</li>
+    <li>A migração que criou a tabela não copiou ninguém.</li>
+  </ul>
+</details>
 
 <h2>project_invitations</h2>
 
-<p>O convite para o time: para qual endereço, com que papel, até quando, e onde está o e-mail
-dele.</p>
+<p>O convite para o time: para qual endereço, com que papel, até quando, e onde está o e-mail.</p>
 
+<details class="mais">
+  <summary>As colunas do convite</summary>
 <div class="table-scroll">
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
-  <tr><td><code>project_id</code></td><td>Projeto do convite. <code>Cascade</code>: o convite não existe sem o projeto.</td></tr>
-  <tr><td><code>email</code></td><td>O endereço convidado, em minúsculas. Até 320 caracteres. Só um endereço, sem nome junto, sem lista.</td></tr>
-  <tr><td><code>role</code></td><td>O papel que a pessoa terá ao aceitar: <code>member</code> | <code>administrator</code>, com a mesma trava no banco de <code>project_members</code>.</td></tr>
-  <tr><td><code>invited_by_user_id</code></td><td>Quem convidou, ou quem reenviou por último: é o nome que o e-mail mostra. <code>Restrict</code>.</td></tr>
-  <tr><td><code>token_hash</code></td><td>SHA-256 do link que foi no e-mail. <b>Nulo até o e-mail sair</b>, e de novo a cada reenvio. Único entre os preenchidos.</td></tr>
-  <tr><td><code>expires_at</code></td><td>Até quando o link vale. Calculado ao convidar e a cada reenvio, com o prazo do projeto.</td></tr>
+  <tr><td><code>project_id</code></td><td>Projeto do convite. <code>Cascade</code>.</td></tr>
+  <tr><td><code>email</code></td><td>Um endereço só, em minúsculas, até 320.</td></tr>
+  <tr><td><code>role</code></td><td><code>member</code> | <code>administrator</code>, com a mesma trava de <code>project_members</code>.</td></tr>
+  <tr><td><code>invited_by_user_id</code></td><td>Quem convidou ou reenviou por último, o nome que o e-mail mostra. <code>Restrict</code>.</td></tr>
+  <tr><td><code>token_hash</code></td><td>SHA-256 do link do e-mail. <b>Nulo até o envio começar</b>, e de novo a cada reenvio. Único entre os preenchidos.</td></tr>
+  <tr><td><code>expires_at</code></td><td>Até quando o link vale, calculado com o prazo do projeto ao convidar e a cada reenvio.</td></tr>
   <tr><td><code>accepted_at</code> / <code>accepted_by_user_id</code></td><td>Quando e quem aceitou. <code>Restrict</code> na pessoa.</td></tr>
-  <tr><td><code>revoked_at</code></td><td>Quando foi cancelado. O link deixa de valer.</td></tr>
-  <tr><td><code>email_status</code></td><td><code>pending</code> | <code>sending</code> | <code>sent</code> | <code>failed</code>. Onde está o e-mail: na fila, saindo, entregue ao servidor ou não saiu. Uma trava no banco só aceita os quatro.</td></tr>
-  <tr><td><code>email_attempted_at</code> / <code>email_sent_at</code></td><td>Quando o envio começou, e quando o servidor de e-mail aceitou.</td></tr>
-  <tr><td><code>email_error</code></td><td>Por que não saiu, até 200 caracteres: o tipo do erro, ou um motivo curto (<code>expired</code>, <code>queue_unavailable</code>, <code>interrupted</code>). <b>Nunca a mensagem do servidor</b>, que costuma repetir o endereço.</td></tr>
+  <tr><td><code>revoked_at</code></td><td>Quando foi cancelado.</td></tr>
+  <tr><td><code>email_status</code></td><td><code>pending</code> | <code>sending</code> | <code>sent</code> | <code>failed</code>: na fila, saindo, entregue ao servidor ou não saiu. Trava no banco.</td></tr>
+  <tr><td><code>email_attempted_at</code> / <code>email_sent_at</code></td><td>Quando o envio começou e quando o servidor aceitou.</td></tr>
+  <tr><td><code>email_error</code></td><td>Por que não saiu, até 200: o tipo do erro ou um motivo curto (<code>expired</code>, <code>queue_unavailable</code>, <code>interrupted</code>). <b>Nunca a mensagem do servidor</b>, que costuma repetir o endereço.</td></tr>
 </table>
 </div>
+</details>
 
-<p>Único por <code>(project_id, email)</code> entre os <strong>abertos</strong>, nem aceitos, nem
-cancelados, nem apagados: convidar de novo o mesmo endereço reenvia o convite que já existe, em vez
-de empilhar links que valeriam ao mesmo tempo. E um índice parcial sobre os que estão
-<code>pending</code> ou <code>sending</code> serve a varredura da subida, que procura justamente
-esses.</p>
+<p>Único por <code>(project_id, email)</code> entre os abertos: convidar de novo reenvia o mesmo convite. Um
+índice parcial sobre <code>pending</code> e <code>sending</code> atende a varredura da subida.</p>
 
 <div class="note warn">
   <strong>O link nunca é guardado</strong>
-  <p>Só o hash. Quem lê o banco (um backup, um log de consulta) não tem com o que entrar. E o
-  link nasce no consumidor da fila, na hora do envio: não viaja pela fila, não volta em resposta
-  nenhuma e não aparece em tela, nem para quem convidou. Reenviar sorteia outro, e o anterior deixa
-  de valer.</p>
-  <p>O hash vai para o banco <strong>antes</strong> de o e-mail sair, na mesma gravação que reserva
-  o envio. Ao contrário, um e-mail que saísse antes de a gravação terminar levaria um link que não
-  abre nada. E "enviado" só é gravado se a linha continua "enviando", com o hash daquele envio: um
-  reenvio no meio põe o convite de novo na fila, e o e-mail que vale é o do pedido novo.</p>
+  <p>Só o hash. O link nasce no consumidor da fila, na hora do envio, e não aparece em tela nenhuma;
+  reenviar sorteia outro.</p>
+  <p>O hash é gravado <strong>antes</strong> de o e-mail sair, e "enviado" só se a linha ainda está
+  "enviando" com o hash daquele envio.</p>
 </div>
 
 <div class="note why">
   <strong>Do e-mail, só o estado</strong>
-  <p>O texto do e-mail não é guardado: ele se monta do convite, a qualquer hora. Guardar seria
-  repetir o endereço e o link num segundo lugar. O que a tela de Membros precisa saber é onde o
-  e-mail está (na fila, entregue ou não saiu), e é isso que <code>email_status</code> diz.</p>
+  <p>O texto se monta do convite; a tela de Membros só precisa do <code>email_status</code>.</p>
 </div>
 
 <div class="note warn">
   <strong>O endereço é de quem ainda não está no time</strong>
-  <p>Por isso a lista de convites é só de administrador, inclusive para ler. E por isso o endereço
-  não vai para os eventos: <code>events</code> não se apaga, e o convite, sim.</p>
+  <p>Por isso só o administrador vê os convites, e o endereço não vai para <code>events</code>, que
+  não se apaga.</p>
 </div>
 
 <h2>project_team_settings</h2>
 
-<p>A configuração do time, uma linha por projeto. Sem linha, vale o padrão de fábrica.</p>
+<p>A configuração do time, uma linha por projeto. Sem linha, vale a de fábrica.</p>
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
-  <tr><td><code>project_id</code></td><td>Único entre os não apagados: uma linha por projeto.</td></tr>
-  <tr><td><code>invitation_validity_days</code></td><td>Por quantos dias o convite vale. De 1 a 30, com trava no banco; padrão 7. Vale para o próximo convite: quem já foi convidado mantém o prazo que recebeu.</td></tr>
+  <tr><td><code>project_id</code></td><td>Único entre os não apagados.</td></tr>
+  <tr><td><code>invitation_validity_days</code></td><td>Dias de validade do convite, de 1 a 30, com trava no banco; 7 de fábrica. Vale para o próximo convite.</td></tr>
 </table>

@@ -1,47 +1,59 @@
 <h2>Sprints</h2>
-<p class="lead">Com as sprints ligadas na tela Sprints: listar, planejar, iniciar, concluir e apagar, e o card na sprint e nos pontos.</p>
+<p class="lead">Planejar, iniciar e concluir sprints, e pôr o card nelas.</p>
 
-<p>Todas são de membro: planejar é trabalho do time, como mover card, e as escritas levam
-<code>[MemberWrite]</code> com o motivo. Ligar as sprints é do administrador, na tela Sprints
-(<code>SprintsEnabled</code>, gravado em <code>cycle-settings</code>); sem elas ligadas, criar e
-iniciar sprint, pôr o card numa sprint e estimar respondem 409 com <code>Este projeto nao trabalha
-em sprints. O administrador liga em Sprints.</code> Editar, concluir e apagar continuam valendo: é
-o que deixa concluir a sprint que ficou em andamento quando alguém desligou.
-Ver <a href="#/fluxo/backlog-e-sprints">Backlog e sprints</a>.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Todas as rotas são de membro; ligar as sprints é do administrador.</li>
+    <li>Só uma sprint fica em andamento por vez.</li>
+    <li>As datas de fábrica contam do dia de quem pede.</li>
+  </ul>
+</div>
+
+<p>As escritas levam <code>[MemberWrite]</code>. Ligar grava <code>SprintsEnabled</code> em
+<code>cycle-settings</code>. Desligadas, criar, iniciar, pôr card e estimar dão 409 com
+<code>Este projeto nao trabalha
+em sprints. O administrador liga em Sprints.</code> Editar, concluir e apagar seguem valendo. Ver
+<a href="#/fluxo/backlog-e-sprints">Backlog e sprints</a>.</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/sprints</code></td><td>As sprints que não foram concluídas: a em andamento primeiro, depois as planejadas, cada uma com os cards (sem as subtarefas e o arquivo), os que terminaram e os pontos, planejados e feitos. Com <code>closed=true</code>, vêm <strong>também as concluídas</strong>: as abertas primeiro, na mesma ordem, e depois as concluídas, da mais recente para a mais antiga. Sem o parâmetro, só as que não foram concluídas.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/sprints</code></td><td>Cria uma sprint planejada. Sem nome, ela se chama Sprint e o número; sem datas, começa logo depois da última que não foi concluída (ou hoje) e dura o padrão do projeto. Hoje é o <code>Today</code> do pedido (ver a nota abaixo). Sem as sprints ligadas, 409.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>.../sprints/{sprintPublicId}</code></td><td>Nome, objetivo e datas, inteiros; o objetivo vazio apaga. A sprint concluída não muda (409).</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>.../sprints/{sprintPublicId}/start</code></td><td>Inicia uma planejada: <strong>uma em andamento por vez</strong> (409 com outra). O corpo é opcional: o nome, o objetivo e as datas que vierem valem para a sprint que começa. <strong>Sem datas, ela começa hoje e dura o padrão do projeto</strong>: as datas planejadas eram previsão e não contam. Hoje é o <code>Today</code> do pedido. A partir daqui, o quadro mostra só ela.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>.../sprints/{sprintPublicId}/close</code></td><td>Conclui a em andamento. <code>Destination</code>: <code>Backlog</code>, <code>Sprint</code> (uma planejada, em <code>SprintPublicId</code>) ou <code>NewSprint</code> (uma planejada que nasce agora, depois das outras planejadas, ou a partir de hoje; o <code>Today</code> do pedido; a sprint que está sendo concluída não conta). O que não terminou vai para o fim da lista de destino, com as subtarefas; o que terminou fica na sprint concluída. A resposta traz os números de quando foi concluída e quantos foram.</td></tr>
-  <tr><td><span class="verb delete">DELETE</span></td><td><code>.../sprints/{sprintPublicId}</code></td><td>Apaga uma planejada; os cards dela voltam para o fim do backlog. A em andamento se conclui, e a concluída fica (409).</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/sprint</code></td><td>Põe o card numa sprint (<code>SprintPublicId</code>; nulo é o backlog) e no lugar da lista: logo abaixo de <code>AfterPublicId</code>, ou no topo (<code>Top</code>), ou no fim. A mesma lista arruma a ordem, que é do time inteiro. <strong>A subtarefa vai com o pai</strong> (409 se for movida sozinha), e a sprint concluída não recebe card (409).</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/points</code></td><td>A estimativa, de 0 a 999, de meio em meio ponto; nulo tira. Nunca na subtarefa (409).</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/sprints</code></td><td>As não concluídas (a em andamento, depois as planejadas), com cards, pontos planejados e feitos. <code>closed=true</code> traz também as concluídas, por último.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/sprints</code></td><td>Cria uma planejada. Sem nome, Sprint e o número; sem datas, começa depois da última aberta (ou no <code>Today</code>) e dura o padrão.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../sprints/{sprintPublicId}</code></td><td>Nome, objetivo e datas, inteiros. Concluída: 409.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../sprints/{sprintPublicId}/start</code></td><td>Inicia uma planejada (409 se já há outra). Sem datas, começa no <code>Today</code> e dura o padrão. O quadro passa a mostrar só ela.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../sprints/{sprintPublicId}/close</code></td><td>Conclui a em andamento. O que não terminou vai, com as subtarefas, para o <code>Destination</code>: <code>Backlog</code>, <code>Sprint</code> (em <code>SprintPublicId</code>) ou <code>NewSprint</code>.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>.../sprints/{sprintPublicId}</code></td><td>Apaga uma planejada; os cards voltam ao fim do backlog. Em andamento ou concluída: 409.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/sprint</code></td><td>Põe o card numa sprint (<code>SprintPublicId</code>; nulo é o backlog), abaixo de <code>AfterPublicId</code>, no topo (<code>Top</code>) ou no fim.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/points</code></td><td>A estimativa, de 0 a 999, de meio em meio ponto; nulo tira.</td></tr>
 </table>
 </div>
 
 <pre><code>POST /projects/2be49b28-.../sprints/4c0a.../start
 { "Today": "2026-10-07" }</code></pre>
 
-<div class="note why">
-  <strong>O dia de hoje é o de quem pede</strong>
-  <p>Criar, iniciar e concluir aceitam <code>Today</code>: o dia no relógio de quem pede, só a data.
-  É dele que as datas de fábrica contam. Sem ele, valeria o dia em UTC, e à noite, no Brasil, o UTC
-  já está no dia seguinte: a sprint criada ou iniciada às 22h "começava amanhã". O painel manda
-  sempre o dia local.</p>
-  <p><strong>A API não aceita qualquer dia.</strong> <code>Today</code> a mais de um dia do relógio
-  do servidor (o que nenhum fuso explica) é ignorado, e vale o dia em UTC. Sem
-  <code>Today</code>, também: o pedido sem ele continua válido, com o dia em UTC.</p>
-</div>
+<details class="mais">
+  <summary>Regras de borda de cada rota</summary>
+  <ul>
+    <li>A lista traz os cards sem as subtarefas e o arquivo; as concluídas vêm da mais recente para a mais antiga.</li>
+    <li>No início, o corpo é opcional, e as datas planejadas eram só previsão.</li>
+    <li><code>NewSprint</code> nasce depois das outras planejadas, ou a partir do <code>Today</code>. O que terminou fica na concluída, e a resposta traz os números e quantos foram.</li>
+    <li>Na sprint, a ordem é do time inteiro; a subtarefa vai com o pai (409 sozinha), e a concluída não recebe card (409).</li>
+    <li>Os pontos nunca vão na subtarefa (409), e o objetivo vazio apaga.</li>
+  </ul>
+</details>
 
 <div class="note why">
-  <strong>As concluídas vêm só quando pedidas</strong>
-  <p>A lista de sempre é a das sprints que ainda andam: é o que o Backlog e o quadro precisam, e
-  ela não cresce com o tempo. As concluídas são a história: <code>closed=true</code> as traz depois
-  das abertas, da mais recente para a mais antiga, para quem precisa escolher uma delas; o filtro
-  de sprint da lista, por exemplo, que recorta os cards de uma sprint concluída pelo
-  <code>sprint</code> de <code>GET .../reports</code>.</p>
+  <strong>O dia de hoje é o de quem pede</strong>
+  <p>Criar, iniciar e concluir aceitam <code>Today</code>, a data local. Sem ele valeria o UTC, e às
+  22h no Brasil a sprint "começaria amanhã". Um <code>Today</code> a mais de um dia do relógio do
+  servidor é ignorado.</p>
 </div>
+
+<details class="mais">
+  <summary>Por que as concluídas só vêm quando pedidas</summary>
+  <p>O Backlog e o quadro só precisam das abertas, e essa lista não cresce. <code>closed=true</code>
+  serve a quem escolhe uma concluída, como o filtro <code>sprint</code> de
+  <code>GET .../reports</code>.</p>
+</details>

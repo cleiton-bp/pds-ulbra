@@ -1,55 +1,57 @@
 <h2>O ciclo fecha</h2>
-<p class="lead">Encerrar com motivo, confirmar, reabrir, o pedido de informação com prazo e a espera antes de quem relatou ver.</p>
+<p class="lead">Encerrar com motivo, confirmar, reabrir e pedir informação com prazo.</p>
 
-<p>É o <strong>ciclo que fecha</strong> que faz o produto responder à queixa do README.
-<strong>Todo encerramento exige um motivo, e o motivo é visível</strong>: sem essa regra, a
-pessoa ficaria sabendo que acabou e não o que aconteceu, que é exatamente o problema de
-origem.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Todo encerramento tem um motivo, e quem relatou vê esse motivo.</li>
+    <li>Quem relatou confirma que resolveu ou reabre dizendo que não.</li>
+    <li>O time pode pedir informação com prazo, e as regras são do projeto.</li>
+  </ul>
+</div>
 
-<p>E "concluído" não é o fim. Quem relatou <strong>confirma</strong> que resolveu, ou
-<strong>reabre</strong> dizendo que não, e reabrir não é regredir: quem pediu a volta foi a
-própria pessoa, então o relato volta para a coluna que o projeto configurou, sem o freio que
-segura o vaivém interno. Ao confirmar, ela dá uma nota, e <strong>recusar opinar é registrado
-como recusa</strong>, e não como silêncio: juntar os dois daria uma métrica que parece precisa e
-não é.</p>
+<h2>Encerrar, confirmar e reabrir</h2>
 
-<p>O que ela escreve ao reabrir aparece <strong>dos dois lados</strong>, no painel e na página
-de acompanhamento: é a única coisa que a pessoa disse ao avisar que não resolveu, e quem pega o
-relato de volta precisa dela. E a reabertura pode levar imagens e arquivos, como a resposta ao
-time (ver <a href="#/visao-geral/imagens-e-arquivos">imagens e arquivos no relato</a>).</p>
+<p><strong>Todo encerramento exige um motivo visível</strong>. Depois, quem relatou
+<strong>confirma</strong> ou <strong>reabre</strong>.</p>
 
-<p>O time também pode <strong>devolver o relato pedindo informação</strong>, em vez de encerrar.
-É a diferença entre "não reproduzi" e "não vamos fazer": chegando iguais, fazem quem relatou
-entender que acabou e parar de responder. O pedido tem prazo: passado o primeiro, a página avisa;
-passado o segundo, o relato encerra como <strong>sem retorno</strong>, e encerrado assim
-continua reabrível, porque o produto existe justamente para quem foi esquecido.</p>
+<ul>
+  <li>Reabrir leva o relato à coluna que o projeto configurou, sem o freio da volta.</li>
+  <li>Ao confirmar, ela dá uma nota, e <strong>recusar opinar fica registrado como recusa</strong>, separado do silêncio.</li>
+  <li>O que ela escreve ao reabrir aparece <strong>dos dois lados</strong>, e a reabertura aceita imagens e arquivos (ver <a href="#/visao-geral/imagens-e-arquivos">imagens e arquivos no relato</a>).</li>
+</ul>
 
-<p>A conversa acontece pelo próprio relato, numa <strong>lista só com os dois lados em
-ordem</strong>, e sem nome de ninguém do time. E quem relata escolhe, no formulário, se
-<strong>aceita responder dúvidas</strong>, sem esse sim, o time não abre pedido nenhum, e a tela
-diz por quê.</p>
+<h2>Pedir informação</h2>
 
-<p>Entre o movimento de dentro e o que quem relatou vê pode haver uma <strong>espera</strong>
-configurável: é a janela para desfazer um movimento errado antes de ele virar notícia. Ela é o
-que trouxe a <strong>fila</strong> para o sistema, e o desenho dela cabe numa frase: a mensagem
-carrega o relato, e nunca a decisão. Quem consome relê o estado atual, e daí saem desfazer sem
-cancelar, mensagem repetida sem dano e mensagem perdida sem perder o relato.</p>
+<p>Em vez de encerrar, o time pode <strong>devolver o relato pedindo informação</strong>. A conversa
+fica numa <strong>lista só com os dois lados em ordem</strong>, sem nome de ninguém do time.</p>
 
-<p>Nada disso é fixo: as <strong>regras do ciclo</strong> são configuração por projeto, com
-padrão de fábrica em código. Se dá para reabrir e para onde, se a nota aparece e em que escala,
-quantos dias cada prazo tem: quem dita é o projeto. A tela <strong>Encerramento</strong> cuida de como o
-relato termina; o mesmo registro guarda as regras do quadro, que ficam em <strong>Colunas</strong>,
-e as das sprints, na tela <strong>Sprints</strong>, e cada tela grava só os campos dela.</p>
+<div class="cartoes">
+  <div><strong>Primeiro prazo</strong><p>A página de acompanhamento avisa que falta a resposta.</p></div>
+  <div><strong>Segundo prazo</strong><p>O relato encerra como <strong>sem retorno</strong>, e continua reabrível.</p></div>
+  <div><strong>Aceita responder?</strong><p>Quem relata escolhe no formulário; sem esse sim, o time não abre pedido.</p></div>
+</div>
 
-<p>No painel, <strong>encerrar e pedir informação ficam à mão em qualquer coluna</strong>, enquanto
-o relato está aberto. E tirar da coluna que encerra um relato encerrado (o que o reabre, e tira o
-motivo da página de quem relatou) <strong>pergunta antes</strong>, pelo quadro e pelo card.</p>
+<h2>A espera antes de quem relatou ver</h2>
 
-<p>Em produção, a fila roda na própria máquina, e a espera e o prazo do pedido funcionam lá. Numa
-instalação sem fila, a espera não liga (a tela de Encerramento recusa salvar uma espera maior que
-zero, dizendo o motivo) e o prazo do pedido <strong>nunca encerra o relato sozinho</strong>: quem
-aplica o vencimento é o consumidor da fila, e sem fila ele não existe.</p>
+<p>Uma <strong>espera</strong> configurável dá tempo de desfazer um engano antes de ele aparecer lá
+fora. Ela roda pela <strong>fila</strong>: a mensagem leva o relato, nunca a decisão.</p>
 
-<p>Fica uma ressalva: <code>tracking_code_can_act</code> (se quem chega pelo código pessoal também confirma e
-reabre) fica gravado, <strong>escondido na tela de Encerramento</strong>, e a API o ignora: confirmar,
-reabrir e responder aceitam só o link. Fazer essas três ações aceitarem o código é <strong>Adiado</strong>.</p>
+<p>Em produção, a fila roda na própria máquina. Sem fila, não há espera, e o prazo do pedido
+<strong>nunca encerra o relato sozinho</strong>.</p>
+
+<h2>As regras são do projeto</h2>
+
+<p>As <strong>regras do ciclo</strong> têm padrão de fábrica: reabrir e para onde, nota e escala,
+dias de cada prazo. Ficam em <strong>Encerramento</strong>, <strong>Colunas</strong> e
+<strong>Sprints</strong>, cada tela com as suas.</p>
+
+<p><strong>Encerrar e pedir informação ficam à mão em qualquer coluna</strong>. Tirar um relato
+encerrado da coluna final o reabre, então o painel <strong>pergunta antes</strong>.</p>
+
+<details class="mais">
+  <summary>Uma configuração guardada que a API ainda ignora</summary>
+  <p><code>tracking_code_can_act</code> diz se quem chega pelo código pessoal também confirma e
+  reabre. Ele fica gravado, <strong>escondido na tela de Encerramento</strong>, e a API o ignora:
+  confirmar, reabrir e responder aceitam só o link. Aceitar o código é <strong>Adiado</strong>.</p>
+</details>

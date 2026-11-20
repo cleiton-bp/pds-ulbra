@@ -1,5 +1,14 @@
 <h2>Modelagem</h2>
-<p class="lead">Trinta e cinco tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Trinta e cinco tabelas, e por que cada uma existe.</p>
+
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>A conta é a raiz; quase todo o resto pendura no projeto.</li>
+    <li>Quem está no time entra por projeto, e não pela conta.</li>
+    <li>Toda tabela tem um <code>id</code> interno e um <code>public_id</code> que sai para fora.</li>
+  </ul>
+</div>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
@@ -55,64 +64,59 @@
                    │
                    └───1:N──  <b>events</b></div>
 
-<p>A conta é a raiz de tudo. Usuário e projeto penduram nela, e a chave pendura no projeto
-(não na conta) porque chave não existe fora de um projeto. O endereço autorizado pendura no
-mesmo lugar, pelo mesmo motivo. E quem está no time também: <code>project_members</code> liga a
-pessoa ao projeto, e não à conta, porque a entrada é por projeto, e o convite, que é a porta
-dessa entrada, pendura no mesmo lugar.</p>
+<p>Chave, endereço autorizado, time (<code>project_members</code>) e convite penduram no projeto
+porque nenhum existe fora de um. <code>sprints</code>, <code>card_links</code>, <code>notifications</code> e
+<code>user_notification_sounds</code> ficam fora do desenho, cada uma na página dela.</p>
 
-<p>O desenho acima é simplificado em seis pontos, e os seis são deliberados:
-<code>reports</code> aponta <em>também</em> para <code>projects</code>, e não só para a
-conta; <code>events</code> aponta para as três (conta, projeto e relato), todas
-anuláveis; <code>reports</code> aparece duas vezes, porque além de pendurar na conta ele
-<em>pode</em> pendurar num <code>reporter_codes</code>, que é opcional e vive dentro do
-projeto; <code>report_attachments</code> pendura sempre no relato, mas <em>pode</em>
-apontar também para uma resposta (<code>report_public_comments</code>) ou para uma
-reabertura (<code>report_closures</code>), nunca para as duas; e <code>users</code> aparece
-duas vezes, porque além de pendurar na conta própria ele entra, por
-<code>project_members</code>, no time de projetos de qualquer conta; e
-<code>project_labels</code> aparece duas vezes, porque a etiqueta pendura no projeto e chega a cada
-card por <code>report_labels</code>, uma linha por par. O porquê de cada um está na página da tabela,
-logo abaixo.</p>
+<details class="mais">
+  <summary>Os seis pontos em que o desenho simplifica</summary>
+  <ul>
+    <li><code>reports</code> aponta também para <code>projects</code>, e não só para a conta.</li>
+    <li><code>events</code> guarda conta, projeto e relato, os três anuláveis. Conta e projeto são só o número, sem chave estrangeira.</li>
+    <li><code>reports</code> aparece duas vezes porque <em>pode</em> pendurar num <code>reporter_codes</code>, opcional e dentro do projeto.</li>
+    <li><code>report_attachments</code> pendura sempre no relato, e <em>pode</em> apontar para uma resposta (<code>report_public_comments</code>) ou uma reabertura (<code>report_closures</code>), nunca para as duas.</li>
+    <li><code>users</code> aparece duas vezes: tem a conta própria e entra, por <code>project_members</code>, em projetos de qualquer conta.</li>
+    <li><code>project_labels</code> aparece duas vezes: a etiqueta é do projeto e chega a cada card por <code>report_labels</code>, uma linha por par.</li>
+  </ul>
+  <p>O porquê de cada um está na página da tabela.</p>
+</details>
 
 <h2>Colunas que toda tabela repete</h2>
 
 <table>
   <tr><th>Coluna</th><th>Tipo</th><th>Para quê</th></tr>
   <tr><td><code>id</code></td><td>bigint</td><td>Chave interna. Nunca sai da aplicação.</td></tr>
-  <tr><td><code>public_id</code></td><td>uuid</td><td>Identificador público. É o que aparece em URL e API.</td></tr>
+  <tr><td><code>public_id</code></td><td>uuid</td><td>Identificador público, o que aparece em URL e API.</td></tr>
   <tr><td><code>created_at</code></td><td>timestamp</td><td>Criação, em UTC.</td></tr>
   <tr><td><code>updated_at</code></td><td>timestamp</td><td>Última alteração, em UTC.</td></tr>
   <tr><td><code>deleted_at</code></td><td>timestamp</td><td>Nulo enquanto o registro vale.</td></tr>
 </table>
 
+<p>A exceção é <code>events</code>: a tabela só cresce, então não tem <code>updated_at</code> nem <code>deleted_at</code>.</p>
+
 <div class="note why">
   <strong>Por que dois identificadores</strong>
-  <p>O <code>id</code> é <code>bigint</code> porque é ele que aparece em chave estrangeira e
-  índice, e trocar o tipo depois significa alterar toda tabela que referencia, com o sistema
-  no ar.</p>
-  <p>Mas um inteiro sequencial exposto entrega duas coisas de graça: quantos registros
-  existem e quais são os vizinhos. Quem recebe <code>/projects/41</code> sabe que existe um
-  40. Por isso o que sai é o <code>public_id</code>, um GUID aleatório.</p>
-  <p>O GUID é sorteado pelo contexto na hora de gravar, não por quem cria a entidade. Assim
-  é garantia, e não combinado: nenhuma linha entra sem identificador público, mesmo que o
-  código que a criou tenha esquecido.</p>
+  <p>O <code>id</code> é <code>bigint</code> porque está em toda chave estrangeira, e trocar o tipo
+  depois seria alterar tudo com o sistema no ar. Mas exposto, ele entrega vizinhos: quem recebe
+  <code>/projects/41</code> sabe que existe um 40.</p>
+  <p>Por isso o que sai é o <code>public_id</code>, um GUID aleatório que o contexto sorteia ao
+  gravar. Nenhuma linha entra sem ele.</p>
 </div>
 
 <h2>Nesta seção</h2>
 
 <div class="steps-index">
-  <a href="#/modelagem/conta-e-usuario"><strong>Conta, usuário e time</strong><span>A dona dos dados, quem entra no painel, e quem está em cada projeto, com que papel.</span></a>
-  <a href="#/modelagem/projeto-e-chaves"><strong>Projeto, chaves e endereços</strong><span>O que o cliente cria, o que nasce junto e o que autoriza a ferramenta a abrir.</span></a>
-  <a href="#/modelagem/configuracoes"><strong>Configurações do projeto</strong><span>Aparência, ciclo, identidade e visibilidade, limites de relato: uma linha por projeto, só quando alguém salva.</span></a>
-  <a href="#/modelagem/fila-interna"><strong>A fila interna</strong><span>As colunas que o time usa (três de fábrica), e por que a coluna de entrada de um tipo não se aposenta.</span></a>
-  <a href="#/modelagem/jornada-publica"><strong>A jornada pública</strong><span>Os passos que quem relatou vê, e o mapa versionado que leva até eles.</span></a>
-  <a href="#/modelagem/relato"><strong>O relato</strong><span>Os tipos de relato e o que cada um pergunta, a tabela que mais cresce, o contexto que vem junto e o código de quem escreveu.</span></a>
-  <a href="#/modelagem/campos-do-card"><strong>O que o time dá ao card</strong><span>Responsável, prioridade, etiquetas e prazo: as prioridades e as etiquetas do projeto, e a paleta.</span></a>
-  <a href="#/modelagem/vinculos"><strong>Vínculos entre cards</strong><span>Duplicado de, bloqueia e relacionado a, um por par de cards, e o que o duplicado grava no próprio relato para quem relatou acompanhar o original.</span></a>
-  <a href="#/modelagem/avisos"><strong>Os avisos do sino</strong><span>A menção e a escolha como responsável, de uma pessoa só, e o som de cada tipo de aviso, com o volume, na própria pessoa.</span></a>
-  <a href="#/modelagem/sprints"><strong>Sprints e backlog</strong><span>As sprints do projeto, uma em andamento por vez, e o que o card ganha com elas: a sprint, os pontos e o lugar no backlog.</span></a>
-  <a href="#/modelagem/conversa-e-ciclo"><strong>Conversa e ciclo</strong><span>Os dois comentários em tabelas separadas, o encerramento e o pedido de informação.</span></a>
-  <a href="#/modelagem/midia"><strong>Mídia</strong><span>O que o projeto aceita, o limite de cada tipo numa linha própria, e o registro de cada arquivo, que nunca mora no banco.</span></a>
-  <a href="#/modelagem/eventos"><strong>Eventos</strong><span>A única tabela que só cresce, e as convenções de nome do banco inteiro.</span></a>
+  <a href="#/modelagem/conta-e-usuario"><strong>Conta, usuário e time</strong><span>A dona dos dados, quem entra no painel e quem está em cada projeto.</span></a>
+  <a href="#/modelagem/projeto-e-chaves"><strong>Projeto, chaves e endereços</strong><span>O projeto, o que nasce com ele e os endereços que podem usar a ferramenta.</span></a>
+  <a href="#/modelagem/configuracoes"><strong>Configurações do projeto</strong><span>Aparência, ciclo, identidade e limites, numa linha só quando alguém salva.</span></a>
+  <a href="#/modelagem/fila-interna"><strong>A fila interna</strong><span>As colunas do quadro, três de fábrica e todas do time.</span></a>
+  <a href="#/modelagem/jornada-publica"><strong>A jornada pública</strong><span>Os passos que quem relatou vê e o mapa versionado até eles.</span></a>
+  <a href="#/modelagem/relato"><strong>O relato</strong><span>Os tipos de relato, o card, o contexto e o código de quem escreveu.</span></a>
+  <a href="#/modelagem/campos-do-card"><strong>O que o time dá ao card</strong><span>Responsável, prioridade, etiquetas e prazo.</span></a>
+  <a href="#/modelagem/vinculos"><strong>Vínculos entre cards</strong><span>Duplicado, bloqueia e relacionado, um por par de cards.</span></a>
+  <a href="#/modelagem/avisos"><strong>Os avisos do sino</strong><span>Menção, responsável e o som de cada aviso.</span></a>
+  <a href="#/modelagem/sprints"><strong>Sprints e backlog</strong><span>As sprints do projeto e o que o card ganha com elas.</span></a>
+  <a href="#/modelagem/conversa-e-ciclo"><strong>Conversa e ciclo</strong><span>Os dois comentários, o encerramento e o pedido de informação.</span></a>
+  <a href="#/modelagem/midia"><strong>Mídia</strong><span>O que o projeto aceita e o registro de cada arquivo.</span></a>
+  <a href="#/modelagem/eventos"><strong>Eventos</strong><span>A tabela que só cresce e as convenções de nome do banco.</span></a>
 </div>

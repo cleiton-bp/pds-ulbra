@@ -1,6 +1,13 @@
 <h2>Onde fica no código</h2>
+<p class="lead">Precisa mexer em algo? Procure aqui o arquivo certo.</p>
 
-<p>Mapa para quando a pergunta for "preciso mexer em X, vou onde".</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Cada linha diz o que você quer mudar e o arquivo (e, às vezes, o método) onde isso mora.</li>
+    <li>A tabela é longa: a busca do navegador (Ctrl+F) com uma palavra do assunto acha a linha mais rápido.</li>
+  </ul>
+</div>
 
 <div class="table-scroll">
 <table>
@@ -11,6 +18,8 @@
   <tr><td>Isolamento por projeto: o filtro global</td><td><code>Pds.Data/Context/DataContext.cs</code></td></tr>
   <tr><td>Nome de tabela, coluna, índice</td><td><code>Pds.Data/Types/*Map.cs</code></td></tr>
   <tr><td>Login e criação de conta</td><td><code>Pds.Service/Services/AuthService.cs</code></td></tr>
+  <tr><td>Sair, que encerra as sessões de antes em todos os aparelhos</td><td><code>Pds.Service/Services/AuthService.cs</code>, <code>LogoutAsync</code>, e <code>Pds.WebApi/Authorization/AccountMiddleware.cs</code></td></tr>
+  <tr><td><strong>Excluir a conta</strong>: o pedido, desfazer entrando de novo e a limpeza no fim das 24 horas</td><td><code>Pds.Service/Services/AccountDeletionService.cs</code>, <code>RequestAsync</code>, <code>ResolveOnSignInAsync</code> e <code>PurgeAsync</code>, e <code>Pds.Domain/Entities/Account/AccountDeletionDefaults.cs</code></td></tr>
   <tr><td>Geração e conferência de chave</td><td><code>Pds.Service/Security/ProjectKeyGenerator.cs</code></td></tr>
   <tr><td><strong>O projeto novo</strong>: a chave pública, as colunas do modelo já ligadas ao andamento público, as prioridades, os tipos de relato, as sprints do Scrum e o evento da criação, sem a chave secreta</td><td><code>Pds.Service/Services/ProjectService.cs</code>, <code>CreateAsync</code></td></tr>
   <tr><td><strong>Os modelos de projeto</strong> (Quadro simples, Suporte, Kanban e Scrum), como dado: colunas, jornada, tipos de relato e sprints</td><td><code>Pds.Service/Projects/ProjectTemplates.cs</code>, <code>Pds.Domain/Enums/ProjectTemplateEnum.cs</code></td></tr>

@@ -1,55 +1,88 @@
 <h2>Esta documentação</h2>
+<p class="lead">Páginas estáticas, servidas pela própria API.</p>
 
-<p>Fica em <code>Pds.WebApi/api-docs</code>. A pasta seria <code>wwwroot</code> pela
-convenção do ASP.NET Core; o nome foi trocado para dizer o que ela guarda, e a raiz web é
-apontada em <code>Program.cs</code>.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Fica em <code>Pds.WebApi/api-docs</code> e abre na raiz do endereço da API, em qualquer ambiente.</li>
+    <li>Cada página é um fragmento de HTML, e a lista <code>ROUTES</code> monta o menu.</li>
+    <li>Editar uma página não pede rebuild: salve e atualize o navegador.</li>
+  </ul>
+</div>
+
+<p>Ela e o <a href="/swagger">Swagger</a> (em <code>/swagger</code>) ficam abertos também em
+produção. Mostrar o desenho não abre nada: toda rota com dado continua pedindo sessão, chave do
+projeto ou token do relato.</p>
+
+<h2>Onde fica cada coisa</h2>
+
+<p>A pasta seria <code>wwwroot</code>; o nome diz o que ela guarda, e a raiz web é apontada em
+<code>Program.cs</code>.</p>
 
 <ul>
-  <li><code>index.html</code>: a casca: menu lateral e área de conteúdo.</li>
+  <li><code>index.html</code>: a casca, com o menu lateral e a área de conteúdo.</li>
   <li><code>assets/js/docs.js</code>: o roteador. A lista <code>ROUTES</code> define o menu.</li>
   <li><code>assets/css/docs.css</code>: o estilo.</li>
-  <li><code>pages/&lt;seção&gt;.html</code> (a abertura de cada seção, e
-  <code>pages/&lt;seção&gt;/&lt;passo&gt;.html</code>) cada passo dela.</li>
-  <li><code>assets/js/swagger-back.js</code>: o botão de volta que aparece na barra do
-  Swagger. É injetado na página dele pelo <code>Startup.cs</code>, e fecha o caminho de ida
-  e volta entre os dois.</li>
+  <li><code>pages/&lt;seção&gt;.html</code>: a abertura de cada seção, e
+  <code>pages/&lt;seção&gt;/&lt;passo&gt;.html</code>, cada passo dela.</li>
+  <li><code>assets/js/swagger-back.js</code>: o botão de volta na barra do Swagger, injetado pelo
+  <code>Startup.cs</code>.</li>
 </ul>
 
-<div class="note warn">
-  <strong>Os nomes dos assets não são genéricos por acaso</strong>
-  <p>Nomes como <code>app.js</code> e <code>styles.css</code> colidem com os de qualquer outro
-  projeto na mesma origem, e o cache do navegador serve um no lugar do outro.</p>
-</div>
+<p>Os nomes não são genéricos de propósito: <code>app.js</code> ou <code>styles.css</code>
+colidiriam no cache com os de outro projeto na mesma origem.</p>
 
-<p>Para acrescentar uma seção: crie <code>pages/nome.html</code> e adicione a entrada em
-<code>ROUTES</code>. Para um passo dentro dela, crie <code>pages/nome/passo.html</code> e acrescente
-o passo em <code>children</code>. A ordem da lista é a ordem do menu e a do anterior/próximo no
-rodapé.</p>
+<h2>Acrescentar uma página</h2>
 
-<div class="note why">
-  <strong>Editar uma página não pede rebuild</strong>
-  <p>Com <code>dotnet run</code>, os arquivos são servidos direto da pasta do projeto: salvar
-  e atualizar o navegador basta. Só mexer em <code>ROUTES</code> pede recarregar a página
-  inteira, porque o menu é montado uma vez.</p>
-</div>
+<ul>
+  <li><strong>Seção nova:</strong> crie <code>pages/nome.html</code> e adicione a entrada em
+  <code>ROUTES</code>.</li>
+  <li><strong>Passo novo:</strong> crie <code>pages/nome/passo.html</code> e acrescente o passo em
+  <code>children</code>.</li>
+</ul>
 
-<p>Cada página é só um fragmento de HTML, sem <code>&lt;head&gt;</code> nem
+<p>A ordem da lista é a do menu e a do rodapé. Com <code>dotnet run</code>, só mexer em
+<code>ROUTES</code> pede recarregar a página inteira. A página não tem <code>&lt;head&gt;</code> nem
 <code>&lt;body&gt;</code>: o primeiro <code>&lt;h2&gt;</code> vira o título e o
-<code>&lt;p class="lead"&gt;</code> seguinte, o subtítulo. Para os blocos destacados existem
-três estilos: <code>note why</code> para o porquê de uma decisão, <code>note warn</code> para
-armadilha, e <code>note todo</code> para o que ainda falta.</p>
+<code>&lt;p class="lead"&gt;</code>, o subtítulo.</p>
+
+<h2>Os blocos que você pode usar</h2>
+
+<div class="cartoes">
+  <div><strong>Resumo no topo</strong><p><code>div.resumo</code>, com dois a quatro itens logo abaixo do subtítulo.</p></div>
+  <div><strong>Cartões</strong><p><code>div.cartoes</code>, para assuntos paralelos lado a lado.</p></div>
+  <div><strong>Abre com clique</strong><p><code>details.mais</code>, para o detalhe de quem vai mexer no código. Desliza ao abrir e ao fechar.</p></div>
+  <div><strong>Notas</strong><p><code>note why</code> para o porquê, <code>note warn</code> para armadilha e <code>note todo</code> para o que falta.</p></div>
+</div>
+
+<h2>O que a página ganha sozinha</h2>
+
+<p>O <code>docs.js</code> acrescenta, sem nada no HTML:</p>
+
+<ul>
+  <li><strong>Barra de leitura:</strong> uma linha fina no topo mostra quanto da página já foi lido.</li>
+  <li><strong>Voltar ao topo:</strong> um botão redondo aparece no canto depois de rolar um pouco.</li>
+  <li><strong>Copiar código:</strong> todo bloco <code>pre</code> ganha o botão Copiar, que aparece
+  ao passar o mouse.</li>
+  <li><strong>Animações:</strong> os primeiros blocos chegam em sequência, e os de baixo aparecem ao
+  rolar.</li>
+</ul>
+
+<p>Quem pede menos movimento no sistema (<code>prefers-reduced-motion</code>) vê tudo parado, e a
+volta ao topo é imediata.</p>
 
 <h2>O que ainda não existe</h2>
 
-<p>As páginas descrevem o que o produto faz, no presente. O que ele ainda não faz leva uma de três
-marcas, sempre em negrito e nunca com data:</p>
+<p>As páginas falam no presente. O que ainda não existe leva uma marca em negrito, nunca com
+data:</p>
 
+<div class="table-scroll">
 <table>
   <tr><th>Marca</th><th>Quer dizer</th></tr>
   <tr><td><strong>Planejado</strong></td><td>Vai ser construído.</td></tr>
   <tr><td><strong>Adiado</strong></td><td>Começou a ser construído e ficou para depois, por decisão.</td></tr>
   <tr><td><strong>Continuidade</strong></td><td>O que o produto pode vir a ter, fora do escopo atual; está anotado para não se perder.</td></tr>
 </table>
+</div>
 
-<p>A marca diz o estado da coisa, e não quando ela chega: uma data escrita aqui envelheceria em
-silêncio, e a página passaria a prometer o que ninguém mais está cumprindo.</p>
+<p>Data escrita aqui envelheceria em silêncio, prometendo o que ninguém cumpre.</p>

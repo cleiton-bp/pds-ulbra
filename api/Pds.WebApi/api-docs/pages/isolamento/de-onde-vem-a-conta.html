@@ -1,8 +1,22 @@
 <h2>De onde vem o acesso</h2>
+<p class="lead">Do token e do banco, e de mais nada.</p>
 
-<p>Do token e do banco, e só. O <code>AccountMiddleware</code> roda depois da autenticação, lê o
-<code>uid</code>, busca a linha do usuário (e, com ela, a conta própria) e lê os projetos que a
-pessoa enxerga, com o papel em cada um. É isso que preenche o contexto da requisição.</p>
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>A cada requisição, o middleware lê do banco os projetos que a pessoa enxerga e o papel em cada um.</li>
+    <li>Ler é de membro, e mudar a configuração é de administrador, com seis exceções.</li>
+    <li>Projeto de fora responde 404; falta de papel responde 403.</li>
+    <li>Nenhuma rota aceita conta ou papel por parâmetro.</li>
+  </ul>
+</div>
+
+<h2>A lista da requisição</h2>
+
+<p>O <code>AccountMiddleware</code> roda depois da autenticação. Ele lê o <code>uid</code> do token,
+busca o usuário, a conta própria e os projetos que a pessoa enxerga, com o papel em cada um. Se o token é
+de antes do último "sair" (<code>users.sessions_revoked_at</code>), responde 401 com <code>Sessao encerrada.
+Entre de novo.</code></p>
 
 <div class="diagram">token validado
     │
@@ -18,95 +32,71 @@ pessoa enxerga, com o papel em cada um. É isso que preenche o contexto da requi
                                                    ├─▶ filtro global do contexto
                                                    └─▶ papel que a rota exige</div>
 
-<h3>A conta própria, e o time</h3>
+<div class="cartoes">
+  <div><strong>A conta própria</strong><p>Nasce com a pessoa no primeiro acesso. A dona vê todos os projetos dela e administra cada um, sem linha em <code>project_members</code>.</p></div>
+  <div><strong>O time</strong><p>Os outros entram por projeto: uma linha em <code>project_members</code> com o papel, criada por um <a href="#/fluxo/convidar">convite aceito</a>.</p></div>
+  <div><strong>O dono vence</strong><p>Se a dona também tiver linha no time de um projeto dela, vale o acesso de dona.</p></div>
+</div>
 
-<p>Cada pessoa tem uma <strong>conta própria</strong>, que nasce junto com ela no primeiro acesso,
-e é dona dela. O dono enxerga <strong>todos</strong> os projetos da conta própria e é
-administrador em cada um, sem linha nenhuma em <code>project_members</code>, e por isso nunca
-perde o acesso porque alguém removeu a linha errada.</p>
-
-<p>Os outros entram pelo projeto, e não pela conta: uma linha em <code>project_members</code> por
-pessoa em cada projeto, com o papel. A linha nasce de um convite aceito (ver
-<a href="#/fluxo/convidar">Convidar alguém para o time</a>). A mesma pessoa pode estar em projetos de
-várias contas, e a lista da requisição junta todos.</p>
-
-<p>É uma leitura só a cada requisição autenticada, escrita à mão: a pessoa, os projetos da conta
-própria, e as linhas dela no time, fora da conta própria. <strong>O dono vence</strong>: se ele também tiver linha no
-time de um projeto da conta dele, vale o acesso de dono, e a linha não rebaixa quem manda na conta.
-A lista vai para <code>IAccountContext</code> (<code>Projects</code>, <code>ProjectIds</code> e
-<code>FindProject</code>), e dali para o filtro global e para o papel que cada rota exige. A leitura
-atravessa o filtro de propósito, porque é ele que depende da lista: ver
-<a href="#/isolamento/consultas-que-atravessam">as consultas que atravessam o filtro</a>.</p>
+<p>É uma leitura só por requisição, escrita à mão. A lista vai para <code>IAccountContext</code> (<code>Projects</code>, <code>ProjectIds</code> e
+<code>FindProject</code>), e dali para o filtro global e para o papel da rota. Essa leitura atravessa
+o filtro de propósito.</p>
 
 <div class="note why">
   <strong>O acesso não mora no token</strong>
-  <p>O que a pessoa enxerga é lido do banco a cada requisição, e não guardado no token. A linha do
-  time que ganha <code>deleted_at</code> (a pessoa saiu do projeto) deixa de valer na requisição
-  seguinte, sem esperar o token vencer. O usuário fica, e o que ele escreveu nos relatos continua
-  com o nome dele.</p>
-  <p>O preço é uma leitura pequena por requisição autenticada, por índice.</p>
+  <p>Ele é lido do banco a cada requisição. Quem sai do projeto (a linha ganha <code>deleted_at</code>)
+  perde o acesso na requisição seguinte, sem esperar o token vencer. O preço é uma leitura pequena, por índice.</p>
 </div>
 
 <div class="note warn">
   <strong>Nenhuma rota aceita conta nem papel por parâmetro</strong>
-  <p>Não há <code>?accountId=</code>, nem campo de conta ou de papel no corpo de nenhuma
-  requisição. O projeto vem na rota, mas só vale se estiver na lista que o middleware montou. Se o
-  cliente pudesse informar a conta ou o papel, o isolamento viraria sugestão.</p>
+  <p>Não há <code>?accountId=</code>, nem campo de conta ou papel no corpo. O projeto vem na rota, mas
+  só vale se estiver na lista do middleware. Sem sessão, a lista é vazia e nada volta.</p>
 </div>
-
-<h3>Sem sessão, nada volta</h3>
-
-<p>Sem usuário identificado, a lista de projetos é vazia, e vazia não corresponde a projeto
-nenhum. O padrão é não ver nada, e não ver tudo.</p>
 
 <h2>Os dois papéis</h2>
 
-<p>Quem está num projeto tem um de dois papéis. <strong>Administrador</strong> configura o projeto
-e decide quem entra: pode haver mais de um. <strong>Membro</strong> trabalha nos relatos e lê a
-configuração, sem mudá-la. O dono da conta é administrador em todos os projetos dela.</p>
-
-<p>A regra cabe numa linha (<strong>ler é de membro, e mudar a configuração é de
-administrador</strong>), com seis exceções:</p>
+<p><strong>Administrador</strong> configura o projeto e decide quem entra (pode haver mais de um).
+<strong>Membro</strong> trabalha nos relatos e lê a configuração. A dona da conta administra todos os
+projetos dela. A regra geral é <strong>ler é de membro, mudar a configuração é de administrador</strong>,
+com seis exceções:</p>
 
 <ul>
-  <li><strong>As chaves</strong> são só de administrador, inclusive para ler. São a credencial da
-  integração, e o trabalho nos relatos não precisa delas.</li>
-  <li><strong>Os convites</strong> também, inclusive a lista: ela traz o endereço de pessoas que
-  ainda não estão no time. Quem está no time, ao contrário, todo membro vê: é a lista de com quem
-  ele trabalha.</li>
-  <li><strong>Tudo sob <code>/reports</code></strong> é de membro, inclusive o que grava: criar e
-  editar o card do time, mover, arrumar a ordem do quadro, comentar, pedir informação, encerrar,
-  arquivar, moderar e dar ao card título, responsável, prioridade, etiquetas e prazo. É o trabalho
-  do time, e não configuração. Uma regra ali dentro não é de papel: o comentário interno só se
-  corrige e se apaga por quem o escreveu; 403 para os outros, inclusive quem administra.</li>
-  <li><strong>Criar etiqueta</strong> também é de membro, embora more em <code>/labels</code>: o
-  time cria a etiqueta ao etiquetar um card. Mudar e apagar etiqueta, e tudo que grava em
-  <code>/priorities</code> e em <code>/report-types</code>, é de administrador.</li>
-  <li><strong>As sprints</strong> também são de membro, embora morem em <code>/sprints</code>:
-  planejar, iniciar, concluir e apagar sprint é trabalho do time, como mover card. Ligar as
-  sprints é configuração: está na tela Sprints, gravada em <code>cycle-settings</code>, e é de
-  administrador.</li>
-  <li><strong>Sair do time</strong> é de qualquer pessoa do time, embora more em
-  <code>/members</code>: <code>DELETE .../members/{userPublicId}</code> com o próprio identificador.
-  Tirar <em>outra</em> pessoa continua de administrador, e quem confere é o serviço, porque só ali
-  se sabe se quem pede é a própria pessoa da linha: <code>So administradores do projeto podem tirar
+  <li><strong>As chaves:</strong> só de administrador, até para ler, e a chave da assinatura da identidade
+  também. O trabalho nos relatos não precisa delas.</li>
+  <li><strong>Os convites:</strong> também, inclusive a lista, que traz endereços de quem ainda não
+  entrou. A lista do time, todo membro vê.</li>
+  <li><strong>Quase tudo sob <code>/reports</code></strong> é de membro, inclusive gravar: criar, mover,
+  comentar, encerrar, arquivar, moderar e editar os campos do card. Manter e apagar de vez os cards de
+  origem bloqueada é de administrador. E o comentário interno tem dono: corrigir e apagar é de quem
+  escreveu, e os outros recebem 403, até quem administra.</li>
+  <li><strong>Criar etiqueta</strong> é de membro, embora more em <code>/labels</code>. Mudar e apagar
+  etiqueta, e gravar em <code>/priorities</code> e <code>/report-types</code>, é de administrador.</li>
+  <li><strong>As sprints</strong> são de membro, embora morem em <code>/sprints</code>. Ligar as sprints
+  é configuração, em <code>cycle-settings</code>, e é de administrador.</li>
+  <li><strong>Sair do time</strong> é de qualquer pessoa, em <code>DELETE .../members/{userPublicId}</code>
+  com o próprio identificador, embora more em <code>/members</code>. Tirar outra pessoa é de
+  administrador, conferido no serviço: <code>So administradores do projeto podem tirar
   alguem do time.</code> (403).</li>
 </ul>
 
-<p>Das cento e três rotas de projeto, cinquenta e cinco valem para qualquer papel, e quarenta e oito
-pedem administrador:</p>
+<details class="mais">
+  <summary>As cento e três rotas de projeto por papel</summary>
+  <p>Cinquenta e cinco valem para qualquer papel, e quarenta e oito pedem administrador.</p>
+  <div class="table-scroll">
+  <table>
+    <tr><th>Papel</th><th>Rotas</th></tr>
+    <tr><td>Membro</td><td>As leituras da configuração (o projeto, os endereços, isto é, os autorizados, os bloqueados, os que mandaram relatos e os que esperam liberação, os estados, a jornada, o mapa e as seis configurações, a do time e os limites de relato inclusive); a lista do time, as prioridades, os tipos de relato e as etiquetas; criar etiqueta; tudo sob <code>/reports</code>, menos as duas decisões sobre os cards de origem bloqueada: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, arrumar a ordem do quadro, os campos do card (título, responsável, prioridade, etiquetas e prazo), os vínculos entre cards, a sprint e os pontos do card, os comentários interno e público (e corrigir e apagar o próprio interno), os anexos, o pedido de informação, o encerramento e a moderação; as sprints (listar, criar, editar, iniciar, concluir e apagar); e sair do time.</td></tr>
+    <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e gerar as chaves; autorizar e retirar endereço; bloquear e desbloquear domínio; liberar e apagar de vez os relatos retidos; manter e apagar de vez os cards de origem bloqueada; gravar a ferramenta, o ciclo, a identidade (e ler o segredo dela, ver o histórico dele e trocá-lo), os limites de relato, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code>, <code>/report-types</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar outra pessoa do time, conferido no serviço, na mesma rota de sair; e os convites (listar, convidar, reenviar e cancelar).</td></tr>
+  </table>
+  </div>
+</details>
 
-<div class="table-scroll">
-<table>
-  <tr><th>Papel</th><th>Rotas</th></tr>
-  <tr><td>Membro</td><td>As leituras da configuração (o projeto, os endereços, isto é, os autorizados, os bloqueados, os que mandaram relatos e os que esperam liberação, os estados, a jornada, o mapa e as seis configurações, a do time e os limites de relato inclusive); a lista do time, as prioridades, os tipos de relato e as etiquetas; criar etiqueta; tudo sob <code>/reports</code>, menos as duas decisões sobre os cards de origem bloqueada: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, arrumar a ordem do quadro, os campos do card (título, responsável, prioridade, etiquetas e prazo), os vínculos entre cards, a sprint e os pontos do card, os comentários interno e público (e corrigir e apagar o próprio interno), os anexos, o pedido de informação, o encerramento e a moderação; as sprints (listar, criar, editar, iniciar, concluir e apagar); e sair do time.</td></tr>
-  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e gerar as chaves; autorizar e retirar endereço; bloquear e desbloquear domínio; liberar e apagar de vez os relatos retidos; manter e apagar de vez os cards de origem bloqueada; gravar a ferramenta, o ciclo, a identidade (e ler o segredo dela, ver o histórico dele e trocá-lo), os limites de relato, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code>, <code>/report-types</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar outra pessoa do time, conferido no serviço, na mesma rota de sair; e os convites (listar, convidar, reenviar e cancelar).</td></tr>
-</table>
-</div>
+<h2>Como a rota declara o papel</h2>
 
-<p>Cada rota declara o papel que exige, com <code>[RequireProjectRole]</code>. O controlador
-declara o mínimo (<code>Member</code>), e a ação que muda configuração acrescenta
-<code>Administrator</code>; o das chaves e o dos convites declaram <code>Administrator</code> direto, na classe.</p>
+<p>Cada rota usa <code>[RequireProjectRole]</code>. O controlador declara o mínimo
+(<code>Member</code>) e a ação que muda configuração acrescenta <code>Administrator</code>. Os
+controladores das chaves e dos convites declaram <code>Administrator</code> direto, na classe.</p>
 
 <pre><code>[RequireProjectRole(ProjectRoleEnum.Member)]
 [Route("projects/{publicId:guid}/origins")]
@@ -120,77 +110,50 @@ public class ProjectOriginsController : BaseController
     public async Task&lt;IActionResult&gt; Create(...)
 }</code></pre>
 
-<div class="note why">
-  <strong>O papel é conferido antes de o corpo ser lido</strong>
-  <p>É filtro de autorização, e roda antes de a requisição ser lida ou validada. O membro que tenta
-  mudar a configuração ouve "só administradores" mesmo mandando um corpo inválido, e não uma lista
-  de erros de validação de algo que ele nem pode fazer.</p>
-</div>
+<p>O papel é conferido antes de o corpo ser lido: o membro ouve "só administradores", e não erros de
+validação.</p>
 
 <div class="note warn">
   <strong>A API não sobe com rota de projeto mal declarada</strong>
-  <p><code>ProjectRoleCoverage</code> confere duas regras na subida, e a API não sobe se alguma
-  falhar: o erro nomeia a rota. Toda rota com <code>projects/{publicId}</code> declara
-  <code>[RequireProjectRole]</code>, na classe ou na ação. E, fora de <code>/reports</code>, toda
-  rota que grava exige <code>Administrator</code>: a que não declara verbo aceita qualquer um, e
-  conta como escrita. Sem a segunda regra, uma ação nova de escrita num controlador de
-  configuração herdaria o <code>Member</code> da classe sem ninguém notar.</p>
-  <p>Esquecer não abriria o projeto para quem é de fora: o filtro global continua respondendo
-  "não encontrado". O que o esquecimento abriria é a configuração para quem é só membro, e, se
-  depender de lembrar, um dia alguém esquece.</p>
-  <p><strong>A escrita de membro fora de <code>/reports</code> é declarada, e não esquecida.</strong>
-  Criar etiqueta, sair do time e as escritas das sprints: cada ação leva <code>[MemberWrite]</code>, com o motivo escrito ao lado, e a
-  regra aceita só a ação que declara, ela mesma, que é trabalho do time. Tirar a marca faz a API
-  voltar a não subir.</p>
+  <p><code>ProjectRoleCoverage</code> confere duas regras na subida, e o erro nomeia a rota: toda rota
+  com <code>projects/{publicId}</code> declara <code>[RequireProjectRole]</code>, e, fora de
+  <code>/reports</code>, toda rota que grava exige <code>Administrator</code> (a que não declara verbo
+  conta como escrita).</p>
+  <p>Esquecer não abriria o projeto para quem é de fora, porque o filtro global continua valendo. Abriria
+  a configuração para quem é só membro. As escritas de membro fora de <code>/reports</code> (criar
+  etiqueta, sair do time e as sprints) levam <code>[MemberWrite]</code> com o motivo ao lado; tirar a
+  marca faz a API voltar a não subir.</p>
 </div>
 
 <h2>Por que 404, e não 403</h2>
 
-<p>Pedir um projeto em que a pessoa não está responde <strong>404 Não encontrado</strong>, com a
-mensagem <code>Projeto nao encontrado.</code>: a mesma de um projeto que não existe.</p>
+<p>Pedir um projeto em que você não está responde <strong>404 Não encontrado</strong>, com
+<code>Projeto nao encontrado.</code>, igual a um projeto que não existe. Para a aplicação ele não
+existe mesmo, e dizer "existe, mas não é seu" já contaria que existe.</p>
 
-<p>Do ponto de vista do código não há escolha: o projeto não está na lista da requisição (o
-atributo da rota não o acha, e o filtro global não devolve a linha), então para a aplicação ele
-não existe mesmo.
-E é também a resposta certa do ponto de vista de quem pergunta: dizer "existe, mas não é seu" já
-é contar que existe.</p>
-
-<p><strong>O 403 fica para quem está no projeto e não tem o papel.</strong> O membro que tenta
-mudar a configuração, ou ler as chaves, recebe a mensagem <code>So administradores do projeto
-podem fazer isto.</code> Ali não há o que esconder: ele já enxerga o projeto. As duas conferências
-que moram no serviço respondem do mesmo jeito: tirar outra pessoa do time sem administrar, e
-corrigir ou apagar o comentário interno de outra pessoa. Sem sessão, a resposta continua
-401.</p>
+<p><strong>O 403 é para quem está no projeto e não tem o papel</strong>, com <code>So administradores do projeto
+podem fazer isto.</code> Também vale para tirar outra pessoa do time sem administrar e para
+mexer no comentário interno de outra pessoa. Sem sessão, a resposta é 401.</p>
 
 <h2>Identidade fica de fora do filtro</h2>
 
-<p><code>accounts</code> e <code>users</code> não têm filtro de acesso. São as tabelas
-consultadas no login e no começo de cada requisição, quando ainda não se sabe o que a pessoa
-enxerga: filtrá-las quebraria justamente as consultas que montam o acesso.</p>
-
-<p>Nenhuma rota lista usuário ou conta de forma aberta: o acesso a elas passa sempre pelo
-identificador que veio do token, ou por um projeto que a pessoa já enxerga; é assim que cada
-projeto da lista traz a conta dona, só com o nome e o identificador.</p>
+<p><code>accounts</code> e <code>users</code> não têm filtro de acesso: são lidas justamente para
+montar o acesso. Nenhuma rota as lista: elas chegam pelo token ou por um projeto que a pessoa já
+enxerga, que traz só o nome e o identificador da conta dona.</p>
 
 <h2>Quem aceita ainda não está no projeto</h2>
 
-<p>As duas rotas do convite do lado de quem foi convidado (abrir e aceitar) ficam em
-<code>/invitations</code>, <strong>fora</strong> de <code>projects/{publicId}</code>, de propósito:
-quem aceita ainda não está no projeto, e a rota dele responderia "não encontrado". Elas pedem
-sessão, e mais nada do projeto.</p>
+<p>Abrir e aceitar o convite ficam em <code>/invitations</code>, <strong>fora</strong> de
+<code>projects/{publicId}</code>, porque ali a resposta seria "não encontrado". Elas pedem só sessão.</p>
 
-<p>O que prende o convite à pessoa são duas coisas juntas. O <strong>link</strong> do e-mail, com
-256 bits sorteados, que o banco guarda só como hash. E o <strong>Google</strong> de quem está
-logado: o e-mail da sessão precisa ser o endereço convidado, e confirmado pelo Google
-(<code>users.email_verified</code>). Encaminhado para outra pessoa, o link não serve para ela, e
-quem o abre com a conta errada vê só uma pista do endereço, a primeira letra e o domínio, e nada
-do projeto.</p>
-
-<p>Aceitar cria a linha em <code>project_members</code>, e o acesso vale a partir da requisição
-seguinte, como todo o resto: a lista de projetos é lida do banco a cada requisição.</p>
+<p>Duas coisas prendem o convite à pessoa: o <strong>link</strong> do e-mail, com 256 bits sorteados e
+guardado só como hash, e o <strong>Google</strong> de quem está logado, que precisa ser o endereço
+convidado e confirmado (<code>users.email_verified</code>). Com a conta errada, a pessoa vê só a primeira
+letra e o domínio do endereço. Aceitar cria a linha em <code>project_members</code>, que vale na
+requisição seguinte.</p>
 
 <div class="note todo">
   <strong>O que falta</strong>
-  <p><strong>Planejado:</strong> teste automatizado provando que uma pessoa não alcança, por
-  nenhum caminho, projeto em que não está, e que o membro não muda a configuração.</p>
+  <p><strong>Planejado:</strong> teste automatizado provando que ninguém alcança projeto em que não está
+  e que o membro não muda a configuração.</p>
 </div>

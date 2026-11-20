@@ -1,80 +1,63 @@
+<h2>A fila interna</h2>
+<p class="lead">As colunas do quadro, com os nomes que o time usa.</p>
+
+<div class="resumo">
+  <strong>Em resumo</strong>
+  <ul>
+    <li>Cada projeto tem as próprias colunas, que nascem do modelo escolhido: no Quadro simples, <strong>A fazer</strong>, <strong>Fazendo</strong> e <strong>Feito</strong>.</li>
+    <li>Coluna não se apaga, se desativa, para o histórico não perder o nome.</li>
+    <li>A coluna de entrada de algum tipo de relato não pode ser desativada.</li>
+  </ul>
+</div>
+
 <h2>project_states</h2>
+
+<p>As colunas do quadro. São do cliente, e não nossas, porque fila de trabalho é processo: com uma
+lista fixa, a tradução para a jornada pública só mapearia os nossos nomes nos nossos nomes.</p>
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
-  <tr><td><code>project_id</code></td><td>A fila é de cada sistema, e não da conta: quem cuida de dois produtos raramente cuida dos dois do mesmo jeito.</td></tr>
-  <tr><td><code>name</code></td><td>O nome que o time deu. Único no projeto entre os não apagados. 40.</td></tr>
+  <tr><td><code>project_id</code></td><td>A fila é de cada sistema: quem cuida de dois produtos raramente cuida dos dois do mesmo jeito.</td></tr>
+  <tr><td><code>name</code></td><td>O nome que o time deu, até 40. Único no projeto entre os não apagados.</td></tr>
   <tr><td><code>position</code></td><td>A ordem na tela. <b>Não é única</b> (ver abaixo).</td></tr>
-  <tr><td><code>deactivated_at</code></td><td>Nulo enquanto o estado aceita relato novo. Preenchido, ele some da lista de destinos e continua no histórico.</td></tr>
+  <tr><td><code>deactivated_at</code></td><td>Nulo enquanto aceita relato novo. Preenchido, sai dos destinos e continua no histórico.</td></tr>
 </table>
 
 <div class="note why">
-  <strong>Por que os estados são do cliente, e não nossos</strong>
-  <p>Esta é a tabela que não podia ser cortada. Uma lista fixa, escrita por nós, faria a
-  tradução entre o que o time faz por dentro e o que a pessoa de fora acompanha virar mapear os
-  nossos próprios nomes nos nossos próprios nomes: um passo que não decide nada.</p>
-  <p>E fila de trabalho é processo: obrigar a nossa seria obrigar o time a descrever o dele com
-  as nossas palavras.</p>
-</div>
-
-<div class="note why">
   <strong>Três de fábrica, e todas do time</strong>
-  <p>Todo projeto nasce com <strong>A fazer</strong>, <strong>Fazendo</strong> e
-  <strong>Feito</strong> (posições 0, 1 e 2), já ligadas à jornada pública. É o que quem chega de um
-  quadro simples espera no primeiro minuto, e é só ponto de partida: são linhas como outras
-  quaisquer, que o time renomeia, reordena e desativa. Com uma coluna só, ela seria a entrada e o
-  fim ao mesmo tempo, e o quadro não andaria antes de alguém achar a configuração.</p>
-  <p>Pela regra de fábrica do ciclo, a última coluna ativa é a que encerra: num projeto novo,
-  <strong>Feito</strong>. O projeto que já existia ficou com as colunas que tinha.</p>
+  <p>No Quadro simples, o projeto nasce com <strong>A fazer</strong>, <strong>Fazendo</strong> e
+  <strong>Feito</strong> (posições 0, 1 e 2), já ligadas à jornada pública. Kanban, Scrum e Suporte
+  trazem as colunas deles, de quatro a cinco. O time renomeia, reordena e desativa como quiser.</p>
+  <p>A última coluna ativa é a que encerra: no Quadro simples, <strong>Feito</strong>. Projetos que já
+  existiam ficaram com as colunas que tinham.</p>
 </div>
 
 <div class="note warn">
-  <strong>Estado não se apaga, se desativa</strong>
-  <p>Não existe rota de remoção. Relato antigo aponta para o estado, e um estado que some leva
-  junto o sentido de tudo que passou por ele: o histórico ficaria com uma lacuna onde havia um
-  nome.</p>
-  <p><code>deleted_at</code> existe porque vem da base de toda tabela, mas nada nesta escreve
-  nele hoje. O par honesto de "criar" aqui é <code>deactivated_at</code>.</p>
+  <strong>Coluna não se apaga, se desativa</strong>
+  <p>Não existe rota de remoção: o relato antigo aponta para a coluna, e o histórico ficaria com uma
+  lacuna. <code>deleted_at</code> vem da base de toda tabela, mas nada escreve nele aqui.</p>
 </div>
 
-<div class="note why">
-  <strong>A ordem se grava inteira, e a posição não é única</strong>
-  <p>Arrastar um item mexe na posição de todos entre a origem e o destino, então a rota recebe
-  a fila inteira de uma vez: em chamadas separadas, uma falha no meio deixaria a lista numa
-  ordem que ninguém pediu.</p>
-  <p>Índice único em <code>position</code> tornaria isso pior, não melhor: trocar dois estados
-  de lugar esbarraria na trava no meio do caminho. A leitura desempata pelo <code>id</code>,
-  para duas linhas na mesma posição não trocarem de lugar sozinhas entre uma consulta e outra.</p>
+<div class="cartoes">
+  <div><strong>A ordem vai inteira</strong><p>A rota recebe a fila toda de uma vez, para uma falha no meio não deixar uma ordem que ninguém pediu.</p></div>
+  <div><strong>Posição repetida</strong><p>Um índice único travaria a troca de duas colunas; a leitura desempata pelo <code>id</code>.</p></div>
+  <div><strong>Sem teto</strong><p>A lista é lida só por quem abre a tela, ao contrário de <code>project_origins</code>.</p></div>
 </div>
 
-<div class="note why">
-  <strong>O nome repetido é barrado duas vezes, de jeitos diferentes</strong>
-  <p>O índice único do banco compara byte a byte, então ele pega <code>Fazendo</code> repetido e
-  deixa passar <code>fazendo</code> com a caixa trocada. A conferência que ignora caixa mora no
-  serviço, e é ela a regra: duas colunas escritas igual e indistinguíveis na tela seriam um
-  defeito, não uma customização.</p>
-  <p>O índice é a rede embaixo, para duas gravações ao mesmo tempo não criarem a mesma coluna
-  duas vezes.</p>
-</div>
-
-<div class="note why">
-  <strong>Não há teto de quantos estados cabem</strong>
-  <p>Diferente de <code>project_origins</code>, que tem teto porque a lista inteira é lida a
-  cada abertura da ferramenta, esta é lida só por quem abriu a tela. Quantas faixas o trabalho
-  tem é escolha de quem trabalha.</p>
-</div>
+<details class="mais">
+  <summary>O nome repetido é barrado duas vezes</summary>
+  <p>O índice único compara byte a byte: pega <code>Fazendo</code> repetido e deixa passar
+  <code>fazendo</code>. A regra que ignora maiúsculas mora no serviço, e o índice é a rede embaixo,
+  para duas gravações simultâneas não criarem a mesma coluna.</p>
+</details>
 
 <div class="note warn">
   <strong>A coluna de entrada não se desativa</strong>
-  <p>Cada tipo de relato escolhe a coluna em que o relato dele entra
-  (<code>project_report_types.initial_state_id</code>), e nulo é o padrão: a primeira coluna ativa
-  da fila; <strong>A fazer</strong>, num projeto novo. Ver <a href="#/modelagem/relato">O
-  relato</a>.</p>
-  <p>Enquanto um tipo aponta para a coluna, desativá-la devolve <strong>409</strong>: o próximo
-  relato daquele tipo cairia numa coluna desativada, que é justamente o que desativar existe para
-  impedir. Os tipos desativados contam: reativar um deles traria o problema de volta. A chave
-  estrangeira é <code>Restrict</code>: a regra mora no serviço, e o banco é a rede embaixo dela.</p>
-  <p>A escolha morava numa tabela própria, <code>project_initial_states</code>, uma linha por tipo
-  fixo. Com o tipo sendo do projeto, ela virou um campo dele: a migração copiou cada escolha para o
-  tipo correspondente e apagou a tabela.</p>
+  <p>Cada tipo de relato escolhe onde o relato entra (<code>project_report_types.initial_state_id</code>);
+  nulo é a primeira coluna ativa. Ver <a href="#/modelagem/relato">O relato</a>.</p>
+  <p>Enquanto algum tipo, ativo ou desativado, aponta para a coluna, desativá-la devolve
+  <strong>409</strong>. A chave estrangeira é <code>Restrict</code>: a regra mora no serviço, e o
+  banco é a rede embaixo.</p>
+  <p>A escolha morava em <code>project_initial_states</code>, uma linha por tipo fixo. A migração a
+  copiou para cada tipo e apagou a tabela.</p>
 </div>
