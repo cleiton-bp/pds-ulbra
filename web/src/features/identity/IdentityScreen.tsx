@@ -20,7 +20,12 @@ import { LanguageIcon, type ServerLanguage } from '@/shared/components/LanguageI
 import { MovedAnchors } from '@/shared/components/MovedAnchors'
 import { NumberField } from '@/shared/components/NumberField'
 import { type JourneyStage, PublicJourney } from '@/shared/components/PublicJourney'
-import { SentConfirmation } from '@/shared/components/SentConfirmation'
+import {
+  LinkedAccountCard,
+  PersonalCodeCard,
+  SentConfirmation,
+  SentDetails,
+} from '@/shared/components/SentConfirmation'
 import { Check, Hint, RadioGroup } from '@/shared/components/SettingsControls'
 import { SettingsGroup } from '@/shared/components/SettingsGroup'
 import { SettingsHeader } from '@/shared/components/SettingsHeader'
@@ -1984,36 +1989,26 @@ function Previa({
         {aba === 'sistema' && (
           <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5">
             <div className={cn('flex flex-col gap-4', realce === 'confirmacao' && PREVIEW_OUTLINE)}>
-              <SentConfirmation
-                message={ferramenta.SuccessMessage}
-                values={exemplo}
-                trackingCode={exemplo.protocolo}
-              />
+              <SentConfirmation message={ferramenta.SuccessMessage} values={exemplo} preview />
             </div>
-            {/* O que o modo acrescenta a confirmacao: o codigo para guardar, ou a frase do
-                relato ligado a conta. No protocolo, nada — o link e a unica volta. */}
+            {/* O que o modo acrescenta a confirmacao: o codigo para guardar ou a conta ligada,
+                as mesmas pecas do formulario. No protocolo, o link e a unica volta, e os
+                detalhes logo abaixo dizem isso. */}
             {modo === 'PersonalCode' && (
-              <div
-                className={cn(
-                  'rounded-lg border border-border bg-surface-raised p-4',
-                  realce === 'reconhecimento' && PREVIEW_OUTLINE,
-                )}
-              >
-                <p className="mb-1.5 text-detail text-fg-muted">O seu código</p>
-                <p className="font-mono text-fg text-lead tracking-wide">H7QK-3M2X-P9WD</p>
+              <div className={cn(realce === 'reconhecimento' && PREVIEW_OUTLINE)}>
+                <PersonalCodeCard code="H7QK-3M2X-P9WD" savedHere onDownload={() => {}} />
               </div>
             )}
             {modo === 'InheritedIdentity' && (
-              <p
-                className={cn(
-                  'text-caption text-fg-muted leading-normal',
-                  realce === 'reconhecimento' && PREVIEW_OUTLINE,
-                )}
-              >
-                Este relato ficou ligado a você: ele aparece em “Ver os meus relatos” sempre que
-                você estiver na sua conta neste site.
-              </p>
+              <div className={cn(realce === 'reconhecimento' && PREVIEW_OUTLINE)}>
+                <LinkedAccountCard />
+              </div>
             )}
+            <SentDetails
+              trackingCode={exemplo.protocolo}
+              trackingLink={null}
+              onlyWayBack={modo === 'Protocol'}
+            />
           </div>
         )}
 

@@ -715,9 +715,24 @@ describe('o código pessoal', () => {
     await relatar()
 
     expect(screen.getByText('H7QK-3M2X-P9WD')).toBeTruthy()
-    // **Perder o código custa a lista, não os relatos.** Sem essa frase, quem o
-    // perde acha que perdeu tudo — e o link continuava valendo o tempo todo.
-    expect(screen.getByText(/Perdê-lo custa a lista, não os relatos/i)).toBeTruthy()
+    // **Para que serve, em palavras de quem relata**: outro aparelho. E que neste
+    // navegador ele já ficou salvo, para ninguém sair anotando o que não precisa.
+    expect(screen.getByText(/em outro celular, computador ou navegador/i)).toBeTruthy()
+    expect(screen.getByText(/Neste navegador ele já ficou salvo/i)).toBeTruthy()
+    // O protocolo e o link continuam, como detalhe deste relato.
+    expect(screen.getByText('Detalhes deste relato')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Acompanhar este relato' })).toBeTruthy()
+  })
+
+  it('da confirmação, "Ver os meus relatos" leva à lista e voltar traz a confirmação', async () => {
+    dublê.listar.mockResolvedValue({ Reports: [], HasMore: false })
+    await relatar()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver os meus relatos' }))
+    expect(await screen.findByRole('heading', { name: 'Os seus relatos' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /Voltar ao formulário/ }))
+    expect(await screen.findByRole('heading', { name: 'Relato enviado' })).toBeTruthy()
   })
 
   it('guarda o que a API confirmou, e não o que foi mandado', async () => {

@@ -28,20 +28,26 @@ import { nameFromIdentityToken } from '@/embed/identityToken'
 import { launcherFrame, launcherMode, launcherSize } from '@/embed/launcher'
 import { MyReports } from '@/embed/MyReports'
 import { PublicList } from '@/embed/PublicList'
+import { downloadTextFile, personalCodeFile } from '@/embed/personalCodeFile'
 import { PREVIEW_OUTLINE } from '@/embed/previewOutline'
 import type { PreviewFormPart } from '@/embed/protocol'
 import { buildReportContext } from '@/embed/reportContext'
 import { readReporterCode, writeReporterCode } from '@/embed/reporterCodeStore'
 import { findRealType } from '@/embed/resolveSettings'
+import { EntryLink, MyReportsIcon, PublicReportsIcon } from '@/embed/ScreenNav'
 import { STICKY_TOP_SCROLL_PADDING, StickyTop } from '@/embed/StickyTop'
 import { isFallbackType } from '@/embed/settings'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 
 import { Button } from '@/shared/components/Button'
-import { CopyButton } from '@/shared/components/CopyButton'
 import { LauncherIconSvg } from '@/shared/components/LauncherIcon'
 import { ReportTypeIconSvg } from '@/shared/components/ReportTypeGlyph'
-import { SentConfirmation } from '@/shared/components/SentConfirmation'
+import {
+  LinkedAccountCard,
+  PersonalCodeCard,
+  SentConfirmation,
+  SentDetails,
+} from '@/shared/components/SentConfirmation'
 import { cn } from '@/shared/lib/cn'
 import { buildTrackingLink } from '@/shared/lib/tracking'
 import { firstName } from '@/shared/lib/widgetText'
@@ -229,6 +235,15 @@ export function EmbedApp({
    * configuração não promete vitrine nenhuma.
    */
   const ehPublico = settings.Visibility !== 'Private'
+
+  /**
+   * **No modo do codigo, sempre, e nao so quando ha codigo guardado.** Quem trocou de
+   * navegador nao tem nada guardado e e justamente quem mais precisa da entrada: a lista
+   * pede o codigo ali dentro. **No modo que herda a identidade, so com o cracha**: sem ele
+   * nao ha de quem listar. A previa mostra a entrada nos dois.
+   */
+  const temLista =
+    settings.IdentityMode === 'PersonalCode' || (herdada && (preview || cracha !== null))
 
   // No modo que herda a identidade, o cracha pode trazer o nome: o campo ja vem
   // preenchido com ele — e e sugestao, que a pessoa apaga ou troca.
@@ -864,13 +879,24 @@ export function EmbedApp({
 
   if (created) {
     const trackingLink = buildTrackingLink(created.TrackingCode, created.AccessToken)
+    const codigo = created.ReporterCode
+    // Guardado de verdade, e nao so pedido: sem armazenamento a escrita falha calada, e a
+    // tela nao pode dizer "ja ficou salvo" a quem vai perder o codigo ao fechar.
+    const salvoAqui = codigo !== null && readReporterCode(config.key) === codigo
+    // Aberto direto, sem pagina em volta, nao ha `sandbox` para barrar o download.
+    const podeBaixar = !host || host.canDownload === true
+    const ligadoAConta = created.Identified === true
+    // Sem codigo e sem conta, o link e a unica forma de voltar a este relato.
+    const unicaVolta = codigo === null && !ligadoAConta
 
     return (
       // `overflow-y-auto` pelo mesmo motivo do formulario: com arquivos na lista e o
-      // codigo pessoal, a confirmacao passa da altura do quadro — e o que ficaria fora
+      // codigo pessoal, a confirmacao passa da altura do quadro, e o que ficaria fora
       // seria o link que aparece uma vez so, e o "Fechar".
-      <section style={style} className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5">
-        {/* O texto e o protocolo: a mesma peca que as previas do painel mostram. */}
+      <section
+        style={style}
+        className="rolagem-do-quadro flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5"
+      >
         <SentConfirmation
           message={settings.SuccessMessage}
           values={{
@@ -879,7 +905,19 @@ export function EmbedApp({
             tipo: tipo?.Name,
             projeto: settings.ProjectName,
           }}
-          trackingCode={created.TrackingCode}
+          action={
+            host && (
+              // No canto de cima, como no formulario: e onde a pessoa ja procura o "Fechar".
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={collapse}
+                className="pointer-coarse:-my-1.5"
+              >
+                Fechar
+              </Button>
+            )
+          }
         />
 
         <AttachmentProgress
@@ -895,93 +933,50 @@ export function EmbedApp({
           onDiscard={(anexo) => remover(anexo.id)}
         />
 
-        {/* **O codigo aparece em toda confirmacao, e nao so na primeira.** Ele e o
-            que reencontra todos os relatos desta pessoa — inclusive de outro
-            aparelho, onde o navegador nao guardou nada. Mostrar so na primeira vez
-            faria quem limpou o navegador nunca mais reencontrar a lista. */}
-        {created.ReporterCode !== null && (
-          <div className="rounded-lg border border-border bg-surface-raised p-4">
-            <div className="mb-1.5 flex items-baseline justify-between gap-2">
-              <p className="text-detail text-fg-muted">O seu código</p>
-              <CopyButton value={created.ReporterCode} label="Copiar" size="sm" />
-            </div>
-            <p className="mb-2 font-mono text-fg text-lead tracking-wide">{created.ReporterCode}</p>
-            <p className="text-caption text-fg-muted leading-normal">
-              Guarde: é com ele que você reencontra{' '}
-              <strong className="font-medium text-fg">todos</strong> os seus relatos, de qualquer
-              navegador. Perdê-lo custa a lista, não os relatos, o link acima continua valendo.
-            </p>
-          </div>
+        {/* **O codigo aparece em toda confirmacao, e nao so na primeira.** Ele e o que
+            reencontra todos os relatos desta pessoa em outro aparelho, onde o navegador nao
+            guardou nada. Mostrar so na primeira vez faria quem limpou o navegador nunca mais
+            reencontrar a lista. */}
+        {codigo !== null && (
+          <PersonalCodeCard
+            code={codigo}
+            savedHere={salvoAqui}
+            onDownload={
+              podeBaixar
+                ? () => downloadTextFile(personalCodeFile(codigo, config.origin, new Date()))
+                : undefined
+            }
+          />
         )}
-
-        {/* O link e a unica forma de voltar a este relato, e ele sai daqui uma vez
-            so: o token vive no fragmento dele, e o banco guarda apenas o hash.
-            Fechado o quadro sem copiar, ninguem o recupera.
-
-            `rel="noreferrer"` vale pelo `noopener` que ele implica: sem isso a aba
-            nova ganha um `window.opener` apontando para este quadro, que roda
-            dentro do site de outra pessoa. **Nao e o `Referer` que ele protege** —
-            o desta navegacao seria o endereco do proprio `embed.html`, que nao
-            carrega protocolo nem token.
-
-            Abrir em outra aba e obrigatorio: aqui dentro sao 360 por 520 pixels. */}
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={trackingLink}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium text-detail text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
-            >
-              Acompanhar este relato
-            </a>
-            <CopyButton value={trackingLink} label="Copiar link" size="sm" />
-          </div>
-          {/* **Duas coisas, e as duas so existem se estiverem escritas aqui.**
-              A primeira: o link aparece uma vez so. Os dois botoes logo abaixo o
-              destroem — `Relatar outra coisa` e `Fechar` chamam `reset()`, que
-              limpa `created` —, e o banco guarda apenas o hash, entao nao ha rota
-              que o mostre de novo. O painel ja diz isto da chave secreta, com a
-              mesma palavra; faltava dizer para quem relata.
-
-              A segunda: quem tem o link le o relato. E consequencia do desenho, e
-              nao descuido — um link que exigisse senha nao seria um link, e quem
-              relata um defeito num site nao tem conta em lugar nenhum. Dizer e o
-              que transforma a consequencia em escolha de quem recebeu. */}
-          <p className="mt-2 text-caption text-fg-muted leading-normal">
-            <strong className="font-medium text-fg">Copie o link agora:</strong> ele aparece uma vez
-            só, e ao fechar não há como mostrá-lo de novo. Guarde para você, porque quem o tiver
-            consegue ler este relato.
-          </p>
-        </div>
 
         {/* **So no modo que herda a identidade, e nos dois sentidos.** Reconhecida, a
             pessoa sabe onde reencontrar o relato sem guardar nada; nao reconhecida,
             precisa saber, antes de fechar, que o link e a unica volta. */}
-        {created.Identified === true && (
-          <p className="text-caption text-fg-muted leading-normal">
-            Este relato ficou ligado a você: ele aparece em “Ver os meus relatos” sempre que você
-            estiver na sua conta neste site.
-          </p>
-        )}
+        {ligadoAConta && <LinkedAccountCard />}
         {created.Identified === false && (
-          <p className="text-caption text-fg-muted leading-normal">
-            Não deu para reconhecer você pelo site, e este relato não ficou ligado à sua conta: o
-            link acima é a única forma de voltar a ele.
+          <p className="text-caption text-fg-muted leading-relaxed">
+            Não deu para reconhecer você pelo site, então este relato não ficou ligado à sua conta
           </p>
         )}
 
+        <SentDetails
+          trackingCode={created.TrackingCode}
+          trackingLink={trackingLink}
+          onlyWayBack={unicaVolta}
+        />
+
         <div className="mt-auto flex flex-wrap items-center gap-2">
-          <CopyButton value={created.TrackingCode} label="Copiar protocolo" size="sm" />
+          {/* A lista mostra este relato junto dos outros, e voltar dela traz esta tela de
+              novo, com o link ainda aqui. */}
+          {temLista && !unicaVolta && (
+            <Button size="sm" onClick={() => setView('list')}>
+              Ver os meus relatos
+            </Button>
+          )}
           {/* O caminho de volta ao formulario, sem passar por fechar e reabrir. */}
           <Button variant="ghost" size="sm" onClick={reset}>
             Relatar outra coisa
           </Button>
-          {host && (
-            <Button variant="ghost" size="sm" onClick={collapse}>
-              Fechar
-            </Button>
-          )}
         </div>
       </section>
     )
@@ -991,7 +986,10 @@ export function EmbedApp({
   // pronto seria avisar tarde. Na previa o aviso nao aparece: ela mostra o formulario.
   if (herdada && settings.IdentityRequired && cracha === null && !preview) {
     return (
-      <section style={style} className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5">
+      <section
+        style={style}
+        className="rolagem-do-quadro flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5"
+      >
         <div className="flex items-start justify-between gap-3">
           <h1 className="font-semibold text-fg text-lead tracking-tight">{settings.Title}</h1>
           {host && (
@@ -1025,7 +1023,7 @@ export function EmbedApp({
       // `overflow-y-auto` e a ultima linha de defesa: com o quadro baixo demais
       // para o conteudo minimo, rola em vez de aparar.
       className={cn(
-        'flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5',
+        'rolagem-do-quadro flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5',
         STICKY_TOP_SCROLL_PADDING,
       )}
     >
@@ -1060,28 +1058,27 @@ export function EmbedApp({
         </div>
       </StickyTop>
 
-      {/* **No modo do codigo, sempre — e nao so quando ha codigo guardado.** Quem trocou
-          de navegador nao tem nada guardado e e justamente quem mais precisa da entrada:
-          a lista pede o codigo ali dentro. **No modo que herda a identidade, so com o
-          cracha**: sem ele nao ha de quem listar. A previa mostra a entrada nos dois. */}
-      {(settings.IdentityMode === 'PersonalCode' || (herdada && (preview || cracha !== null))) && (
-        <button
-          type="button"
-          onClick={() => !preview && setView('list')}
-          className="-mt-1 self-start font-medium text-detail text-fg underline underline-offset-4 pointer-coarse:-my-2.5 pointer-coarse:py-2.5"
-        >
-          Ver os meus relatos
-        </button>
-      )}
-
-      {ehPublico && (
-        <button
-          type="button"
-          onClick={() => !preview && setView('public')}
-          className="-mt-1 self-start font-medium text-detail text-fg underline underline-offset-4 pointer-coarse:-my-2.5 pointer-coarse:py-2.5"
-        >
-          Ver o que já foi relatado
-        </button>
+      {/* As outras telas do quadro, logo abaixo do titulo e com o espaco das outras partes:
+          quem voltou ao site para saber do relato acha o caminho sem procurar. */}
+      {(temLista || ehPublico) && (
+        <div className="flex flex-col gap-2">
+          {temLista && (
+            <EntryLink
+              icon={<MyReportsIcon />}
+              title="Ver os meus relatos"
+              description="Acompanhe o andamento e as respostas"
+              onClick={() => !preview && setView('list')}
+            />
+          )}
+          {ehPublico && (
+            <EntryLink
+              icon={<PublicReportsIcon />}
+              title="Ver o que já foi relatado"
+              description="Confira se alguém já contou o mesmo"
+              onClick={() => !preview && setView('public')}
+            />
+          )}
+        </div>
       )}
 
       {/* **Antes de escrever, e não depois.** Avisar quando o texto já está

@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { reportService } from '@/data/publicIndex'
+import { BackButton } from '@/embed/ScreenNav'
 import { STICKY_TOP_SCROLL_PADDING, StickyTop } from '@/embed/StickyTop'
 import { Button } from '@/shared/components/Button'
 import { PublicReportCard } from '@/shared/components/PublicReportCard'
@@ -35,18 +36,21 @@ export function PublicList({ publicKey, onBack }: { publicKey: string; onBack: (
   return (
     <section
       className={cn(
-        'flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5',
+        'rolagem-do-quadro flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5',
         STICKY_TOP_SCROLL_PADDING,
       )}
     >
       {/* O topo preso ao rolar: com a lista longa, o "Voltar" sumia la em cima. */}
-      <StickyTop className="flex items-start justify-between gap-3">
-        <h1 className="font-semibold text-fg text-lead tracking-tight">O que já foi relatado</h1>
-        {/* No toque o botao cresce para fora (44), sem engordar o topo preso. */}
-        <Button variant="ghost" size="sm" onClick={onBack} className="pointer-coarse:-my-1.5">
-          Voltar
-        </Button>
+      <StickyTop className="flex items-center">
+        <BackButton onClick={onBack}>Voltar ao formulário</BackButton>
       </StickyTop>
+
+      <div>
+        <h1 className="font-semibold text-fg text-lead tracking-tight">O que já foi relatado</h1>
+        <p className="mt-1 text-detail text-fg-muted leading-relaxed">
+          Relatos que o time liberou para todos verem
+        </p>
+      </div>
 
       {failed && (
         <div className="flex flex-col items-start gap-3">

@@ -3,7 +3,11 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type JourneyStage, PublicJourney } from '@/shared/components/PublicJourney'
-import { SentConfirmation } from '@/shared/components/SentConfirmation'
+import {
+  PersonalCodeCard,
+  SentConfirmation,
+  SentDetails,
+} from '@/shared/components/SentConfirmation'
 
 /**
  * O QUE ESTES TESTES TRAVAM: as duas pecas que a pagina publica, o widget e as previas
@@ -79,17 +83,57 @@ describe('PublicJourney', () => {
 })
 
 describe('SentConfirmation', () => {
-  it('troca as variáveis do texto e mostra o protocolo', () => {
+  it('diz que deu certo e troca as variáveis do texto do projeto', () => {
     render(
       <SentConfirmation
         message="Obrigado, {{primeiroNome}}! Seu {{tipo}} é o {{protocolo}}."
         values={{ primeiroNome: 'Ana', tipo: 'defeito', protocolo: '7K2M-9QXP' }}
-        trackingCode="7K2M-9QXP"
       />,
     )
 
+    expect(screen.getByRole('heading', { name: 'Relato enviado' })).toBeTruthy()
     expect(screen.getByText('Obrigado, Ana! Seu defeito é o 7K2M-9QXP.')).toBeTruthy()
+  })
+})
+
+describe('SentDetails', () => {
+  it('mostra o protocolo e o link deste relato como detalhe quando há outra volta', () => {
+    render(
+      <SentDetails trackingCode="7K2M-9QXP" trackingLink="https://x/t#a" onlyWayBack={false} />,
+    )
+
+    expect(screen.getByText('Detalhes deste relato')).toBeTruthy()
     expect(screen.getByText('Protocolo')).toBeTruthy()
     expect(screen.getByText('7K2M-9QXP')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Acompanhar este relato' }).getAttribute('href')).toBe(
+      'https://x/t#a',
+    )
+  })
+
+  it('sem código nem conta, diz que o link é o caminho de volta e pede para copiar agora', () => {
+    render(<SentDetails trackingCode="7K2M-9QXP" trackingLink="https://x/t#a" onlyWayBack />)
+
+    expect(screen.getByText('Para voltar a este relato')).toBeTruthy()
+    expect(screen.getByText('Copie o link agora:')).toBeTruthy()
+  })
+})
+
+describe('PersonalCodeCard', () => {
+  it('explica para que serve o código e tranquiliza que neste navegador já ficou salvo', () => {
+    render(<PersonalCodeCard code="H7QK-3M2X-P9WD" savedHere onDownload={() => {}} />)
+
+    expect(screen.getByText('Seu código pessoal')).toBeTruthy()
+    expect(screen.getByText('H7QK-3M2X-P9WD')).toBeTruthy()
+    expect(screen.getByText(/em outro celular, computador ou navegador/)).toBeTruthy()
+    expect(screen.getByText(/Neste navegador ele já ficou salvo/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Baixar em arquivo' })).toBeTruthy()
+  })
+
+  it('sem onde baixar, só copia; sem armazenamento, pede para guardar agora', () => {
+    render(<PersonalCodeCard code="H7QK-3M2X-P9WD" savedHere={false} />)
+
+    expect(screen.queryByRole('button', { name: 'Baixar em arquivo' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Copiar código' })).toBeTruthy()
+    expect(screen.getByText(/não conseguiu guardar o código/)).toBeTruthy()
   })
 })
