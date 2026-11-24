@@ -16,12 +16,15 @@ import {
   type InitMessage,
   isOurMessage,
   MESSAGE_SOURCE,
+  MOVE_CAPABILITY,
   type OpenMessage,
   type ResizeMessage,
+  readMove,
 } from '@/embed/protocol'
 import { openAreaPicker } from '@/loader/areaPicker'
 import { createCaptureHandler } from '@/loader/captureFlow'
 import { createLauncherView, type LauncherView } from '@/loader/launcherView'
+import { createTopLayer, type TopLayer, watchTopLayer } from '@/loader/topLayer'
 
 /**
  * O CARREGADOR — a unica linha que o cliente cola no site dele.
@@ -243,7 +246,21 @@ const SOMBRAS = {
   none: 'none',
 } as const
 
-const px = (value: number | null) => (value === null ? '' : `${value}px`)
+// `auto`, e nao vazio: o formulario arrastado troca de canto, e as quatro bordas sao
+// escritas sempre; `auto` solta a borda que deixou de valer.
+const px = (value: number | null) => (value === null ? 'auto' : `${value}px`)
+
+/**
+ * Onde a pessoa deixou o formulario depois de arrastar, e se ela o ampliou. **Valem ate a
+ * pagina recarregar**, inclusive fechando e abrindo: quem afastou o formulario para mostrar
+ * um pedaco da tela quer reencontra-lo ali.
+ */
+let livre: { left: number; top: number } | null = null
+let grande = false
+/** O arrasto em andamento: onde o ponteiro (na tela) e o quadro estavam no comeco. */
+let arrasto: { x: number; y: number; left: number; top: number } | null = null
+/** O tamanho ampliado: ate esta largura, e a altura da janela menos a margem. */
+const AMPLIADO = { maxWidth: 820, margin: 20 } as const
 
 /** Fechado, abrindo (a tela de "abrindo" a mostra) ou aberto (o quadro a mostra). */
 let estado: 'closed' | 'opening' | 'open' = 'closed'
@@ -256,6 +273,12 @@ let view: LauncherView | null = null
 let aparencia: WidgetLauncherViewModel | null = null
 
 let frame: HTMLIFrameElement | null = null
+/** A camada onde o quadro e o botao moram. Criada no primeiro uso, com o `body` pronto. */
+let layer: TopLayer | null = null
+function camada(): TopLayer {
+  layer ??= createTopLayer()
+  return layer
+}
 let capture: ReturnType<typeof createCaptureHandler> | null = null
 let acked = false
 /** O quadro ja mandou o primeiro tamanho: esta desenhado e pode ser mostrado. */
@@ -342,13 +365,13 @@ function esconderQuadro(quadro: HTMLIFrameElement): void {
   sumir = setTimeout(() => {
     if (estado !== 'closed' || frame !== quadro) return
     style.visibility = 'hidden'
-    style.pointerEvents = ''
+    style.pointerEvents = 'auto'
   }, passo.closeMs)
 }
 
 function ensureView(): LauncherView {
   view ??= createLauncherView({
-    parent: document.body,
+    parent: camada().root,
     placement: 'fixed',
     viewport: () => ({ width: window.innerWidth, height: window.innerHeight }),
     onOpen: open,
@@ -408,8 +431,13 @@ function ensureFrame(): HTMLIFrameElement {
   // Alto o bastante para nao sumir debaixo de cabecalho fixo, e nao o maximo:
   // dialogo de consentimento e aviso de cookie tem de continuar por cima.
   style.zIndex = '2147483000'
+  // Sempre clicavel quando aparece: a camada nao recebe clique, e um modal do site pode
+  // ter posto `pointer-events: none` no `body`.
+  style.pointerEvents = 'auto'
 
-  document.body.appendChild(novo)
+  // Dentro da nossa camada, na camada de cima do navegador: so assim fica acima de um
+  // `<dialog>` modal do site, e clicavel. Ver `topLayer.ts`.
+  camada().root.appendChild(novo)
   frame = novo
   acked = false
   frameReady = false
@@ -418,7 +446,7 @@ function ensureFrame(): HTMLIFrameElement {
   capture = createCaptureHandler({
     frameStyle: style,
     focusFrame: () => novo.focus(),
-    openPicker: () => openAreaPicker(),
+    openPicker: () => openAreaPicker(document, camada().root),
     loadModule: loadCaptureModule,
     // So para o nosso quadro, e so para a origem dele: o print e da pagina do
     // cliente, e nao pode sair para outra janela.
@@ -436,7 +464,7 @@ function ensureFrame(): HTMLIFrameElement {
       origin: window.location.host,
       viewport: { width: window.innerWidth, height: window.innerHeight },
       // O quadro so oferece capturar se este carregador disser que sabe.
-      capabilities: [CAPTURE_CAPABILITY],
+      capabilities: [CAPTURE_CAPABILITY, MOVE_CAPABILITY],
       // O botao e daqui: o quadro nasce no formulario e avisa quando fechar.
       launcher: HOST_LAUNCHER,
       identity: identity(),
@@ -458,6 +486,7 @@ function ensureFrame(): HTMLIFrameElement {
 
 /** Joga o quadro fora: o proximo pedido cria outro, do zero. */
 function discardFrame(): void {
+  layer?.setFormOpen(false)
   clearInterval(retry)
   frame?.remove()
   frame = null
@@ -472,7 +501,7 @@ function apply(message: ResizeMessage): void {
   const style = frame.style
   // O tamanho limitado pela janela, a distancia do canto ate onde ela deixa, os
   // cantos e a sombra: a conta e de `placeFrame`, a mesma do botao e da previa.
-  const lugar = placeFrame(message, janela())
+  const lugar = soltar(message, placeFrame(message, janela()))
   style.width = px(lugar.width)
   style.height = px(lugar.height)
   style.borderRadius = frameRadius(lugar)
@@ -490,6 +519,56 @@ function apply(message: ResizeMessage): void {
   if (estado === 'open' && !capture?.isCapturing()) style.visibility = 'visible'
 }
 
+/**
+ * O formulario arrastado ou ampliado sai do canto e passa a ser medido do canto de cima a
+ * esquerda. Sempre dentro da janela: a janela que encolheu traz o formulario de volta.
+ * **So o formulario no computador**: a folha do celular e o editor da imagem ficam onde
+ * a conta de `placeFrame` os poe.
+ */
+function soltar(message: ResizeMessage, lugar: ReturnType<typeof placeFrame>) {
+  const formulario =
+    message.width === FRAME_SIZE.expanded.width && message.height === FRAME_SIZE.expanded.height
+  if (!formulario || lugar.sheet || (!livre && !grande)) return lugar
+
+  const v = janela()
+  const margem = AMPLIADO.margin
+  const width = grande
+    ? Math.max(lugar.width, Math.min(AMPLIADO.maxWidth, v.width - margem * 2))
+    : lugar.width
+  const height = grande ? Math.max(lugar.height, v.height - margem * 2) : lugar.height
+
+  // Sem arrasto, o ampliado cresce a partir do mesmo canto de onde o formulario sai.
+  let left = livre ? livre.left : (lugar.left ?? v.width - (lugar.right ?? margem) - width)
+  let top = livre ? livre.top : (lugar.top ?? v.height - (lugar.bottom ?? margem) - height)
+  // Ampliado, nunca encosta na borda: a margem de sempre continua em volta.
+  const borda = grande ? margem : 0
+  left = Math.min(Math.max(borda, left), Math.max(borda, v.width - width - borda))
+  top = Math.min(Math.max(borda, top), Math.max(borda, v.height - height - borda))
+
+  return { ...lugar, width, height, left, top, right: null, bottom: null }
+}
+
+/** O arrasto que veio do topo do formulario: anda o quanto o ponteiro andou na tela. */
+function mover(fase: 'start' | 'move' | 'end', x: number, y: number): void {
+  if (!frame || !last || estado !== 'open') return
+  if (fase === 'start') {
+    const caixa = frame.getBoundingClientRect()
+    arrasto = { x, y, left: caixa.left, top: caixa.top }
+    // Sem transicao enquanto arrasta: o quadro tem de grudar no ponteiro.
+    frame.style.transition = 'none'
+    return
+  }
+  if (!arrasto) return
+  livre = { left: arrasto.left + (x - arrasto.x), top: arrasto.top + (y - arrasto.y) }
+  apply(last)
+  if (fase === 'end') {
+    // Guarda onde ficou de fato, ja dentro da janela.
+    const caixa = frame.getBoundingClientRect()
+    livre = { left: caixa.left, top: caixa.top }
+    arrasto = null
+  }
+}
+
 /** O quadro respondeu e alguem quer ve-lo: sai a tela de "abrindo", entra ele. */
 function reveal(): void {
   if (!frame || !last) return
@@ -501,7 +580,10 @@ function reveal(): void {
   const style = frame.style
   const passo = movimento()
   clearTimeout(sumir)
-  style.pointerEvents = ''
+  style.pointerEvents = 'auto'
+  // Acima do que o site tiver aberto agora; com um modal dele aberto, o nosso vira o
+  // modal de cima, e o formulario recebe o clique.
+  camada().setFormOpen(true)
   style.transformOrigin = passo.origin
   if (style.visibility !== 'visible') {
     style.transition = 'none'
@@ -589,6 +671,8 @@ function close(): void {
   }
   clearTimeout(prazo)
   estado = 'closed'
+  // Fechado o formulario, o modal do site volta a ser o de cima e a receber o clique.
+  layer?.setFormOpen(false)
   if (frame && !capture?.isCapturing()) esconderQuadro(frame)
   showButton()
   returnFocus()
@@ -641,6 +725,15 @@ window.addEventListener('message', (event) => {
     case 'close':
       close()
       return
+    case 'move': {
+      const passo = readMove(event.data)
+      if (passo) mover(passo.phase, passo.x, passo.y)
+      return
+    }
+    case 'frame-size':
+      grande = (event.data as { large?: unknown }).large === true
+      if (last && estado === 'open') apply(last)
+      return
     case 'unavailable':
       unavailable()
       return
@@ -667,6 +760,33 @@ function mount(): void {
   }
   window.visualViewport?.addEventListener('resize', reposicionar)
   window.visualViewport?.addEventListener('scroll', reposicionar)
+
+  // O site abriu um modal ou um popover: o que e nosso e esta a mostra volta ao topo da
+  // camada, para nada dele cobrir o formulario nem o botao.
+  watchTopLayer(
+    () => layer?.root ?? null,
+    () => layer?.sync(),
+  )
+
+  // Com um modal do site aberto e o formulario fechado, o botao aparece por cima mas o
+  // navegador o deixa inerte. O clique no lugar dele e pego aqui, antes do site, e abre.
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (!layer?.siteModalOpen() || estado !== 'closed' || view?.mode !== 'button') return
+      const caixa = view.element.getBoundingClientRect()
+      const dentro =
+        event.clientX >= caixa.left &&
+        event.clientX <= caixa.right &&
+        event.clientY >= caixa.top &&
+        event.clientY <= caixa.bottom
+      if (!dentro) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      open()
+    },
+    true,
+  )
 
   // Esc fecha a tela de "abrindo". O quadro aberto cuida do proprio Esc.
   document.addEventListener('keydown', (event) => {

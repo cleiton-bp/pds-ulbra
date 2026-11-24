@@ -273,13 +273,15 @@ describe('regra de dependencia entre as pastas', () => {
     // O protocolo com o quadro; as duas pecas da captura, que sao dele mesmo; o botao
     // que ele desenha, com as contas, os desenhos e a cor que o quadro tambem usa; e o
     // combinado com o arquivo da captura — um tipo e o nome global, e nada que pese. E a
-    // conta do movimento do quadro ao abrir e fechar, que a previa do painel tambem usa.
+    // conta do movimento do quadro ao abrir e fechar, que a previa do painel tambem usa. E a
+    // camada de cima, que poe o quadro e o botao acima de um modal do site.
     const PERMITIDO = new Set(
       [
         'loader/main.ts',
         'loader/areaPicker.ts',
         'loader/captureFlow.ts',
         'loader/launcherView.ts',
+        'loader/topLayer.ts',
         'embed/protocol.ts',
         'embed/launcher.ts',
         'embed/launcherIcons.ts',
