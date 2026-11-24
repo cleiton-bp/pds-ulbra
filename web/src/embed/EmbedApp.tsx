@@ -22,6 +22,7 @@ import {
 import { hasRoom } from '@/embed/attachments'
 import { challengeOf, solveChallenge } from '@/embed/challenge'
 import type { EmbedConfig } from '@/embed/config'
+import { FrameSizeButton, useFrameMove } from '@/embed/frameMove'
 import type { HostConnection, OpenOptions } from '@/embed/hostBridge'
 import { nameFromIdentityToken } from '@/embed/identityToken'
 import { launcherFrame, launcherMode, launcherSize } from '@/embed/launcher'
@@ -288,6 +289,8 @@ export function EmbedApp({
 
   /** O botao de capturar, para o foco voltar a ele quando a captura termina. */
   const botaoCaptura = useRef<HTMLButtonElement>(null)
+  // Arrastar pelo topo e ampliar: so na pagina do cliente, fora do celular.
+  const mover = useFrameMove(host)
 
   // A captura vira imagem, e so aparece onde imagem e aceita — e onde ha uma pagina
   // que sabe capturar. Aberto direto, como no relato de teste do painel, nao ha.
@@ -1030,21 +1033,29 @@ export function EmbedApp({
       <StickyTop>
         <div
           data-preview-highlight={marca('form-top')}
-          className={cn('flex items-start justify-between gap-3', contorno('form-top'))}
+          {...mover.handlers}
+          className={cn(
+            'flex items-start justify-between gap-3',
+            mover.topoClassName,
+            contorno('form-top'),
+          )}
         >
           <h1 className="font-semibold text-fg text-lead tracking-tight">{settings.Title}</h1>
           {host && (
-            // No toque o botao cresce para fora (44), sem mexer no topo: o "Fechar" fica na
-            // altura do titulo, como no mouse, e o topo preso nao engorda.
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={collapse}
-              aria-label="Fechar"
-              className="pointer-coarse:-my-1.5"
-            >
-              Fechar
-            </Button>
+            <div className="flex shrink-0 items-center gap-1">
+              {mover.pode && <FrameSizeButton grande={mover.grande} onClick={mover.alternar} />}
+              {/* No toque o botao cresce para fora (44), sem mexer no topo: o "Fechar" fica na
+                  altura do titulo, como no mouse, e o topo preso nao engorda. */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={collapse}
+                aria-label="Fechar"
+                className="pointer-coarse:-my-1.5"
+              >
+                Fechar
+              </Button>
+            </div>
           )}
         </div>
       </StickyTop>

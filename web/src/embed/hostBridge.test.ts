@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { connectToHost, connectToPreviewPanel } from '@/embed/hostBridge'
 import type { LauncherFrame } from '@/embed/launcher'
-import { FRAME_SIZE, MESSAGE_SOURCE, type PreviewMessage } from '@/embed/protocol'
+import { FRAME_SIZE, MESSAGE_SOURCE, type PreviewMessage, readMove } from '@/embed/protocol'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 
 /**
@@ -288,6 +288,67 @@ describe('a ponte com a pagina hospedeira', () => {
  * O arquivo que chega vira anexo do relato — outra janela, outra origem ou uma
  * resposta velha nao podem por uma imagem no lugar da que a pessoa marcou.
  */
+/**
+ * Mover e ampliar o formulario: o quadro so oferece com o carregador que declara, e as
+ * mensagens vao so para a origem guardada. A pagina confere cada arrasto que chega.
+ */
+describe('mover e ampliar o formulario', () => {
+  const comMover = { ...init, capabilities: ['move'] }
+
+  it('so oferece mover quando o carregador declara que sabe', () => {
+    fingirPagina()
+    const antigo = connectToHost(vi.fn())
+    chega(init, 'https://loja.exemplo.com')
+    expect(antigo.canMove).toBe(false)
+    antigo.stop()
+
+    const novo = connectToHost(vi.fn())
+    chega(comMover, 'https://loja.exemplo.com')
+    expect(novo.canMove).toBe(true)
+    novo.stop()
+  })
+
+  it('manda o arrasto e o ampliar so para a origem guardada', () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+    chega(comMover, 'https://loja.exemplo.com')
+    enviados.length = 0
+
+    ligacao.move?.('move', 120, 80)
+    ligacao.setLarge?.(true)
+
+    expect(enviados.map((envio) => envio.alvo)).toEqual([
+      'https://loja.exemplo.com',
+      'https://loja.exemplo.com',
+    ])
+    expect(enviados[0]?.mensagem).toEqual({
+      source: MESSAGE_SOURCE,
+      type: 'move',
+      phase: 'move',
+      x: 120,
+      y: 80,
+    })
+    expect(enviados[1]?.mensagem).toEqual({
+      source: MESSAGE_SOURCE,
+      type: 'frame-size',
+      large: true,
+    })
+    ligacao.stop()
+  })
+
+  it('a pagina recusa o arrasto com fase desconhecida ou numero que nao e numero', () => {
+    expect(readMove({ phase: 'start', x: 10, y: 20 })).toMatchObject({
+      phase: 'start',
+      x: 10,
+      y: 20,
+    })
+    expect(readMove({ phase: 'pular', x: 10, y: 20 })).toBeNull()
+    expect(readMove({ phase: 'move', x: '10', y: 20 })).toBeNull()
+    expect(readMove({ phase: 'move', x: Number.NaN, y: 20 })).toBeNull()
+    expect(readMove({ phase: 'end', x: 10, y: Number.POSITIVE_INFINITY })).toBeNull()
+  })
+})
+
 describe('a captura pela pagina', () => {
   const comCaptura = { ...init, capabilities: ['capture'] }
   const print = () => new File([new Uint8Array(10)], 'captura.webp', { type: 'image/webp' })

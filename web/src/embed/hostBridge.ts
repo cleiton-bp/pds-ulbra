@@ -12,6 +12,7 @@ import {
   isOurMessage,
   isPreviewFormPart,
   MESSAGE_SOURCE,
+  MOVE_CAPABILITY,
   type OpenMessage,
   type PreviewMessage,
 } from '@/embed/protocol'
@@ -92,6 +93,16 @@ export interface HostConnection {
    * `InitMessage.capabilities`.
    */
   readonly canCapture: boolean
+  /**
+   * O carregador desta pagina sabe mover e ampliar o formulario. Falso ate o `init`, na
+   * previa do painel e com o carregador antigo: o topo nao arrasta e o botao de ampliar
+   * nao aparece.
+   */
+  readonly canMove?: boolean
+  /** Conta a pagina o arrasto pelo topo, com as coordenadas da tela. So com `canMove`. */
+  move?(phase: 'start' | 'move' | 'end', x: number, y: number): void
+  /** Pede a pagina o formulario ampliado, ou de volta ao normal. So com `canMove`. */
+  setLarge?(large: boolean): void
   /**
    * Pede a pagina que capture uma area, e espera ela terminar. **Quem captura e a
    * pagina**: esconde o quadro, deixa a pessoa marcar e devolve o arquivo. Um pedido
@@ -179,6 +190,9 @@ function frameControls(reply: (message: FrameMessage) => void) {
       send()
     },
     close: () => reply({ source: MESSAGE_SOURCE, type: 'close' }),
+    move: (phase: 'start' | 'move' | 'end', x: number, y: number) =>
+      reply({ source: MESSAGE_SOURCE, type: 'move', phase, x, y }),
+    setLarge: (large: boolean) => reply({ source: MESSAGE_SOURCE, type: 'frame-size', large }),
     unavailable: () => reply({ source: MESSAGE_SOURCE, type: 'unavailable' }),
   }
 }
@@ -319,6 +333,10 @@ export function connectToHost(
     get canCapture() {
       const declarado = init?.capabilities
       return Array.isArray(declarado) && declarado.includes(CAPTURE_CAPABILITY)
+    },
+    get canMove() {
+      const declarado = init?.capabilities
+      return Array.isArray(declarado) && declarado.includes(MOVE_CAPABILITY)
     },
     get hostDrawsLauncher() {
       return init?.launcher === HOST_LAUNCHER

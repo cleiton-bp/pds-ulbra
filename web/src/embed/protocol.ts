@@ -81,8 +81,49 @@ export interface InitMessage {
 /** O carregador sabe capturar uma area da pagina. Ver `InitMessage.capabilities`. */
 export const CAPTURE_CAPABILITY = 'capture'
 
+/**
+ * O carregador sabe mover e ampliar o formulario: a pessoa arrasta pelo topo e troca
+ * entre o tamanho normal e o ampliado. Ver `MoveMessage` e `FrameSizeMessage`.
+ */
+export const MOVE_CAPABILITY = 'move'
+
 /** O botao e do carregador. Ver `InitMessage.launcher`. */
 export const HOST_LAUNCHER = 'host'
+
+/**
+ * Do quadro para a pagina: a pessoa arrasta o formulario pelo topo. **As coordenadas sao
+ * da tela** (`screenX`/`screenY`), e nao do quadro: o quadro anda junto com o ponteiro, e
+ * so a da tela continua a mesma enquanto ele anda. A pagina guarda onde comecou e soma a
+ * diferenca.
+ */
+export interface MoveMessage {
+  source: typeof MESSAGE_SOURCE
+  type: 'move'
+  phase: 'start' | 'move' | 'end'
+  x: number
+  y: number
+}
+
+/** Do quadro para a pagina: o formulario no tamanho ampliado, ou de volta ao normal. */
+export interface FrameSizeMessage {
+  source: typeof MESSAGE_SOURCE
+  type: 'frame-size'
+  large: boolean
+}
+
+/** Confere o arrasto que chegou: fase conhecida e numeros de verdade, senao nada. */
+export function readMove(data: unknown): MoveMessage | null {
+  const m = data as Partial<MoveMessage>
+  if (m.phase !== 'start' && m.phase !== 'move' && m.phase !== 'end') return null
+  if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) return null
+  return {
+    source: MESSAGE_SOURCE,
+    type: 'move',
+    phase: m.phase,
+    x: m.x as number,
+    y: m.y as number,
+  }
+}
 
 /**
  * Da pagina para o quadro: a pessoa pediu para abrir — pelo botao do carregador, por
@@ -286,6 +327,8 @@ export type FrameMessage =
   | PreviewReadyMessage
   | CloseMessage
   | UnavailableMessage
+  | MoveMessage
+  | FrameSizeMessage
 
 /** Os tamanhos do quadro. Ficam aqui porque as duas pontas precisam concordar. */
 export const FRAME_SIZE = {
