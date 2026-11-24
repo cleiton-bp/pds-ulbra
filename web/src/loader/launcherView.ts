@@ -179,6 +179,8 @@ export interface LauncherView {
   focusButton(): boolean
   /** O foco esta dentro do nosso elemento? */
   hasFocus(): boolean
+  /** O nosso elemento na pagina: o lugar do botao, para o clique coberto por um modal. */
+  readonly element: HTMLElement
   /** Tira o elemento da pagina. */
   destroy(): void
 }
@@ -218,6 +220,8 @@ export function createLauncherView(options: LauncherViewOptions): LauncherView {
   fixar('border', '0')
   fixar('box-sizing', 'border-box')
   fixar('z-index', Z_INDEX)
+  // Um modal do site pode por `pointer-events: none` no `body`; o botao nao herda.
+  fixar('pointer-events', 'auto')
 
   // Fechada: o script da pagina nao chega ao botao por `host.shadowRoot`.
   const sombra = host.attachShadow({ mode: 'closed' })
@@ -497,6 +501,7 @@ export function createLauncherView(options: LauncherViewOptions): LauncherView {
     hasFocus() {
       return sombra.activeElement !== null
     },
+    element: host,
     destroy() {
       pararTema()
       host.remove()

@@ -136,14 +136,18 @@ function criar(doc: Document, tag: string, classe: string, texto = ''): HTMLElem
  *
  * **Montada elemento a elemento, e nao por `innerHTML`**: pagina com Trusted Types
  * recusa `innerHTML`, e a captura nem abriria.
+ *
+ * @param parent Onde a camada entra. A pagina passa a nossa camada de cima: com um modal
+ * do site aberto, so o que esta la dentro recebe clique (ver `topLayer.ts`).
  */
-export function openAreaPicker(doc: Document = document): AreaPicker {
+export function openAreaPicker(doc: Document = document, parent?: HTMLElement): AreaPicker {
   const janela = doc.defaultView as Window
 
   const host = doc.createElement('div')
   host.setAttribute('data-relatofacil-captura', '')
   host.style.position = 'fixed'
   host.style.inset = '0'
+  host.style.pointerEvents = 'auto'
   host.style.zIndex = '2147483647'
 
   const sombra = host.attachShadow({ mode: 'open' })
@@ -271,7 +275,7 @@ export function openAreaPicker(doc: Document = document): AreaPicker {
   }
   doc.addEventListener('keydown', tecla, true)
 
-  doc.body.appendChild(host)
+  ;(parent ?? doc.body).appendChild(host)
   // O foco na primeira saida que o teclado alcanca: Enter captura a tela inteira.
   tela.focus()
 
