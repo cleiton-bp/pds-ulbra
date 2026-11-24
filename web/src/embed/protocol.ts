@@ -87,6 +87,14 @@ export const CAPTURE_CAPABILITY = 'capture'
  */
 export const MOVE_CAPABILITY = 'move'
 
+/**
+ * O carregador deixa o quadro baixar arquivo (`allow-downloads` no `sandbox`). Sem isso, o
+ * navegador barra em silencio o download que sai de dentro do quadro, e o "Baixar em
+ * arquivo" da confirmacao pareceria quebrado. Com o carregador antigo, o quadro so oferece
+ * copiar.
+ */
+export const DOWNLOAD_CAPABILITY = 'download'
+
 /** O botao e do carregador. Ver `InitMessage.launcher`. */
 export const HOST_LAUNCHER = 'host'
 

@@ -1002,6 +1002,19 @@
 }
 
 /**
+ * A barra das telas do quadro embutido comeca e termina longe dos cantos. O quadro tem os
+ * cantos arredondados (14 px no computador e 16 na folha do celular, ver `placeFrame`), e a
+ * barra, encostada na borda, era cortada pela curva em cima e embaixo. A margem do trilho a
+ * encolhe so nas pontas, e o polegar anda no trecho reto da borda. O Firefox nao tem margem
+ * de trilho e fica com a barra inteira, fina como ja era.
+ */
+@utility rolagem-do-quadro {
+  &::-webkit-scrollbar-track {
+    margin-block: 16px;
+  }
+}
+
+/**
  * Abrir e fechar um `<details>` com movimento: a altura anda de zero ao tamanho do
  * conteudo e o conteudo esmaece junto, em 300 ms. Sem isso, o passo, o grupo ou o
  * "Como funciona" pulavam abertos e empurravam a tela de uma vez.

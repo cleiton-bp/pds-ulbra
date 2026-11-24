@@ -5,6 +5,7 @@ import { DEFAULT_OFFSET, type LauncherFrame, launcherRadius } from '@/embed/laun
 import {
   CAPTURE_CAPABILITY,
   type CaptureDoneMessage,
+  DOWNLOAD_CAPABILITY,
   FRAME_SIZE,
   type FrameMessage,
   HOST_LAUNCHER,
@@ -99,6 +100,11 @@ export interface HostConnection {
    * nao aparece.
    */
   readonly canMove?: boolean
+  /**
+   * O carregador desta pagina deixa o quadro baixar arquivo. Falso ate o `init` e com o
+   * carregador antigo: a confirmacao so oferece copiar o codigo.
+   */
+  readonly canDownload?: boolean
   /** Conta a pagina o arrasto pelo topo, com as coordenadas da tela. So com `canMove`. */
   move?(phase: 'start' | 'move' | 'end', x: number, y: number): void
   /** Pede a pagina o formulario ampliado, ou de volta ao normal. So com `canMove`. */
@@ -337,6 +343,10 @@ export function connectToHost(
     get canMove() {
       const declarado = init?.capabilities
       return Array.isArray(declarado) && declarado.includes(MOVE_CAPABILITY)
+    },
+    get canDownload() {
+      const declarado = init?.capabilities
+      return Array.isArray(declarado) && declarado.includes(DOWNLOAD_CAPABILITY)
     },
     get hostDrawsLauncher() {
       return init?.launcher === HOST_LAUNCHER

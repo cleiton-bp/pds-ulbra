@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { ReporterCodeReportViewModel } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
+import { BackButton } from '@/embed/ScreenNav'
 import { STICKY_TOP_SCROLL_PADDING, StickyTop } from '@/embed/StickyTop'
 import { Button } from '@/shared/components/Button'
 import { cn } from '@/shared/lib/cn'
@@ -168,26 +169,22 @@ export function MyReports({
     return (
       <section
         className={cn(
-          'flex h-full animate-fade-in flex-col gap-4 overflow-y-auto bg-surface p-5',
+          'rolagem-do-quadro flex h-full animate-fade-in flex-col gap-4 overflow-y-auto bg-surface p-5',
           STICKY_TOP_SCROLL_PADDING,
         )}
       >
         {/* O topo preso ao rolar, como no formulario: o relato aberto e longo, e o caminho
             de volta nao pode ficar la em cima. */}
         <StickyTop className="flex items-center justify-between gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
+          <BackButton
             autoFocus
             onClick={() => {
               voltarPara.current = aberto
               setAberto(null)
             }}
-            // No toque o botao cresce para fora (44), sem engordar o topo preso.
-            className="pointer-coarse:-my-1.5"
           >
             Voltar aos seus relatos
-          </Button>
+          </BackButton>
           {/* Janela nova pelo mesmo motivo do link da confirmação: a página tem espaço
               para ler. E `noreferrer` pelo `noopener` que ele implica, porque este
               quadro roda dentro do site de outra pessoa. */}
@@ -211,17 +208,23 @@ export function MyReports({
   return (
     <section
       className={cn(
-        'flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5',
+        'rolagem-do-quadro flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5',
         STICKY_TOP_SCROLL_PADDING,
       )}
     >
       {/* O topo preso ao rolar: com a lista longa, o "Voltar" sumia la em cima. */}
-      <StickyTop className="flex items-start justify-between gap-3">
-        <h1 className="font-semibold text-fg text-lead tracking-tight">Os seus relatos</h1>
-        <Button variant="ghost" size="sm" onClick={onBack} className="pointer-coarse:-my-1.5">
-          Voltar
-        </Button>
+      <StickyTop className="flex items-center">
+        <BackButton onClick={onBack}>Voltar ao formulário</BackButton>
       </StickyTop>
+
+      {/* O que esta tela e, antes de qualquer campo: quem chega aqui pela primeira vez
+          entende para que ela serve sem precisar adivinhar pelo campo vazio. */}
+      <div>
+        <h1 className="font-semibold text-fg text-lead tracking-tight">Os seus relatos</h1>
+        <p className="mt-1 text-detail text-fg-muted leading-relaxed">
+          Acompanhe o andamento e as respostas do time
+        </p>
+      </div>
 
       {!peloCracha && (
         <div>
@@ -247,6 +250,13 @@ export function MyReports({
               {buscando ? 'Buscando…' : 'Buscar'}
             </Button>
           </div>
+          {/* Enquanto nao ha relato na tela, a frase diz onde achar o codigo: sem ela, o
+              campo vazio pedia uma coisa que a pessoa nem sabia que tinha. */}
+          {(relatos === null || relatos.length === 0) && (
+            <p className="mt-2 text-caption text-fg-muted leading-relaxed">
+              Ele aparece na confirmação, logo depois que você envia um relato
+            </p>
+          )}
         </div>
       )}
 
@@ -259,11 +269,16 @@ export function MyReports({
       {relatos !== null && relatos.length === 0 && (
         /* **Não diz "código não encontrado", e não pode dizer.** Ver o comentário
            do componente: os dois casos respondem igual de propósito. */
-        <p className="text-caption text-fg-muted leading-relaxed">
-          {peloCracha
-            ? 'Nenhum relato seu por aqui ainda. Se você relatou há pouco e ele não aparece, recarregue a página e tente de novo, o link de cada relato continua valendo.'
-            : 'Nenhum relato com esse código. Confira se digitou certo, e se você relatou de outro navegador sem guardar o código, o link de cada relato continua valendo.'}
-        </p>
+        <div className="rounded-lg border border-border border-dashed px-4 py-5 text-center">
+          <p className="font-medium text-detail text-fg">
+            {peloCracha ? 'Nenhum relato seu por aqui ainda' : 'Nenhum relato com esse código'}
+          </p>
+          <p className="mt-1 text-caption text-fg-muted leading-relaxed">
+            {peloCracha
+              ? 'Se você relatou há pouco, recarregue a página e tente de novo'
+              : 'Confira se digitou certo, ou abra o relato pelo link que veio com ele'}
+          </p>
+        </div>
       )}
 
       {relatos !== null && relatos.length > 0 && (
@@ -271,50 +286,38 @@ export function MyReports({
           {relatos.map((relato) => (
             <li key={relato.TrackingCode}>
               {/* O cartão inteiro abre o relato aqui dentro: o alvo é o relato, e não
-                  uma palavra pequena no canto dele. */}
+                  uma palavra pequena no canto dele. **O que a pessoa escreveu vem
+                  primeiro**: é por ele que ela reconhece o relato, e o protocolo, que
+                  ninguém decora, fica no rodapé junto da data. */}
               <button
                 type="button"
                 data-relato={relato.TrackingCode}
                 onClick={() => setAberto(relato.TrackingCode)}
-                className="w-full rounded-lg border border-border bg-surface-raised p-3 text-left transition-colors duration-150 hover:bg-surface-sunken"
+                className="group w-full rounded-lg border border-border bg-surface-raised p-3 text-left transition-colors duration-150 ease-out hover:bg-surface-sunken motion-reduce:transition-none"
               >
-                <span className="mb-1 flex items-baseline justify-between gap-2">
-                  <span className="font-mono text-caption text-fg-muted">
-                    {relato.TrackingCode}
-                  </span>
-                  <span
-                    className={cn(
-                      'flex-none text-caption',
-                      relato.IsClosed ? 'text-fg-muted' : 'text-fg',
+                <span className="flex items-start gap-3">
+                  <span className="min-w-0 flex-1">
+                    {/* O titulo que ela escreveu, quando escreveu, e nunca o do time. */}
+                    <span className="line-clamp-2 block font-medium text-detail text-fg">
+                      {relato.Title ?? relato.Excerpt}
+                    </span>
+                    {relato.Title && (
+                      <span className="mt-0.5 line-clamp-2 block text-caption text-fg-muted leading-relaxed">
+                        {relato.Excerpt}
+                      </span>
                     )}
-                  >
-                    {relato.IsClosed ? 'Encerrado' : (relato.StageLabel ?? 'Em andamento')}
                   </span>
+                  <SetaAbrir />
                 </span>
 
-                {/* O titulo que ela escreveu, quando escreveu — o do time nao chega aqui. */}
-                {relato.Title && (
-                  <span className="mb-0.5 block font-medium text-detail text-fg">
-                    {relato.Title}
-                  </span>
-                )}
-                <span
-                  className={cn(
-                    'mb-2 block text-detail leading-relaxed',
-                    relato.Title ? 'text-fg-muted' : 'text-fg',
-                  )}
-                >
-                  {relato.Excerpt}
-                </span>
-
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="font-medium text-caption text-fg">Ver o relato</span>
-                  <time
-                    dateTime={relato.CreatedAt}
-                    className="flex-none text-caption text-fg-muted"
-                  >
+                <span className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <Andamento encerrado={relato.IsClosed} rotulo={relato.StageLabel} />
+                  <time dateTime={relato.CreatedAt} className="text-caption text-fg-muted">
                     {formatRelative(relato.CreatedAt)}
                   </time>
+                  <span className="ml-auto font-mono text-caption text-fg-muted">
+                    {relato.TrackingCode}
+                  </span>
                 </span>
               </button>
             </li>
@@ -327,10 +330,56 @@ export function MyReports({
            de outra pessoa a quem estivesse sondando — e para quem está lendo, o
            número não muda nada: o que falta se alcança pelo link de cada relato. */
         <p className="text-caption text-fg-muted leading-relaxed">
-          Estes são os mais recentes. Há outros relatos seus, e cada um continua abrindo pelo link
-          que você guardou.
+          Estes são os mais recentes, e os outros continuam abrindo pelo link que você guardou
         </p>
       )}
     </section>
+  )
+}
+
+/**
+ * Onde o relato esta, num selo: azul enquanto anda, cinza depois de encerrado. Sao as cores
+ * que o quadro do time ja usa para "fazendo" e "por fazer", e o selo se acha de relance numa
+ * lista, coisa que um texto solto no canto nao fazia.
+ */
+function Andamento({ encerrado, rotulo }: { encerrado: boolean; rotulo: string | null }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-2 py-px text-caption',
+        encerrado
+          ? 'border-chip-gray-border bg-chip-gray-surface text-chip-gray-fg'
+          : 'border-chip-blue-border bg-chip-blue-surface text-chip-blue-fg',
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'size-1.5 rounded-full',
+          encerrado ? 'bg-chip-gray-glyph' : 'bg-chip-blue-glyph',
+        )}
+      />
+      {encerrado ? 'Encerrado' : (rotulo ?? 'Em andamento')}
+    </span>
+  )
+}
+
+/** A seta do cartao: ele abre o relato, e ela anda um fio quando o mouse passa. */
+function SetaAbrir() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="mt-0.5 flex-none text-fg-muted transition-transform duration-150 ease-out group-hover:translate-x-0.5 motion-reduce:transition-none"
+    >
+      <path d="M6 3.5 10.5 8 6 12.5" />
+    </svg>
   )
 }

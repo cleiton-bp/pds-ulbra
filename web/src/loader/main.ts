@@ -11,6 +11,7 @@ import {
 import {
   CAPTURE_CAPABILITY,
   type CaptureRequestMessage,
+  DOWNLOAD_CAPABILITY,
   FRAME_SIZE,
   HOST_LAUNCHER,
   type InitMessage,
@@ -236,12 +237,19 @@ async function readLauncher(): Promise<WidgetLauncherViewModel | null> {
 const OPEN_TIMEOUT_MS = 15_000
 
 /**
- * A unica cor que o carregador escreve na pagina do cliente: a da sombra do quadro
- * aberto, em preto neutro. O formulario tem as dele; o botao, as de `launcherView`.
+ * As duas cores que o carregador escreve na pagina do cliente, as duas no quadro aberto.
+ * O formulario tem as dele; o botao, as de `launcherView`.
+ *
+ * - A sombra, em preto neutro, que descola o quadro da pagina clara.
+ * - O fio de 1px em volta, em cinza meio transparente. **Numa pagina escura a sombra some**,
+ *   e o formulario escuro se misturava com ela. Transparente, o fio acompanha o fundo de
+ *   qualquer site sem saber o tema dele: fica um cinza claro sobre o escuro e um cinza
+ *   suave sobre o claro, como as bordas de um editor de codigo.
  */
 const SOMBRA = 'rgb(0 0 0 / 18%)'
+const FIO = 'rgb(128 128 128 / 28%)'
 const SOMBRAS = {
-  open: `0 10px 40px ${SOMBRA}`,
+  open: `0 0 0 1px ${FIO}, 0 10px 40px ${SOMBRA}`,
   launcher: `0 4px 14px ${SOMBRA}`,
   none: 'none',
 } as const
@@ -413,8 +421,13 @@ function ensureFrame(): HTMLIFrameElement {
   novo.title = 'Relato'
   // `allow-scripts` e `allow-same-origin` sao o minimo para o quadro rodar e
   // falar com a nossa API. Sem `allow-top-navigation`: um quadro nunca deve
-  // conseguir levar a pagina do cliente para outro lugar.
-  novo.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups')
+  // conseguir levar a pagina do cliente para outro lugar. `allow-downloads` e o
+  // "Baixar em arquivo" da confirmacao: o arquivo sai do proprio quadro, com o
+  // texto que ele mesmo escreveu, e so no clique de quem relata.
+  novo.setAttribute(
+    'sandbox',
+    'allow-scripts allow-same-origin allow-forms allow-popups allow-downloads',
+  )
 
   const style = novo.style
   style.position = 'fixed'
@@ -464,7 +477,7 @@ function ensureFrame(): HTMLIFrameElement {
       origin: window.location.host,
       viewport: { width: window.innerWidth, height: window.innerHeight },
       // O quadro so oferece capturar se este carregador disser que sabe.
-      capabilities: [CAPTURE_CAPABILITY, MOVE_CAPABILITY],
+      capabilities: [CAPTURE_CAPABILITY, MOVE_CAPABILITY, DOWNLOAD_CAPABILITY],
       // O botao e daqui: o quadro nasce no formulario e avisa quando fechar.
       launcher: HOST_LAUNCHER,
       identity: identity(),

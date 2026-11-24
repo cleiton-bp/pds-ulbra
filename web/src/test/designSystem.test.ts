@@ -464,19 +464,20 @@ describe('a marca na aba do navegador', () => {
 
 /**
  * A auditoria da excecao do carregador. Ele desenha **um** elemento na pagina de
- * outra pessoa — o `iframe` — e a unica cor que isso justifica e a sombra que o
- * descola do fundo. Cor de marca, cor de fundo e cor de texto pertencem ao que
- * esta dentro do quadro, onde os tokens valem.
+ * outra pessoa, o `iframe`, e as unicas cores que isso justifica sao as que o
+ * descolam do fundo: a sombra, para a pagina clara, e o fio cinza, para a escura.
+ * Cor de marca, cor de fundo e cor de texto pertencem ao que esta dentro do quadro,
+ * onde os tokens valem.
  */
 describe('as cores que o carregador escreve na pagina do cliente', () => {
   const loader = readFileSync(join(SOURCE_ROOT, 'loader/main.ts'), 'utf8')
 
-  it('so escreve a sombra, e em preto neutro', () => {
+  it('so escreve a sombra em preto neutro e o fio cinza que descola o quadro de pagina escura', () => {
     const cores = [...loader.matchAll(/\b(?:rgba?|hsla?)\([^)]*\)|#[0-9a-fA-F]{3,8}\b/g)].map(
       (match) => match[0],
     )
 
-    expect(cores).toEqual(['rgb(0 0 0 / 18%)'])
+    expect(cores).toEqual(['rgb(0 0 0 / 18%)', 'rgb(128 128 128 / 28%)'])
   })
 
   it('nao pinta fundo nem texto: isso e assunto de dentro do quadro', () => {

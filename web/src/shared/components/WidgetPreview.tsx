@@ -490,7 +490,9 @@ export function WidgetPreview({
           src={`${environment.embedUrl}?preview`}
           style={{ position: 'absolute', border: 0, ...posicao }}
           className={cn(
-            lugar?.shadow === 'open' && 'shadow-lg',
+            // O fio em volta, como na pagina do cliente (`FIO`, no carregador): e ele que
+            // separa o formulario da pagina quando os dois sao escuros.
+            lugar?.shadow === 'open' && 'shadow-lg ring-1 ring-border',
             lugar?.shadow === 'launcher' && 'shadow-md',
           )}
         />
