@@ -208,8 +208,10 @@ export function ReportsTable({
       data-focus-group
       aria-busy={buscando || undefined}
       className={cn(
-        '@container overflow-clip rounded-lg border border-border transition-opacity',
-        buscando && 'opacity-50',
+        // Esmaece so se a busca demorar (um instante de espera antes), e de leve: a resposta
+        // rapida troca a lista sem piscar a tabela inteira.
+        '@container overflow-clip rounded-lg border border-border transition-opacity duration-200 ease-out motion-reduce:transition-none',
+        buscando && 'opacity-60 delay-150',
       )}
     >
       <div
@@ -242,9 +244,10 @@ export function ReportsTable({
           />
           {/* A chave troca com o recorte: as linhas nascem de novo, esmaecendo juntas. */}
           <tbody key={troca}>
-            {reports.map((report) => (
+            {reports.map((report, indice) => (
               <Linha
                 key={report.PublicId}
+                indice={indice}
                 report={report}
                 colunas={colunas}
                 soonDays={soonDays}
@@ -271,6 +274,7 @@ export interface Selecao {
 
 function Linha({
   report,
+  indice = 0,
   colunas,
   soonDays,
   destacada,
@@ -281,6 +285,8 @@ function Linha({
   fixa,
 }: {
   report: ReportSummaryViewModel
+  /** A posicao na lista: as primeiras entram em cascata leve, e da decima sexta em diante, juntas. */
+  indice?: number
   colunas: ReportStateCountViewModel[] | null
   soonDays: number
   destacada: boolean
@@ -334,6 +340,8 @@ function Linha({
       onAuxClick={meio}
       data-highlighted={destacada || undefined}
       data-selected={marcada || undefined}
+      // A lista nova entra de cima para baixo, de leve: as que aparecem na tela primeiro.
+      style={{ animationDelay: `${Math.min(indice, 16) * 10}ms` }}
       className={cn(
         'animate-fade-in cursor-pointer border-border border-b transition-colors duration-150 last:border-b-0 hover:bg-surface-sunken',
         marcada && 'bg-accent/8',

@@ -232,9 +232,19 @@ export function ProjectSettingsScreen() {
             <span className="min-w-0 text-left max-sm:line-clamp-2 max-sm:text-caption max-sm:leading-tight sm:max-w-40 sm:truncate">
               {name.trim() || 'sem nome'}
             </span>
-            <span aria-hidden className="flex-none text-caption text-fg-muted">
-              ▾
-            </span>
+            {/* A seta do seletor de verdade, fechada. */}
+            <svg
+              viewBox="0 0 12 12"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-3 flex-none text-fg-muted"
+            >
+              <path d="M3 4.8 6 7.8l3-3" />
+            </svg>
           </span>
         </figure>
       </section>

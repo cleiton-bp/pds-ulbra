@@ -181,15 +181,23 @@ export function ProjectSwitcher({
         <span className="min-w-0 text-left max-sm:line-clamp-2 max-sm:break-words max-sm:leading-tight max-sm:hyphens-auto sm:max-w-64 sm:truncate">
           {project.Name}
         </span>
-        <span
+        {/* A mesma seta dos outros seletores. Aponta para baixo fechado e gira para cima
+            aberto; ao fechar, por onde for (escolha, Esc, clique fora), volta. */}
+        <svg
+          viewBox="0 0 12 12"
           aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
           className={cn(
-            'flex-none text-caption text-fg-muted transition-transform duration-200 motion-reduce:transition-none',
+            'size-3 flex-none text-fg-muted transition-transform duration-200 ease-out motion-reduce:transition-none',
             aberto && 'rotate-180',
           )}
         >
-          ▾
-        </span>
+          <path d="M3 4.8 6 7.8l3-3" />
+        </svg>
       </button>
 
       {aberto && (
