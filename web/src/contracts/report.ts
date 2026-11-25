@@ -1005,6 +1005,23 @@ export interface InternalCommentViewModel {
   EditedAt: string | null
   /** Quem le escreveu este comentario: so ela corrige e apaga. */
   IsYours: boolean
+  /** A foto de quem escreveu (a da conta Google). Nula sem foto. */
+  AuthorAvatarUrl?: string | null
+  /** A mensagem que este comentario responde, como a citacao de um chat. */
+  ReplyTo?: CommentReplyViewModel | null
+}
+
+/**
+ * A mensagem citada numa resposta: quem escreveu e o que disse. `PublicId` e `Body` nulos
+ * quando a original foi apagada, e a tela diz que ela saiu.
+ */
+export interface CommentReplyViewModel {
+  PublicId: string | null
+  AuthorName: string | null
+  FromReporter: boolean
+  Body: string | null
+  /** A original e de quem le: a tela diz "Você" no lugar do nome. */
+  IsYours?: boolean
 }
 
 /** Um comentario escrito para quem relatou — ou por ele, respondendo. Ele le na pagina de acompanhamento. */
@@ -1020,16 +1037,41 @@ export interface PublicCommentViewModel {
   AuthorName: string | null
   Body: string
   CreatedAt: string
+  /** Quem le escreveu esta fala, do lado de dentro. */
+  IsYours?: boolean
+  /** A foto de quem escreveu, do lado de dentro. Nula sem foto e para quem relatou. */
+  AuthorAvatarUrl?: string | null
+  /** A mensagem que esta fala responde, como a citacao de um chat. So o painel mostra. */
+  ReplyTo?: CommentReplyViewModel | null
 }
 
-/** Os comentarios de um relato, em **duas listas separadas**. */
+/**
+ * Os comentarios de um relato, em **duas listas separadas**, do mais antigo para o mais
+ * novo. Pedidos com limite, trazem so os mais recentes, e as marcas dizem se ha anteriores.
+ */
 export interface ReportCommentsViewModel {
   Internal: InternalCommentViewModel[]
   Public: PublicCommentViewModel[]
+  HasOlderInternal?: boolean
+  HasOlderPublic?: boolean
+}
+
+/** Os comentarios entre o time anteriores a uma mensagem: o chat do card subindo. */
+export interface InternalCommentsPageViewModel {
+  Items: InternalCommentViewModel[]
+  HasOlder: boolean
+}
+
+/** Os comentarios para quem relatou anteriores a uma mensagem: o chat do card subindo. */
+export interface PublicCommentsPageViewModel {
+  Items: PublicCommentViewModel[]
+  HasOlder: boolean
 }
 
 export interface CreateCommentRequest {
   Body: string
+  /** A mensagem da mesma conversa que este comentario responde. Ausente, nao responde nenhuma. */
+  ReplyToPublicId?: string | null
 }
 
 /** O texto novo de um comentario interno, corrigido por quem o escreveu. */
@@ -1128,6 +1170,22 @@ export interface ReportHistoryEntryViewModel {
   Removed: string[]
   /** Na mudanca de titulo: verdadeiro quando o time voltou ao de quem relatou. */
   TitleRestored: boolean | null
+}
+
+/**
+ * Um pedaco do historico, do mais novo para o mais antigo. O card abre o historico
+ * fechado e, ao abrir, le os mais recentes; o "Mostrar mais" traz os de antes.
+ */
+export interface ReportHistoryPageViewModel {
+  /** Do mais novo para o mais antigo. */
+  Items: ReportHistoryEntryViewModel[]
+  HasOlder: boolean
+  /** Quantos eventos o historico tem ao todo, com as mesmas regras de leitura. */
+  Total: number
+  /** Quantas voltas de quem relatou ficaram de fora (zero quando ja vem no pedaco). */
+  ReporterReturns: number
+  /** A primeira visita de quem relatou ao acompanhamento; as outras sao voltas. */
+  FirstReporterVisit: string | null
 }
 
 /**
@@ -1332,6 +1390,21 @@ export interface OpenByIdentityRequest {
   Key: string
   IdentityToken: string
   TrackingCode: string
+}
+
+/**
+ * A inscricao para acompanhar um relato ao vivo (o hub `/realtime/tracking`).
+ *
+ * Leva a mesma credencial que abriu o relato, e so uma: o token do link, a chave com o
+ * codigo pessoal, ou a chave com o cracha do site. E a unica coisa que a tela manda;
+ * depois ela so recebe o relato atualizado. Nao grava visualizacao: abrir ja gravou.
+ */
+export interface WatchReportTrackingRequest {
+  TrackingCode: string
+  Token?: string
+  Key?: string
+  ReporterCode?: string
+  IdentityToken?: string
 }
 
 /** O card que o time cria, sem relator. */

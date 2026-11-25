@@ -17,7 +17,7 @@ import Welcome, { wantsWelcome } from '../tour/Welcome'
 import { tourTarget } from '../tour/targets'
 import { MODELING_TOUR, stepsFor, type ModelingStage } from '../tour/steps'
 import Toolbar from './components/Toolbar'
-import Board, { type FocusRequest, type ModelView, type NotesMode } from './components/canvas/Board'
+import Board, { type ClickFocus, type FocusRequest, type ModelView, type NotesMode } from './components/canvas/Board'
 import Inspector from './components/inspector/Inspector'
 import { MODELING_FORMAT } from './format'
 import { useChanges } from './hooks/useChanges'
@@ -30,6 +30,7 @@ const ENV = environmentById('modeling')
 
 const VIEWS: readonly ModelView[] = ['changes', 'all']
 const NOTE_MODES: readonly NotesMode[] = ['markers', 'boxes', 'hidden']
+const CLICK_FOCUS: readonly ClickFocus[] = ['only', 'links', 'none']
 
 /** Junta as três áreas da tela. A lógica de verdade mora nos hooks e em `model/`. */
 export default function App() {
@@ -47,8 +48,16 @@ export default function App() {
 
   const [showFiles, toggleFiles, setShowFiles] = useStickyToggle('modeling:files', true)
   const [showPanel, togglePanel, setShowPanel] = useStickyToggle('modeling:panel', true)
-  const [view, setView] = useStickyChoice('modeling:view', VIEWS, 'changes')
+  // Abre em "Tudo": cada tabela com as colunas, e as mudancas marcadas nelas. A chave
+  // mudou junto com o padrao, para quem ja tinha "Mudanças" guardado abrir em "Tudo"
+  // uma vez; dali em diante, vale a escolha da pessoa.
+  const [view, setView] = useStickyChoice('modeling:view-v2', VIEWS, 'all')
   const [notesMode, setNotesMode] = useStickyChoice('modeling:notes-mode', NOTE_MODES, 'markers')
+  // O que o clique numa tabela apaga, as linhas de ligacao e as notas trazidas para o
+  // lado: escolhas do menu "Ver", lembradas como as outras.
+  const [clickFocus, setClickFocus] = useStickyChoice('modeling:click-focus', CLICK_FOCUS, 'only')
+  const [showLines, toggleLines] = useStickyToggle('modeling:lines', true)
+  const [notesAside, toggleNotesAside] = useStickyToggle('modeling:notes-aside', true)
   // Abre em leitura: entender o arquivo nao pode correr o risco de mexer nele, que
   // grava sozinho. Editar e uma escolha, e fica lembrada.
   const [editingChosen, toggleEditing] = useStickyToggle('modeling:editing', false)
@@ -270,9 +279,15 @@ export default function App() {
             canCompare={canCompare}
             notesMode={notesMode}
             noteCount={doc?.notes.length ?? 0}
+            clickFocus={clickFocus}
+            showLines={showLines}
+            notesAside={notesAside}
             editing={editing}
             onView={setView}
             onNotesMode={setNotesMode}
+            onClickFocus={setClickFocus}
+            onToggleLines={toggleLines}
+            onToggleNotesAside={toggleNotesAside}
             onToggleEditing={toggleEditing}
             onSearch={openSearch}
             onAddEntity={actions.addEntity}
@@ -306,6 +321,9 @@ export default function App() {
                 view={canCompare ? view : 'all'}
                 notesMode={notesMode}
                 locked={locked}
+                clickFocus={clickFocus}
+                showLines={showLines}
+                notesAside={notesAside}
                 selection={selection}
                 onSelect={selectFromCanvas}
                 actions={actions}

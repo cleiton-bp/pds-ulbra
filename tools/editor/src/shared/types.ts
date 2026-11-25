@@ -6,6 +6,8 @@ export type FileEntry = {
   size: number
   /** O `meta.title` de dentro do arquivo; vazio quando ele nao tem. */
   title: string
+  /** Quanto o arquivo desenha: as tabelas da modelagem ou os casos de uso. */
+  count: number
 }
 
 /** Erro de sintaxe no arquivo: o editor mostra o aviso em vez de abrir vazio. */

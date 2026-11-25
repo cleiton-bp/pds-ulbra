@@ -47,4 +47,13 @@ public class ReportPublicComment : PdsBaseEntity
 
     /// <summary>O texto que vai ser lido por quem relatou.</summary>
     public string Body { get; set; } = string.Empty;
+
+    /// <summary>
+    /// A mensagem desta mesma conversa que esta responde, como a citacao de um chat. Nula na
+    /// mensagem que nao responde nenhuma. So o time responde citando: a resposta de quem
+    /// relatou entra pela pagina de acompanhamento, sem citacao.
+    /// </summary>
+    public long? ReplyToId { get; set; }
+
+    public ReportPublicComment? ReplyTo { get; set; }
 }

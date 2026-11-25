@@ -143,6 +143,8 @@ describe('os arquivos no relato do painel', () => {
     render(<Dialogo />)
 
     await screen.findByText('segue a tela')
+    // A resposta mora na conversa com quem relatou, a segunda aba.
+    fireEvent.click(screen.getByRole('tab', { name: /Para quem relatou/ }))
     const daResposta = await screen.findByRole('list', { name: 'Imagens da resposta' })
     expect(within(daResposta).getByRole('img', { name: /tela-pedida\.png/ })).toBeDefined()
     expect(screen.queryByRole('list', { name: 'Imagens do relato' })).toBeNull()
@@ -250,6 +252,7 @@ describe('os arquivos no relato do painel', () => {
     expect(screen.queryByRole('img', { name: /tela-pedida\.png/ })).toBeNull()
 
     await act(async () => entregar(conversa))
+    fireEvent.click(screen.getByRole('tab', { name: /Para quem relatou/ }))
     const daResposta = await screen.findByRole('list', { name: 'Imagens da resposta' })
     expect(within(daResposta).getByRole('img', { name: /tela-pedida\.png/ })).toBeDefined()
     expect(screen.queryByRole('list', { name: 'Imagens do relato' })).toBeNull()

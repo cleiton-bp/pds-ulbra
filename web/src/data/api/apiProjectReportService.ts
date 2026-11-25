@@ -1,13 +1,16 @@
 import type {
   BlockedOriginReportsResultViewModel,
   CardLinkViewModel,
+  InternalCommentsPageViewModel,
   InternalCommentViewModel,
   ModerationItemViewModel,
   ModerationQueueViewModel,
+  PublicCommentsPageViewModel,
   PublicCommentViewModel,
   ReportCommentsViewModel,
   ReportDetailViewModel,
   ReportHistoryEntryViewModel,
+  ReportHistoryPageViewModel,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
 } from '@/contracts'
@@ -214,8 +217,28 @@ export const apiProjectReportService: ProjectReportService = {
       request,
     ),
 
-  listComments: (publicId, reportPublicId) =>
-    apiGet<ReportCommentsViewModel>(`/projects/${publicId}/reports/${reportPublicId}/comments`),
+  listComments: (publicId, reportPublicId, options) =>
+    apiGet<ReportCommentsViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/comments${
+        options?.limit ? `?limit=${options.limit}` : ''
+      }`,
+    ),
+
+  listOlderInternalComments: (publicId, reportPublicId, before, limit) =>
+    apiGet<InternalCommentsPageViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/comments/internal?${new URLSearchParams({
+        before,
+        ...(limit ? { limit: String(limit) } : {}),
+      })}`,
+    ),
+
+  listOlderPublicComments: (publicId, reportPublicId, before, limit) =>
+    apiGet<PublicCommentsPageViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/comments/public?${new URLSearchParams({
+        before,
+        ...(limit ? { limit: String(limit) } : {}),
+      })}`,
+    ),
 
   // Duas rotas, e nao uma com um campo: a separacao e estrutural ate aqui.
   addInternalComment: (publicId, reportPublicId, request) =>
@@ -244,5 +267,14 @@ export const apiProjectReportService: ProjectReportService = {
   listReportHistory: (publicId, reportPublicId) =>
     apiGet<ReportHistoryEntryViewModel[]>(
       `/projects/${publicId}/reports/${reportPublicId}/history`,
+    ),
+
+  listReportHistoryPage: (publicId, reportPublicId, options = {}) =>
+    apiGet<ReportHistoryPageViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/history/page?${new URLSearchParams({
+        ...(options.before ? { before: options.before } : {}),
+        ...(options.limit ? { limit: String(options.limit) } : {}),
+        ...(options.returns ? { returns: 'true' } : {}),
+      })}`,
     ),
 }

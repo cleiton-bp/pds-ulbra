@@ -275,6 +275,37 @@ public class OpenReportTrackingDto
 }
 
 /// <summary>
+/// A inscricao para acompanhar um relato ao vivo, pelo hub publico
+/// (<c>/realtime/tracking</c>).
+///
+/// <para><b>Leva a mesma credencial que abriu o relato</b>, e so uma delas: o token do
+/// link, a chave com o codigo pessoal, ou a chave com o cracha do site. E a unica coisa
+/// que o navegador manda; depois ele so recebe. Sem esta prova, qualquer um escutaria
+/// qualquer relato.</para>
+///
+/// <para><b>Nao grava visualizacao.</b> Abrir o relato ja gravou; acompanhar e continuar
+/// olhando a mesma tela.</para>
+/// </summary>
+public class WatchReportTrackingDto
+{
+    /// <summary>O protocolo do relato que a tela mostra.</summary>
+    /// <example>7K2M-9QXP-4TRV</example>
+    public string? TrackingCode { get; set; }
+
+    /// <summary>O token do link, quando a tela abriu por ele.</summary>
+    public string? Token { get; set; }
+
+    /// <summary>A chave publica do projeto, com o codigo pessoal ou com o cracha.</summary>
+    public string? Key { get; set; }
+
+    /// <summary>O codigo pessoal, quando a tela abriu pela lista do codigo.</summary>
+    public string? ReporterCode { get; set; }
+
+    /// <summary>O cracha do site, quando a tela abriu pela lista da identidade.</summary>
+    public string? IdentityToken { get; set; }
+}
+
+/// <summary>
 /// A resposta de quem relatou: resolveu.
 ///
 /// <para><b>Carrega as mesmas duas credenciais da consulta</b>, e pelo mesmo

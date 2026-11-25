@@ -49,8 +49,9 @@ const STATUS_LABEL: Record<SaveStatus, string> = {
   conflict: 'conflito',
 }
 
+/** O estado da gravacao: so no desenvolvimento. Publicado so para leitura, nada grava. */
 export function SaveBadge({ status }: { status: SaveStatus }) {
-  if (status === 'empty') return null
+  if (status === 'empty' || SOMENTE_LEITURA) return null
   return (
     <span className={`status status--${status}`} role="status" title={STATUS_LABEL[status]}>
       <span className="status__text">{STATUS_LABEL[status]}</span>
@@ -152,6 +153,24 @@ export function DropMenu({
       </button>
       {open && <div className="menu__pop">{children}</div>}
     </div>
+  )
+}
+
+/**
+ * Caixinha de marcar dentro de um `DropMenu`, com a explicacao embaixo do rotulo.
+ * Desligada (`off`), fica a vista mas apagada, e a explicacao diz quando ela vale.
+ */
+export function MenuCheck({
+  checked, label, hint, onChange, off,
+}: { checked: boolean; label: string; hint: string; onChange: () => void; off?: boolean }) {
+  return (
+    <label className={`menu__item${off ? ' is-off' : ''}`}>
+      <input type="checkbox" checked={checked} disabled={off} onChange={onChange} />
+      <span>
+        {label}
+        <small>{hint}</small>
+      </span>
+    </label>
   )
 }
 

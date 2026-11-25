@@ -1,6 +1,8 @@
+import { apiLiveTrackingService } from '@/data/api/apiLiveTrackingService'
 import { apiPublicMediaService } from '@/data/api/apiPublicMediaService'
 import { apiReportService } from '@/data/api/apiReportService'
 import { apiWidgetSettingsService } from '@/data/api/apiWidgetSettingsService'
+import type { LiveTrackingService } from '@/data/liveTrackingService'
 import type { PublicMediaService } from '@/data/publicMediaService'
 import type { ReportService } from '@/data/reportService'
 import type { WidgetSettingsService } from '@/data/widgetSettingsService'
@@ -23,8 +25,10 @@ import type { WidgetSettingsService } from '@/data/widgetSettingsService'
 export const reportService: ReportService = apiReportService
 export const widgetSettingsService: WidgetSettingsService = apiWidgetSettingsService
 export const publicMediaService: PublicMediaService = apiPublicMediaService
+export const liveTrackingService: LiveTrackingService = apiLiveTrackingService
 
 export { describeError, isPanelError, PanelError } from '@/data/errors'
+export type { LiveTrackingService, LiveTrackingWatch } from '@/data/liveTrackingService'
 export type { PublicMediaService } from '@/data/publicMediaService'
 export type { ReportService } from '@/data/reportService'
 export type { WidgetSettingsService } from '@/data/widgetSettingsService'

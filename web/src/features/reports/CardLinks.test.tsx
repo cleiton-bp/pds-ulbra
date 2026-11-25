@@ -14,6 +14,7 @@ import { BlockedMark } from '@/features/reports/cardLook'
 import { ReportHistory } from '@/features/reports/ReportHistory'
 import { Toaster } from '@/shared/components/Toaster'
 import { useToastStore } from '@/shared/components/toastStore'
+import { fraseDoHistorico } from '@/test/historicoEmPedacos'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
@@ -52,6 +53,15 @@ vi.mock('@/data', async (importOriginal) => {
       unlink: dublê.desfazer,
       listReports: dublê.listar,
       listReportHistory: dublê.historico,
+      listReportHistoryPage: async (
+        publicId: string,
+        reportPublicId: string,
+        opcoes?: { before?: string; limit?: number; returns?: boolean },
+      ) => {
+        // O historico aos pedacos sai da lista inteira do dublê (o vi.mock roda antes dos imports).
+        const { pedacoDoHistorico } = await import('@/test/historicoEmPedacos')
+        return pedacoDoHistorico(await dublê.historico(publicId, reportPublicId), opcoes)
+      },
     },
   }
 })
@@ -412,9 +422,13 @@ describe('onde os vinculos aparecem', () => {
     ])
     render(<ReportHistory projectPublicId="p-1" reportPublicId="aberto" versao={0} />)
 
-    expect(await screen.findByText('Marcado como duplicado de #6')).toBeTruthy()
-    expect(screen.getByText('Deixou de ser duplicado de #6')).toBeTruthy()
-    expect(screen.getByText('Bloqueado por #4')).toBeTruthy()
-    expect(screen.getByText('Ganhou um vínculo')).toBeTruthy()
+    // O historico vem fechado: abre para ler.
+    fireEvent.click(await screen.findByRole('button', { name: 'Histórico' }))
+    expect(
+      await screen.findByText(fraseDoHistorico('Ana marcou como duplicado de #6')),
+    ).toBeTruthy()
+    expect(screen.getByText(fraseDoHistorico('Ana desmarcou o duplicado de #6'))).toBeTruthy()
+    expect(screen.getByText(fraseDoHistorico('Ana marcou que #4 bloqueia este'))).toBeTruthy()
+    expect(screen.getByText(fraseDoHistorico('Ana vinculou outro card'))).toBeTruthy()
   })
 })

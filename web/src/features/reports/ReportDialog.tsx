@@ -33,6 +33,7 @@ import {
   useGuardedCardLink,
 } from '@/features/reports/cardDrafts'
 import { BlockedOriginMark, StatusLozenge, statusTone } from '@/features/reports/cardLook'
+import { mostrarConversaDoTime } from '@/features/reports/conversaDoTime'
 import {
   LiveAnnouncer,
   LiveStatusText,
@@ -48,7 +49,6 @@ import { TeamCardBody } from '@/features/reports/TeamCardBody'
 import type { WorkListener } from '@/features/reports/useWorkRealtime'
 import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
-import { CopyButton } from '@/shared/components/CopyButton'
 import { Modal } from '@/shared/components/Modal'
 import { ReportAnswers } from '@/shared/components/ReportAnswers'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -60,6 +60,7 @@ import { copyText } from '@/shared/lib/clipboard'
 import { cn } from '@/shared/lib/cn'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
+import { resumirNavegador } from '@/shared/lib/userAgent'
 import { GuideButton } from '@/shared/tour/GuideButton'
 import { guideTarget, useGuideStore, useScreenGuide } from '@/shared/tour/guideStore'
 
@@ -888,6 +889,10 @@ export function ReportDialog({
             lado={
               <>
                 <div className="flex flex-col items-start gap-2">
+                  {/* O nome do que esta logo abaixo: sozinho, "Fazendo" nao dizia que e a
+                      coluna do quadro. "Coluna", e nao "etapa": etapa e o que quem relatou
+                      ve, na linha logo abaixo. */}
+                  <span className="-mb-1 font-medium text-caption text-fg-muted">Coluna</span>
                   {/* Onde ele esta na fila, e o controle que o move. Arquivado nao se
                       move: o seletor da lugar a etiqueta, e mover pede desarquivar. */}
                   {arquivado ? (
@@ -979,8 +984,8 @@ export function ReportDialog({
                     </div>
                     <p className="mt-1.5 text-caption text-fg-muted leading-normal">
                       {podePedir
-                        ? 'Encerrar pede um motivo, e é ele que quem relatou lê. Pedir informação devolve o relato sem encerrar.'
-                        : 'Encerrar pede um motivo, e é ele que quem relatou lê.'}
+                        ? 'Encerrar pede um motivo para quem relatou, e pedir informação devolve o relato sem encerrar'
+                        : 'Encerrar pede um motivo, que é o que quem relatou lê'}
                     </p>
                   </div>
                 )}
@@ -1005,31 +1010,31 @@ export function ReportDialog({
                     soonDays={soonDays}
                   />
 
-                  <dl className="flex flex-col gap-1.5 border-border border-t pt-3">
-                    {/* O protocolo e o de quem relatou (o numero, do time, esta no titulo
-                        do dialogo), e e o que se copia para responder. */}
-                    <DetailRow
-                      label="Protocolo"
-                      value={
-                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <code className="font-mono">{report.TrackingCode}</code>
-                          <CopyButton
-                            value={report.TrackingCode ?? ''}
-                            label="Copiar protocolo"
-                            size="sm"
-                          />
-                        </span>
-                      }
-                    />
-                    <DetailRow
-                      label="Criado"
-                      value={
-                        <span className="tabular-nums">{formatDateTime(report.CreatedAt)}</span>
-                      }
-                    />
-                  </dl>
+                  <section>
+                    <h4 className="mb-2 font-medium text-caption text-fg-muted">Relato</h4>
+                    <dl className="flex flex-col gap-1.5">
+                      {/* O protocolo e o de quem relatou (o numero, do time, esta no titulo
+                        do dialogo), e e o que se copia para responder. O copiar fica ao
+                        lado, num icone: o botao inteiro ocupava uma linha so para ele. */}
+                      <DetailRow
+                        label="Protocolo"
+                        value={
+                          <span className="flex items-center gap-1">
+                            <code className="font-mono">{report.TrackingCode}</code>
+                            <CopiarProtocolo valor={report.TrackingCode ?? ''} />
+                          </span>
+                        }
+                      />
+                      <DetailRow
+                        label="Criado"
+                        value={
+                          <span className="tabular-nums">{formatDateTime(report.CreatedAt)}</span>
+                        }
+                      />
+                    </dl>
+                  </section>
 
-                  <section className="border-border border-t pt-3">
+                  <section>
                     <h4 className="mb-2 font-medium text-caption text-fg-muted">Onde aconteceu</h4>
 
                     <dl className="flex flex-col gap-1.5">
@@ -1064,7 +1069,15 @@ export function ReportDialog({
                         <DetailRow
                           key={context.Key}
                           label={contextLabel(context.Key)}
-                          value={context.Value}
+                          value={
+                            // A linha tecnica do navegador vira "Chrome 142 no macOS"; a
+                            // inteira fica para quem passa o mouse.
+                            context.Key === 'user_agent' && context.Value ? (
+                              <span title={context.Value}>{resumirNavegador(context.Value)}</span>
+                            ) : (
+                              context.Value
+                            )
+                          }
                         />
                       ))}
                     </dl>
@@ -1222,6 +1235,8 @@ function IrAoComentario() {
     <button
       type="button"
       onClick={(evento) => {
+        // As conversas ficam em abas: a do time vem para a frente antes do foco ir para ela.
+        mostrarConversaDoTime()
         const dialogo = evento.currentTarget.closest('[role="dialog"]')
         const campo = dialogo?.querySelector<HTMLTextAreaElement>(
           'textarea[aria-label="Entre o time"]',
@@ -1622,9 +1637,12 @@ function LadoDeFora({
 
   if (fechamento) {
     return (
-      <span className="text-caption text-fg-muted">
-        Quem relatou vê:{' '}
-        <span className="text-fg">Encerrado: {publicOutcomeLabel(fechamento.Outcome)}</span>
+      <span className="flex items-center gap-1.5 text-caption text-fg-muted">
+        <Olho />
+        <span>
+          Quem relatou vê:{' '}
+          <span className="text-fg">Encerrado: {publicOutcomeLabel(fechamento.Outcome)}</span>
+        </span>
       </span>
     )
   }
@@ -1675,8 +1693,79 @@ function LadoDeFora({
   }
 
   return (
-    <span className="text-caption text-fg-muted">
-      Quem relatou vê: <span className="text-fg">{etapa}</span>
+    <span className="flex items-center gap-1.5 text-caption text-fg-muted">
+      <Olho />
+      <span>
+        Quem relatou vê: <span className="text-fg">{etapa}</span>
+      </span>
     </span>
+  )
+}
+
+/** O olho do "Quem relatou vê": a linha fala do que a pessoa de fora enxerga. */
+function Olho() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="flex-none"
+    >
+      <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8Z" />
+      <circle cx="8" cy="8" r="2" />
+    </svg>
+  )
+}
+
+/**
+ * O copiar do protocolo, num icone ao lado do codigo. Copiado, o desenho vira um visto por
+ * um instante, e o leitor de tela ouve "Copiado".
+ */
+function CopiarProtocolo({ valor }: { valor: string }) {
+  const [copiou, setCopiou] = useState(false)
+  useEffect(() => {
+    if (!copiou) return
+    const espera = setTimeout(() => setCopiou(false), 1800)
+    return () => clearTimeout(espera)
+  }, [copiou])
+
+  return (
+    <button
+      type="button"
+      onClick={async () => setCopiou(await copyText(valor))}
+      aria-label="Copiar protocolo"
+      title="Copiar protocolo"
+      className="flex size-7 flex-none cursor-pointer items-center justify-center rounded-md text-fg-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-surface-sunken hover:text-fg active:scale-[0.94] pointer-coarse:size-10"
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 16 16"
+        width="14"
+        height="14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {copiou ? (
+          <path d="M3.5 8.5l3 3 6-7" />
+        ) : (
+          <>
+            <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+            <path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" />
+          </>
+        )}
+      </svg>
+      <span aria-live="polite" className="sr-only">
+        {copiou ? 'Copiado' : ''}
+      </span>
+    </button>
   )
 }

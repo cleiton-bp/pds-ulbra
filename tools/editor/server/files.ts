@@ -60,29 +60,46 @@ async function mtimeIfExists(full: string): Promise<number | null> {
   }
 }
 
-/** `title` e o `meta.title` de dentro do arquivo: o que a tela mostra no lugar do nome. */
-export type FileEntry = { name: string; mtime: number; size: number; title: string }
+/**
+ * `title` e o `meta.title` de dentro do arquivo: o que a tela mostra no lugar do nome.
+ * `count` e quanto o arquivo desenha: todas as tabelas da modelagem, as que vieram de
+ * antes junto (sem as colunas padrao, que nao sao tabela), ou os casos de uso. E o que a lista do inicio mostra ao lado do
+ * titulo; a data do arquivo nao dizia nada, porque no ar toda copia tem a data da montagem.
+ */
+export type FileEntry = { name: string; mtime: number; size: number; title: string; count: number }
+
+type Summary = Pick<FileEntry, 'title' | 'count'>
+
+/** Onde cada ambiente guarda o que ele conta. */
+const COUNTED: Record<string, string> = { modeling: 'entities', 'use-cases': 'useCases' }
+
+/** O `base_columns` e desenhado como caixa, mas e o conjunto de colunas que toda tabela repete. */
+const NOT_A_TABLE = 'base_columns'
+
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined
 
 /**
- * O titulo de cada arquivo, lido de novo so quando o arquivo muda. A lista e pedida
- * a cada 3 segundos por cada tela aberta; reler todos os arquivos a cada pedido
- * seria trabalho jogado fora.
+ * O titulo e a contagem de cada arquivo, lidos de novo so quando o arquivo muda. A
+ * lista e pedida a cada 3 segundos por cada tela aberta; reler todos os arquivos a
+ * cada pedido seria trabalho jogado fora.
  */
-const titles = new Map<string, { mtime: number; title: string }>()
+const summaries = new Map<string, { mtime: number; summary: Summary }>()
 
-async function titleOf(full: string, mtime: number): Promise<string> {
-  const cached = titles.get(full)
-  if (cached?.mtime === mtime) return cached.title
-  let title = ''
+async function summaryOf(collection: string, full: string, mtime: number): Promise<Summary> {
+  const cached = summaries.get(full)
+  if (cached?.mtime === mtime) return cached.summary
+  const summary: Summary = { title: '', count: 0 }
   try {
     // "failsafe": o titulo volta como texto, do jeito que foi escrito.
-    const doc = YAML.parse(await fs.readFile(full, 'utf8'), { schema: 'failsafe' }) as unknown
-    const meta = typeof doc === 'object' && doc !== null ? (doc as Record<string, unknown>).meta : undefined
-    const value = typeof meta === 'object' && meta !== null ? (meta as Record<string, unknown>).title : undefined
-    if (typeof value === 'string') title = value.trim()
+    const doc = asRecord(YAML.parse(await fs.readFile(full, 'utf8'), { schema: 'failsafe' }))
+    const title = asRecord(doc?.meta)?.title
+    if (typeof title === 'string') summary.title = title.trim()
+    const items = doc?.[COUNTED[collection] ?? '']
+    if (Array.isArray(items)) summary.count = items.filter((item) => asRecord(item)?.name !== NOT_A_TABLE).length
   } catch { /* yaml quebrado: fica sem titulo, e o editor mostra o erro ao abrir */ }
-  titles.set(full, { mtime, title })
-  return title
+  summaries.set(full, { mtime, summary })
+  return summary
 }
 
 /**
@@ -111,7 +128,7 @@ export async function listFiles(collection: string): Promise<{ dir: string; file
     const full = path.join(dir, name)
     const stat = await fs.stat(full)
     if (!stat.isFile()) continue
-    files.push({ name, mtime: stat.mtimeMs, size: stat.size, title: await titleOf(full, stat.mtimeMs) })
+    files.push({ name, mtime: stat.mtimeMs, size: stat.size, ...(await summaryOf(collection, full, stat.mtimeMs)) })
   }
 
   files.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))

@@ -18,6 +18,7 @@ using Pds.Shared.Json;
 using Pds.WebApi.Authorization;
 using Pds.WebApi.Controllers;
 using Pds.WebApi.Health;
+using Pds.WebApi.Limits;
 using Pds.WebApi.Realtime;
 using Pds.WebApi.Swagger;
 
@@ -30,6 +31,12 @@ public class Startup
 
     /// <summary>Limite de pedidos de envio de midia por IP. E a rota publica que gasta dinheiro.</summary>
     public const string MediaUploadRateLimitPolicy = "media-upload";
+
+    /// <summary>
+    /// Limite de conexoes ao acompanhamento ao vivo por IP. E o hub publico, sem sessao, que
+    /// a pagina de acompanhamento e o formulario abrem com um relato na tela.
+    /// </summary>
+    public const string LiveTrackingRateLimitPolicy = "live-tracking";
 
     /// <summary>Politica de CORS do painel.</summary>
     public const string PanelCorsPolicy = "panel";
@@ -213,6 +220,22 @@ public class Startup
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0,
                     }));
+
+            // O hub do acompanhamento ao vivo e aberto a qualquer um que tenha um relato na
+            // tela. Cada conexao conta dois pedidos (negociar e abrir o WebSocket), e quem cai
+            // para a escuta longa conta um a cada volta: o limite folga para isso e segura quem
+            // abre conexao em serie.
+            var liveLimit = EnvironmentConstants.GetLiveTrackingRateLimitPerMinute();
+
+            options.AddPolicy(LiveTrackingRateLimitPolicy, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "desconhecido",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = liveLimit,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
         });
 
         // So as origens configuradas falam com a API pelo navegador. A lista vazia
@@ -240,6 +263,9 @@ public class Startup
                 policy.AllowAnyOrigin()
                     .WithMethods("GET"));
         });
+
+        // A contagem do limite geral: uma so para o processo inteiro.
+        services.AddSingleton(new GeneralRateLimiter(TimeProvider.System));
 
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
@@ -383,6 +409,11 @@ public class Startup
         app.UseRateLimiter();
 
         app.UseAuthentication();
+
+        // O limite geral (por IP sem login, por conta com login), so depois de saber de quem e
+        // o token, e antes da autorizacao, para contar tambem quem martela sem ele.
+        app.UseMiddleware<GeneralRateLimitMiddleware>();
+
         app.UseAuthorization();
 
         // Depois da autenticacao, porque le o token ja validado; antes das rotas,

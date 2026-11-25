@@ -60,6 +60,7 @@ import {
   HELP_IN_BAR,
   WorkFilterBar,
 } from '@/features/reports/WorkFilterBar'
+import { AlturaSuave, useTrocaQuandoChegar } from '@/shared/components/AlturaSuave'
 import { Button } from '@/shared/components/Button'
 import { HowItWorks } from '@/shared/components/HowItWorks'
 import { Select } from '@/shared/components/Select'
@@ -345,6 +346,16 @@ export function ReportsScreen() {
   // A lista relendo com outro filtro, ou a busca esperando a pessoa parar de digitar:
   // a tabela esmaece, o campo diz "Buscando…" e o lote espera.
   const buscando = !quadro && !backlog && (relendoALista || filtros.typing)
+
+  // O recorte da lista (filtro, ordem, coluna, sprint, arquivados). **So vale na tela quando
+  // a lista dele chega**: ate la a antiga fica parada, esmaecida se demorar, e nao renasce
+  // com os dados de antes. Ao chegar, as linhas entram juntas e a area muda de altura com
+  // transicao (ver `AlturaSuave`), em vez de saltar.
+  const trocaNaTela = useTrocaQuandoChegar(
+    JSON.stringify([filtros.applied, filtros.sort, colunasDaLista, sprintDaLista, arquivados]),
+    reports,
+    buscando,
+  )
 
   // O "Desfazer" do lote: roda daqui, e nao da barra, que pode ter saido da tela.
   const desfazerLote = useBulkUndo(
@@ -888,7 +899,7 @@ export function ReportsScreen() {
           </>
         )
       ) : (
-        <>
+        <AlturaSuave chave={trocaNaTela}>
           {loading && <ReportsTableSkeleton />}
 
           {reports?.length === 0 && (
@@ -935,15 +946,9 @@ export function ReportsScreen() {
                 aoOrdenar={filtros.sortBy}
                 comSprint={sprintsLigadas}
                 buscando={buscando}
-                // Muda quando o filtro, a ordem, a coluna ou a sprint mudam — e nao quando
-                // chega mais uma pagina: so a troca de recorte esmaece as linhas.
-                troca={JSON.stringify([
-                  filtros.applied,
-                  filtros.sort,
-                  colunasDaLista,
-                  sprintDaLista,
-                  arquivados,
-                ])}
+                // Muda quando a lista de outro recorte chega, e nao quando chega mais uma
+                // pagina: so a troca de recorte faz as linhas entrarem de novo.
+                troca={trocaNaTela}
               />
 
               {/* Depois da tabela, presa embaixo da tela: marcar nao empurra as linhas. */}
@@ -1022,7 +1027,7 @@ export function ReportsScreen() {
               )}
             </>
           )}
-        </>
+        </AlturaSuave>
       )}
     </>
   )

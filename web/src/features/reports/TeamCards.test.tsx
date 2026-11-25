@@ -74,6 +74,15 @@ vi.mock('@/data', async (importOriginal) => {
       setArchived: dublê.arquivar,
       listComments: dublê.comentarios,
       listReportHistory: dublê.historico,
+      listReportHistoryPage: async (
+        publicId: string,
+        reportPublicId: string,
+        opcoes?: { before?: string; limit?: number; returns?: boolean },
+      ) => {
+        // O historico aos pedacos sai da lista inteira do dublê (o vi.mock roda antes dos imports).
+        const { pedacoDoHistorico } = await import('@/test/historicoEmPedacos')
+        return pedacoDoHistorico(await dublê.historico(publicId, reportPublicId), opcoes)
+      },
       addInternalComment: vi.fn(),
       addPublicComment: vi.fn(),
       closeReport: vi.fn(),
@@ -790,7 +799,7 @@ describe('card do time e arquivar', () => {
 
     await screen.findByRole('button', { name: 'Desarquivar' })
     expect(screen.queryByRole('combobox', { name: 'Mover para a coluna' })).toBeNull()
-    expect(screen.getByText(/O relato está arquivado/)).toBeTruthy()
+    expect(screen.getByText('Para escrever a quem relatou, desarquive o relato')).toBeTruthy()
     expect(screen.queryByRole('textbox', { name: 'Para quem relatou' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Desarquivar' }))

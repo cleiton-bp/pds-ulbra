@@ -1,3 +1,5 @@
+import { requestComment } from '@/shared/lib/commentSearch'
+
 /** Quanto tempo esperar o comentario aparecer: o card abre e le os comentarios depois. */
 const ESPERA_MS = 10_000
 
@@ -28,7 +30,13 @@ export function revealComment(commentPublicId: string): () => void {
   const procurar = () => {
     timer = null
     const alvo = document.getElementById(commentAnchorId(commentPublicId))
-    if (!alvo) {
+    // Na aba de tras (a conversa com quem relatou a vista) o comentario existe e nao
+    // aparece: o pedido traz a conversa do time para a frente, e a proxima olhada o acha.
+    if (!alvo || alvo.closest('[hidden]')) {
+      // O chat do card so tem as mais recentes: pede a conversa que traga as anteriores ate
+      // achar. Pedir de novo enquanto ela procura nao custa nada (ela ignora), e cobre o card
+      // que ainda nao tinha montado a conversa no primeiro pedido.
+      requestComment(commentPublicId)
       if (Date.now() - inicio < ESPERA_MS) timer = setTimeout(procurar, PASSO_MS)
       return
     }

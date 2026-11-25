@@ -2366,6 +2366,37 @@ public partial class ReportService : IReportService
             ?? throw new KeyNotFoundException("Relato nao encontrado.");
 
         var events = await _unitOfWork.Events.ListByReportAsync(reportId, cancellationToken);
+        return await ParaHistoricoAsync(events, cancellationToken);
+    }
+
+    /// <summary>O maior pedaco do historico que uma leitura traz.</summary>
+    public const int MaxHistoryPage = 50;
+
+    public async Task<ReportHistoryPageViewModel> HistoryPageAsync(Guid projectPublicId, Guid reportPublicId, Guid? before, int limit, bool comVoltas, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var reportId = await _unitOfWork.Reports.FindIdAsync(project.Id, reportPublicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Relato nao encontrado.");
+
+        var pedaco = await _unitOfWork.Events.ListHistoryPageAsync(
+                         reportId, before, Math.Clamp(limit, 1, MaxHistoryPage), comVoltas, cancellationToken)
+                     ?? throw new KeyNotFoundException("Evento nao encontrado.");
+
+        return new ReportHistoryPageViewModel(
+            await ParaHistoricoAsync(pedaco.Items, cancellationToken),
+            pedaco.HasOlder,
+            pedaco.Total,
+            pedaco.ReporterReturns,
+            pedaco.FirstReporterVisit);
+    }
+
+    /// <summary>
+    /// Os eventos como o historico os mostra, na ordem em que vieram: com os nomes das
+    /// colunas da epoca e o nome de agora de quem passou pelo card.
+    /// </summary>
+    private async Task<IReadOnlyList<ReportHistoryEntryViewModel>> ParaHistoricoAsync(IReadOnlyList<Event> events, CancellationToken cancellationToken)
+    {
         var mudancas = events.Select(CardChange.Read).ToList();
 
         // Quem passou pelo card aparece com o nome de agora, numa consulta so: o evento
@@ -3020,15 +3051,7 @@ public partial class ReportService : IReportService
         var report = await ReporterCodeGate.RequireAsync(
             _unitOfWork, dto.Key, dto.Code, dto.TrackingCode, cancellationToken);
 
-        var regras = await _unitOfWork.ProjectCycleSettings
-            .FindByProjectWithoutSessionAsync(report.ProjectId, cancellationToken);
-
-        // **E aqui que a regra do codigo sozinho decide — quando puder.** Enquanto
-        // confirmar, reabrir e responder so aceitarem o token, obedecer ao valor
-        // gravado mostraria botoes que a propria API recusa; entao ele fica gravado e
-        // e ignorado. O que falta para voltar esta em ActionsAcceptReporterCode.
-        var podeAgir = ActionsAcceptReporterCode
-            && (regras?.TrackingCodeCanAct ?? CycleSettingsDefaults.TrackingCodeCanAct);
+        var podeAgir = await ReporterCodeCanActAsync(report, cancellationToken);
 
         await _unitOfWork.Events.AddAsync(new Event
         {
@@ -3069,8 +3092,77 @@ public partial class ReportService : IReportService
         await _unitOfWork.CommitAsync(cancellationToken);
 
         // Le, e nao age: a identidade prova que o relato e dela, e o link e que da
-        // poder sobre ele — a mesma regra do codigo pessoal.
+        // poder sobre ele, a mesma regra do codigo pessoal.
         return await BuildPublicAsync(report, podeAgir: false, cancellationToken);
+    }
+
+    /// <summary>
+    /// Se quem chega pelo codigo pessoal pode agir no relato. A abertura e o acompanhamento
+    /// ao vivo perguntam a mesma coisa, e a resposta mora num lugar so.
+    ///
+    /// <para><b>E aqui que a regra do codigo sozinho decide, quando puder.</b> Enquanto
+    /// confirmar, reabrir e responder so aceitarem o token, obedecer ao valor gravado
+    /// mostraria botoes que a propria API recusa; entao ele fica gravado e e ignorado. O
+    /// que falta para voltar esta em <see cref="ActionsAcceptReporterCode"/>.</para>
+    /// </summary>
+    private async Task<bool> ReporterCodeCanActAsync(Report report, CancellationToken cancellationToken)
+    {
+        var regras = await _unitOfWork.ProjectCycleSettings
+            .FindByProjectWithoutSessionAsync(report.ProjectId, cancellationToken);
+
+        return ActionsAcceptReporterCode
+            && (regras?.TrackingCodeCanAct ?? CycleSettingsDefaults.TrackingCodeCanAct);
+    }
+
+    public async Task<LiveTrackingAccess> AuthorizeLiveTrackingAsync(WatchReportTrackingDto dto, CancellationToken cancellationToken = default)
+    {
+        // **Uma credencial so, na ordem da abertura**: o link, que age; o codigo e o cracha,
+        // que leem. As portas sao as mesmas das rotas de abrir, com a mesma recusa unica
+        // para qualquer engano: o hub nao pode virar um jeito de sondar o que a rota recusa.
+        Report report;
+        bool podeAgir;
+
+        if (!string.IsNullOrWhiteSpace(dto.Token))
+        {
+            report = await TrackedReportGate.RequireAsync(
+                _unitOfWork, dto.TrackingCode, dto.Token, cancellationToken);
+            podeAgir = true;
+        }
+        else if (!string.IsNullOrWhiteSpace(dto.Key) && !string.IsNullOrWhiteSpace(dto.ReporterCode))
+        {
+            report = await ReporterCodeGate.RequireAsync(
+                _unitOfWork, dto.Key, dto.ReporterCode, dto.TrackingCode, cancellationToken);
+            podeAgir = await ReporterCodeCanActAsync(report, cancellationToken);
+        }
+        else if (!string.IsNullOrWhiteSpace(dto.Key) && !string.IsNullOrWhiteSpace(dto.IdentityToken))
+        {
+            report = await InheritedIdentityGate.RequireAsync(
+                _unitOfWork, dto.Key, dto.IdentityToken, dto.TrackingCode, cancellationToken);
+            podeAgir = false;
+        }
+        else
+        {
+            throw new KeyNotFoundException(TrackedReportGate.Refusal);
+        }
+
+        // **Sem o evento de visualizacao.** Abrir o relato ja gravou; acompanhar e a mesma
+        // tela continuando aberta, e gravar a cada reconexao inflaria a contagem de quem
+        // volta para olhar.
+        var atual = await BuildPublicAsync(report, podeAgir, cancellationToken);
+        // O protocolo nunca e nulo aqui: as tres portas acham o relato por ele, e o card do
+        // time, que nao tem protocolo, nao passa por nenhuma.
+        return new LiveTrackingAccess(report.PublicId, report.TrackingCode!, podeAgir, atual);
+    }
+
+    public async Task<PublicReportViewModel?> BuildLiveTrackingAsync(string trackingCode, bool canAct, CancellationToken cancellationToken = default)
+    {
+        // A mesma leitura da porta do link, com o projeto e a jornada junto. A credencial ja
+        // foi conferida na inscricao: aqui so se remonta o que a tela mostra.
+        var report = await _unitOfWork.Reports.FindByTrackingCodeWithoutSessionAsync(trackingCode, cancellationToken);
+        if (report is null || report.Project.DeletedAt is not null)
+            return null;
+
+        return await BuildPublicAsync(report, canAct, cancellationToken);
     }
 
     /// <summary>

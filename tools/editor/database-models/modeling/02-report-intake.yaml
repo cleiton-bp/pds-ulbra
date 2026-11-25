@@ -483,7 +483,7 @@ notes:
       Projeto, chaves, domínios e relatos somem de verdade, sobra contagem e tempo.
     anchor: accounts
     anchorField: anonymized_at
-    position: { x: 1541, y: 169 }
+    position: { x: 1541, y: 233 }
     width: 340
     inherited: true
   - text: |-

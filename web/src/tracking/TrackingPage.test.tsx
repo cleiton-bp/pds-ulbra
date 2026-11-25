@@ -41,6 +41,8 @@ const dublê = vi.hoisted(() => ({
   anexos: vi.fn(),
   anexosPorCodigo: vi.fn(),
   midia: vi.fn(),
+  acompanhar: vi.fn(),
+  pararDeAcompanhar: vi.fn(),
 }))
 
 vi.mock('@/data/publicIndex', async (importOriginal) => {
@@ -55,6 +57,8 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
       replyToReport: dublê.responder,
       openByReporterCode: dublê.abrirPorCodigo,
     },
+    // O acompanhamento ao vivo falso: o teste manda o relato novo como o servidor mandaria.
+    liveTrackingService: { watch: dublê.acompanhar },
     // Sem isto a pagina buscaria os anexos de verdade, pela rede, em todo teste.
     publicMediaService: {
       listTrackingAttachments: dublê.anexos,
@@ -138,6 +142,7 @@ afterEach(cleanup)
 
 beforeEach(() => {
   for (const mock of Object.values(dublê)) mock.mockReset()
+  dublê.acompanhar.mockReturnValue({ stop: dublê.pararDeAcompanhar })
   dublê.anexos.mockResolvedValue([])
   dublê.anexosPorCodigo.mockResolvedValue([])
   // Padrao: o projeto nao aceita anexo na resposta. Os testes que precisam ligam.
@@ -219,24 +224,58 @@ describe('a pagina publica de acompanhamento', () => {
     expect(screen.getAllByLabelText('Ainda não chegou aqui')).toHaveLength(1)
   })
 
-  it('com jornada, também não promete que a página anda sozinha', async () => {
-    // O caso vazio ja era coberto. **Este é o que estava faltando**, e era nele que
-    // a promessa morava: com jornada, a página dizia "esta página se atualiza
-    // sozinha conforme a equipe trabalha", e não se atualiza — há um `fetch` só, na
-    // montagem. Quem deixasse a aba aberta esperaria para sempre.
-    //
-    // Buscar de novo sozinho não é a saída: cada leitura grava um evento de
-    // visualização, e a página passaria a registrar leituras que ninguém fez.
+  it('com jornada, promete o que faz: acompanha ao vivo enquanto a tela está aberta', async () => {
+    // A frase so pode prometer movimento porque a tela se inscreve para receber o
+    // relato atualizado. Ela nao busca de novo sozinha: cada leitura grava um evento de
+    // visualizacao, e a pagina registraria leituras que ninguem fez.
     dublê.abrir.mockResolvedValue({
       ...relato,
       Journey: [passo('Recebido', '2026-09-12T13:24:00.000Z', true), passo('Concluído', null)],
     })
     abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
 
-    const { container } = render(<TrackingPage />)
+    render(<TrackingPage />)
     await screen.findByText('Recebido')
 
-    expect(container.textContent ?? '').not.toMatch(/se atualiza sozinha|será avisado|avisaremos/i)
+    expect(screen.getByText(/Enquanto esta tela estiver aberta, ela mostra na hora/)).toBeTruthy()
+    // A inscricao leva a mesma credencial que abriu o relato, e so ela.
+    expect(dublê.acompanhar).toHaveBeenCalledTimes(1)
+    expect(dublê.acompanhar.mock.calls[0]?.[0]).toEqual({
+      TrackingCode: '7K2M-9QXP-4TRV',
+      Token: 'tok-secreto',
+    })
+  })
+
+  it('ao vivo: o relato que chega do servidor faz a linha andar, sem buscar de novo', async () => {
+    dublê.abrir.mockResolvedValue({
+      ...relato,
+      Journey: [passo('Recebido', '2026-09-12T13:24:00.000Z', true), passo('Em análise', null)],
+    })
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    const { unmount } = render(<TrackingPage />)
+    await screen.findByText('Recebido')
+    const receber = dublê.acompanhar.mock.calls[0]?.[1] as (novo: PublicReportViewModel) => void
+
+    act(() =>
+      receber({
+        ...relato,
+        Journey: [
+          passo('Recebido', '2026-09-12T13:24:00.000Z'),
+          passo('Em análise', '2026-09-13T09:00:00.000Z', true),
+        ],
+      }),
+    )
+
+    // A etapa nova ja esta marcada, e quem usa leitor de tela ouve a mudanca.
+    expect(screen.getAllByLabelText('Já passou por aqui')).toHaveLength(1)
+    expect(screen.getByText('O andamento mudou para Em análise')).toBeTruthy()
+    // Nenhuma leitura a mais: a tela so recebeu.
+    expect(dublê.abrir).toHaveBeenCalledTimes(1)
+
+    // Saiu da tela, parou de acompanhar.
+    unmount()
+    expect(dublê.pararDeAcompanhar).toHaveBeenCalledTimes(1)
   })
 
   // Um passo vazio antes do atual parecia algo ainda por acontecer: quem relatou ficava em

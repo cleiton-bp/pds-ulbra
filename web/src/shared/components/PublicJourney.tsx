@@ -63,15 +63,15 @@ export function PublicJourney({
   return (
     <section className={cn('rounded-xl border border-border bg-surface-raised p-5', className)}>
       <h2 className="mb-1 font-semibold text-fg text-lead">Andamento</h2>
-      {/* **A frase promete o que a pagina faz, e nada alem.** O relato e lido uma vez, na
-          montagem: dizer que a pagina "se atualiza sozinha" deixaria quem esperasse
-          esperando para sempre. E buscar de novo sozinho nao e a correcao — cada leitura
-          grava um evento de visualizacao, e o historico encheria de leituras que ninguem
-          fez. Avisar quando algo anda e trabalho da notificacao. */}
+      {/* **A frase promete o que a pagina faz, e nada alem.** Com o relato aberto, a tela
+          recebe do servidor o que muda (o acompanhamento ao vivo, ver `TrackingReport`), e
+          a linha anda sem recarregar. Ela nao busca sozinha: cada abertura grava uma
+          visualizacao, e buscar de tempos em tempos encheria o historico de leituras que
+          ninguem fez. */}
       <p className="mb-5 text-detail text-fg-muted leading-relaxed">
         {!temAtual
           ? 'O seu relato ainda não entrou nesta jornada. Ele está registrado e aguardando.'
-          : 'Sempre que você abrir esta página, ela mostra onde o seu relato está. Não é preciso avisar ninguém.'}
+          : 'Enquanto esta tela estiver aberta, ela mostra na hora onde o seu relato está, sem você precisar avisar ninguém'}
       </p>
 
       <ol className="flex flex-col">

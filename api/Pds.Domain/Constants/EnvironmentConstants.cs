@@ -145,6 +145,58 @@ public static class EnvironmentConstants
     public static int GetMediaUploadRateLimitPerMinute() => PositiveInt("MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE", 20);
 
     /// <summary>
+    /// Pedidos por minuto, por IP, ao hub do acompanhamento ao vivo (<c>/realtime/tracking</c>).
+    /// Padrao: 60. Cada tela com um relato aberto gasta dois para conectar.
+    /// </summary>
+    public static int GetLiveTrackingRateLimitPerMinute() => PositiveInt("LIVE_TRACKING_RATE_LIMIT_PER_MINUTE", 60);
+
+    /// <summary>
+    /// Liga o limite geral de pedidos: por IP sem login, por conta com login, e um bloqueio
+    /// que cresce para quem insiste. <b>Sem a variavel, segue o ambiente</b>: ligado fora do
+    /// desenvolvimento (a VPS) e desligado nele, porque no computador de quem desenvolve
+    /// ninguem esta atacando. <c>true</c> liga tambem no desenvolvimento, para testar.
+    /// </summary>
+    public static bool? GetGeneralRateLimitEnabled()
+        => bool.TryParse(Optional("GENERAL_RATE_LIMIT_ENABLED"), out var value) ? value : null;
+
+    /// <summary>
+    /// Pedidos por minuto, por IP, de quem chama sem login. Padrao: 300. Folgado de proposito:
+    /// o botao e lido a cada pagina que o visitante abre no site do cliente, e numa empresa
+    /// todo mundo pode sair pelo mesmo IP. Quem ataca manda milhares por minuto.
+    /// </summary>
+    public static int GetGeneralRateLimitAnonymousPerMinute()
+        => PositiveInt("GENERAL_RATE_LIMIT_ANONYMOUS_PER_MINUTE", 300);
+
+    /// <summary>
+    /// Pedidos por minuto, por conta, de quem chama com login (o painel). Padrao: 600. Abrir
+    /// um card gasta uns oito; quem trabalha rapido nao passa de algumas dezenas.
+    /// </summary>
+    public static int GetGeneralRateLimitAccountPerMinute()
+        => PositiveInt("GENERAL_RATE_LIMIT_ACCOUNT_PER_MINUTE", 600);
+
+    /// <summary>
+    /// Quantos minutos fica barrado quem passa do limite, vez apos vez, separados por virgula.
+    /// Padrao: <c>1,5,15,60</c>. A primeira vez so espera um minuto, que e o que poderia
+    /// acontecer, raramente, com alguem de boa-fe; quem insiste espera cada vez mais, e da
+    /// ultima em diante fica no maior. Valor invalido cai no padrao.
+    /// </summary>
+    public static IReadOnlyList<int> GetGeneralRateLimitPenaltyMinutes()
+    {
+        var lista = (Optional("GENERAL_RATE_LIMIT_PENALTY_MINUTES") ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(parte => int.TryParse(parte, out var minutos) ? minutos : 0)
+            .ToList();
+        return lista.Count > 0 && lista.All(minutos => minutos > 0) ? lista : [1, 5, 15, 60];
+    }
+
+    /// <summary>
+    /// Depois de quantos minutos sem passar do limite as vezes anteriores sao esquecidas, e o
+    /// proximo excesso volta a contar como o primeiro. Padrao: 60.
+    /// </summary>
+    public static int GetGeneralRateLimitForgetMinutes()
+        => Minutes("GENERAL_RATE_LIMIT_FORGET_MINUTES", 60);
+
+    /// <summary>
     /// Enderecar o balde no caminho, e nao no nome do host. Padrao: <c>true</c>.
     ///
     /// <para>Sao as duas formas que a API do S3 aceita: <c>host/balde/arquivo</c> ou

@@ -36,6 +36,10 @@ export function MentionTextarea({
   onSubmit,
   autoFocus = false,
   describedBy,
+  placeholder,
+  rows = 2,
+  autoGrow = false,
+  listAbove = false,
 }: {
   projectPublicId: string
   value: string
@@ -52,6 +56,12 @@ export function MentionTextarea({
   autoFocus?: boolean
   /** A dica embaixo do campo, lida junto com ele. */
   describedBy?: string
+  placeholder?: string
+  rows?: number
+  /** Cresce com o texto, ate o limite de altura da classe: o campo do chat. */
+  autoGrow?: boolean
+  /** A lista de pessoas abre acima do campo: o campo do chat mora embaixo da conversa. */
+  listAbove?: boolean
 }) {
   const campo = useRef<HTMLTextAreaElement>(null)
   const listaId = useId()
@@ -128,6 +138,12 @@ export function MentionTextarea({
     campo.current?.setSelectionRange(pendente.posicao, pendente.posicao)
   }, [value])
 
+  // O campo do chat cresce com o texto, ate o limite de altura da classe.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: o texto muda a altura, e e ele que dispara a medida.
+  useLayoutEffect(() => {
+    if (autoGrow) crescerComOTexto(campo.current)
+  }, [autoGrow, value])
+
   function escolher(pessoa: TeamMemberViewModel) {
     if (!consulta) return
     const nome = pessoa.Name?.trim() || pessoa.Email || 'Alguém do time'
@@ -182,7 +198,8 @@ export function MentionTextarea({
         onBlur={() => setConsulta(null)}
         maxLength={maxLength}
         disabled={disabled}
-        rows={2}
+        placeholder={placeholder}
+        rows={rows}
         className={className}
       />
 
@@ -191,7 +208,10 @@ export function MentionTextarea({
           id={listaId}
           role="listbox"
           aria-label="Pessoas do time"
-          className="absolute top-full left-0 z-tip -mt-1 w-[min(18rem,100%)] rounded-lg border border-border bg-surface-raised p-1 shadow-lg"
+          className={cn(
+            'absolute left-0 z-tip w-[min(18rem,100%)] rounded-lg border border-border bg-surface-raised p-1 shadow-lg',
+            listAbove ? 'bottom-full mb-1' : 'top-full -mt-1',
+          )}
         >
           {opcoes.map((pessoa, indice) => (
             // O mouse escolhe sem tirar o foco do campo — o teclado escolhe pelo campo.
@@ -234,6 +254,22 @@ export function MentionTextarea({
       </span>
     </div>
   )
+}
+
+/**
+ * O campo que cresce com o texto: a altura acompanha o que esta escrito, e o `max-h` da
+ * classe segura o teto (dali em diante ele rola por dentro). Sem layout (os testes), nao
+ * mexe em nada.
+ */
+export function crescerComOTexto(campo: HTMLTextAreaElement | null): void {
+  if (!campo) return
+  campo.style.height = 'auto'
+  if (campo.scrollHeight === 0) {
+    campo.style.removeProperty('height')
+    return
+  }
+  const bordas = campo.offsetHeight - campo.clientHeight
+  campo.style.height = `${campo.scrollHeight + bordas}px`
 }
 
 /**

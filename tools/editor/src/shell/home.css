@@ -169,7 +169,7 @@
 
 .file-link__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.file-link__when { font-size: 11px; color: var(--text-dim); }
+.file-link__count { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
 
 .file-link__name {
   grid-column: 1 / -1;

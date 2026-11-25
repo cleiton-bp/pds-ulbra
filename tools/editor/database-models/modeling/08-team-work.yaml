@@ -319,7 +319,7 @@ entities:
     label: Estados do projeto
     description: A tabela que não pode ser cortada. Existe porque os estados precisam ser criados pelo cliente, como as colunas de um quadro Kanban — se fossem fixos, definidos por nós, o motor de tradução viraria mapear os nossos estados nas nossas próprias etapas públicas, e o trabalho perderia justamente o peso técnico que o README aponta.
     inherited: true
-    position: { x: 560, y: 700 }
+    position: { x: 657, y: 700 }
     fields:
       - name: id
         type: long
@@ -541,7 +541,7 @@ entities:
     label: Contexto do relato
     description: Existe para guardar o que veio junto com o relato sem virar coluna nova a cada captura, e é tabela separada em vez de campo dentro de reports porque o que se vai querer saber amanhã ainda não está decidido hoje.
     inherited: true
-    position: { x: 2409, y: 716 }
+    position: { x: 2940, y: 716 }
     fields:
       - name: id
         type: long
@@ -576,7 +576,7 @@ entities:
     label: Comentário interno
     description: O dado mais perigoso da aplicação — é onde o time fala livremente, e se um dia vazar para a camada pública é o pior incidente possível para este produto. São duas tabelas em vez de uma com campo de visibilidade porque com sinalizador basta esquecer um filtro para vazar, e com tabelas separadas vazar exige escrever uma consulta que não existe.
     inherited: true
-    position: { x: 1050, y: 1560 }
+    position: { x: 768, y: 1560 }
     fields:
       - name: id
         type: long
@@ -613,7 +613,7 @@ entities:
     label: Comentário público
     description: O que o time escolhe dizer a quem relatou, e o que quem relatou responde. Quem relatou lê na página de acompanhamento, pelo link ou pelo código pessoal; a resposta dele pode trazer arquivos.
     inherited: true
-    position: { x: 1560, y: 1560 }
+    position: { x: 1581, y: 1583 }
     fields:
       - name: id
         type: long
@@ -755,7 +755,7 @@ entities:
     label: Mapeamento de estados
     description: "Liga N estados internos a 1 etapa pública, nunca o contrário — um estado apontando para duas etapas deixaria sem resposta a única pergunta que esta tabela responde, que é onde o relato está agora. Versionada: alterar grava o conjunto inteiro de novo, um número acima, porque reescrever o mapa apagaria o sentido de tudo que já aconteceu."
     inherited: true
-    position: { x: 900, y: 1980 }
+    position: { x: 803, y: 1980 }
     fields:
       - name: id
         type: long
@@ -797,7 +797,7 @@ entities:
     label: Pedidos de informação
     description: 'Quando o time devolve o relato pedindo contexto, em vez de encerrar. Tabela própria, e existe pelo mesmo motivo de report_closures: acontece mais de uma vez por relato, espera resposta de quem está do outro lado, e tem prazo próprio. "Não reproduzi" e "não vamos fazer" chegando iguais ao relator fazem ele entender que acabou e parar de responder — e o relato morre por ruído, que é o problema que o produto existe para resolver.'
     inherited: true
-    position: { x: 1889, y: 1695 }
+    position: { x: 2011, y: 1695 }
     fields:
       - name: id
         type: long
@@ -848,7 +848,7 @@ entities:
     label: Encerramentos
     description: "O encerramento de um relato e a resposta de quem o escreveu, numa linha só. Não é comentário: acontece uma vez por fechamento, carrega um desfecho e tem resposta. Reabrir e fechar de novo cria uma linha nova, e é daí que saem as métricas — quantos precisaram fechar duas vezes, qual a nota média, quantos encerramentos o relator recusou."
     inherited: true
-    position: { x: 1560, y: 1980 }
+    position: { x: 1579, y: 1980 }
     fields:
       - name: id
         type: long
@@ -912,7 +912,7 @@ entities:
     label: Regras do ciclo
     description: "Como o ciclo fecha neste projeto: quando encerra, quanto espera antes de quem relatou ver, se dá para reabrir e como, e o que a pessoa responde no fim. E, no quadro, quantos dias a última coluna mostra e quando o prazo fica em destaque. Uma linha por projeto, criada só quando alguém salva — os padrões vivem no código, e projeto sem linha é projeto que nunca precisou mudar nada."
     inherited: true
-    position: { x: 2220, y: 1980 }
+    position: { x: 2220, y: 2075 }
     fields:
       - name: id
         type: long
@@ -1052,7 +1052,7 @@ entities:
     label: Código pessoal
     description: "O código que quem relata guarda para reencontrar os próprios relatos, no modo sem login. É tabela, e não coluna em reports: o mesmo código vale para vários relatos, então a unicidade dentro do projeto precisa de uma linha própria — como coluna repetida, o banco não teria como exigi-la. Não guarda nada de pessoa: sem nome, sem contato, sem dispositivo, é um identificador sorteado e nada mais."
     inherited: true
-    position: { x: 2950, y: 800 }
+    position: { x: 2950, y: 998 }
     fields:
       - name: id
         type: long
@@ -2101,7 +2101,7 @@ notes:
       A verdade é a sequência de eventos; reports.project_state_id é cache dela. Nunca gravar o cache sem o evento ter entrado antes, na mesma transação — se o evento falhar e o cache passar, o dado se perde para sempre, e é justamente ele que alimenta a linha do tempo pública, o histórico e as métricas da pesquisa.
     anchor: reports
     anchorField: project_state_id
-    position: { x: 700, y: 1900 }
+    position: { x: 700, y: 2284 }
     width: 380
     inherited: true
   - text: |-
@@ -2110,7 +2110,7 @@ notes:
       O payload guarda de-onde, para-onde e o nome que o estado tinha na época. Nunca o corpo do comentário. A linha do tempo que o relator vai ler é montada a partir de events — se o texto interno estivesse ali, vazar seria uma junção distraída, e não um erro difícil.
     anchor: events
     anchorField: payload
-    position: { x: 2105, y: 1526 }
+    position: { x: 2633, y: 2182 }
     width: 380
     inherited: true
   - text: |-
@@ -2118,7 +2118,7 @@ notes:
 
       O desenho óbvio é uma tabela de comentários com um campo "é público?". Ele é o que mais dá vontade de fazer e o que mais não se pode: com sinalizador, vazar é esquecer um filtro numa consulta; com tabelas separadas, vazar exige escrever uma consulta que não existe. E sem teste automático vigiando, a estrutura precisa carregar essa garantia sozinha.
     anchor: report_internal_comments
-    position: { x: 566, y: 1688 }
+    position: { x: 342, y: 1688 }
     width: 380
     inherited: true
   - text: |-
@@ -2127,7 +2127,7 @@ notes:
       A mesma tabela guarda ação de quem é do time e ação de quem vem de fora, e por isso a coluna é anulável: o relato criado pelo widget e a visualização feita por quem relatou não têm usuário por trás. Autor vira coluna, e não campo dentro do payload, porque "quem moveu mais cards" não pode virar varredura de texto numa tabela que só cresce.
     anchor: events
     anchorField: user_id
-    position: { x: 2364, y: 1120 }
+    position: { x: 2412, y: 1808 }
     width: 380
     inherited: true
   - text: |-
@@ -2136,7 +2136,7 @@ notes:
       Desativar deixa de aceitar card novo; apagar quebraria o histórico de todo card que já passou por ele. Por isso deactivated_at é coluna própria, separada de deleted_at. E o estado que é porta de entrada de algum tipo não pode ser desativado sem que outro assuma o lugar.
     anchor: project_states
     anchorField: deactivated_at
-    position: { x: 67, y: 820 }
+    position: { x: 3, y: 436 }
     width: 340
     inherited: true
   - text: |-
@@ -2145,7 +2145,7 @@ notes:
       O histórico mostra o nome que o estado tinha quando o card passou por ele, e é por isso que o nome vai no payload do evento além do id. Sem isso, renomear "Análise" para "Triagem" mudaria a história de todos os cards antigos de uma vez.
     anchor: project_states
     anchorField: name
-    position: { x: 70, y: 669 }
+    position: { x: 6, y: 669 }
     width: 340
     inherited: true
   - text: |-
@@ -2162,7 +2162,7 @@ notes:
       Alterar o mapeamento não toca em linha nenhuma das versões anteriores: são elas que explicam por onde um relato de três meses atrás passou. Guardar só o que mudou economizaria linhas e cobraria o preço na leitura — reconstruir o mapa de uma época viraria somar alterações desde o começo, e um erro no meio dessa soma devolveria um mapa errado com cara de certo.
     anchor: project_status_mappings
     anchorField: version
-    position: { x: 1430, y: 2260 }
+    position: { x: 1430, y: 2452 }
     width: 400
     inherited: true
   - text: |-
@@ -2171,7 +2171,7 @@ notes:
       Parece que bastaria o maior valor desta tabela, e não basta: o cliente que desfaz todos os mapeamentos grava uma versão sem nenhuma linha. Calculada pelo maior valor, essa versão seria invisível, e a anterior voltaria a valer sozinha, sem ninguém ter pedido.
     anchor: projects
     anchorField: mapping_version
-    position: { x: 1700, y: 450 }
+    position: { x: 1492, y: 450 }
     width: 380
     inherited: true
   - text: |-
@@ -2207,7 +2207,7 @@ notes:
       events ganha dois tipos: report_public_stage_changed, que conta o que quem relatou viu, e report_public_stage_unmapped, que registra que a jornada não andou porque o estado está fora do mapa. Elas não andam no mesmo ritmo que a mudança interna — um movimento do time costuma não mover a jornada pública. Juntá-las num registro só obrigaria a análise a adivinhar qual das duas cada linha conta, e essa é exatamente a pergunta de pesquisa.
     anchor: events
     anchorField: type
-    position: { x: 2625, y: 1312 }
+    position: { x: 3281, y: 1312 }
     width: 400
     inherited: true
   - text: |-
@@ -2216,7 +2216,7 @@ notes:
       Além dos rótulos que valiam na época, o payload guarda qual versão do mapeamento decidiu aquele movimento. Sem ela, recontar um movimento antigo usaria o mapa de hoje e devolveria outra história — e não haveria como perceber, porque o dado necessário para perceber seria justamente o que faltou.
     anchor: events
     anchorField: payload
-    position: { x: 2570, y: 1539 }
+    position: { x: 3050, y: 2179 }
     width: 400
     inherited: true
   - text: |-
@@ -2226,7 +2226,7 @@ notes:
 
       Se morasse na tabela de comentários, a pergunta "quantos fecharam como não será feito, e o relator aceitou?" viraria "procure o comentário que por acaso é um encerramento" — o sinalizador dentro da tabela que este projeto já recusou duas vezes.
     anchor: report_closures
-    position: { x: 1097, y: 2309 }
+    position: { x: 1321, y: 2677 }
     width: 400
     inherited: true
   - text: |-
@@ -2239,7 +2239,7 @@ notes:
       Na tela vale a mesma separação: a recusa fica fora da escala, nunca como sexta estrela ou zero, senão ela vira a nota mais baixa para quem lê depressa.
     anchor: report_closures
     anchorField: satisfaction_declined
-    position: { x: 1838, y: 2563 }
+    position: { x: 1774, y: 2691 }
     width: 400
     inherited: true
   - text: |-
@@ -2260,7 +2260,7 @@ notes:
 
       É a mesma escolha da jornada pública — o cliente desenha, e o conjunto de fábrica existe para ninguém encarar tela em branco.
     anchor: project_cycle_settings
-    position: { x: 2559, y: 2239 }
+    position: { x: 2623, y: 2367 }
     width: 400
     inherited: true
   - text: |-
@@ -2271,7 +2271,7 @@ notes:
       Desmarcado, o time não consegue abrir pedido de informação naquele relato — e encerrar por falta de resposta não se aplica a quem nunca aceitou responder.
     anchor: reports
     anchorField: accepts_questions
-    position: { x: 595, y: 1424 }
+    position: { x: -77, y: 1488 }
     width: 380
     inherited: true
   - text: |-
@@ -2314,7 +2314,7 @@ notes:
       Qualquer uma fechada, o nome fica interno — o time vê, o lado de fora não. É por isso que "anônimo com campo de nome" não existe aqui: o modo se chama sem login, porque coletar nome já é tratar dado pessoal.
     anchor: reports
     anchorField: reporter_name
-    position: { x: 1780, y: 1120 }
+    position: { x: 1460, y: 176 }
     width: 400
     inherited: true
   - text: |-
@@ -2335,7 +2335,7 @@ notes:
 
       É ela que diz o que existe. Ligar anexo, as duas categorias — imagem e arquivo —, os limites de cada uma, os formatos do arquivo, se o botão de capturar aparece e se dá para anexar ao responder e ao reabrir: tudo é do dono do projeto. Projeto que nunca abrir esta tela continua funcionando, com os padrões que moram no código.
     anchor: project_media_settings
-    position: { x: 3480, y: 1300 }
+    position: { x: 3480, y: 1556 }
     width: 340
     inherited: true
   - text: |-
@@ -2353,7 +2353,7 @@ notes:
 
       Tudo que não são os bytes passa pela API: pedir a permissão, aplicar o limite do projeto, contar tentativa e confirmar que o anexo existe.
     anchor: report_attachments
-    position: { x: 1870, y: 1180 }
+    position: { x: 814, y: 1180 }
     width: 380
     inherited: true
   - text: |-
@@ -2380,7 +2380,7 @@ notes:
       Quem relata monta o relato como quer que ele seja lido: a imagem logo abaixo do texto, num terço, na metade, em três quartos ou na linha inteira. Fração da largura do texto, para caber igual no quadro, no acompanhamento e no painel.
     anchor: report_attachments
     anchorField: display_size
-    position: { x: 1870, y: 1900 }
+    position: { x: 1198, y: 2028 }
     width: 340
     inherited: true
   - text: |-
@@ -2389,7 +2389,7 @@ notes:
       Gente anexa e desiste de escrever o tempo todo, e o arquivo já está no armazenamento quando isso acontece. Por isso a linha nasce pending e só vira confirmed quando a API prende o anexo ao relato — sem esse estado, não haveria como saber depois o que pertence a alguém e o que é lixo.
     anchor: report_attachments
     anchorField: status
-    position: { x: 2409, y: 1900 }
+    position: { x: 3065, y: 2364 }
     width: 340
     inherited: true
   - text: |-
@@ -2413,5 +2413,5 @@ notes:
       Ele mora em reports junto do relato, e duas travas no banco separam os dois: o relato continua obrigado a ter protocolo, token, tipo e texto; o card do time não pode ter protocolo, token, código pessoal, etapa pública nem espera, e só fica pendente na moderação. As portas públicas acham relato pelo protocolo, pelo código pessoal ou por estar liberado — o card do time não tem nenhum dos três.
     anchor: reports
     anchorField: kind
-    position: { x: 1700, y: 760 }
+    position: { x: 2340, y: -88 }
     width: 360

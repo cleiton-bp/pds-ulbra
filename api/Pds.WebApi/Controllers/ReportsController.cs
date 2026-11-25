@@ -326,9 +326,8 @@ public class ReportsController : BaseController
     /// acompanhamento, vêm todas. As duas têm o mesmo tipo, e é `Source` que as separa:
     /// `Panel` é o time, `PublicPage` é quem relatou.
     ///
-    /// Sem paginação, e é decisão: o histórico de um relato é curto por natureza, e
-    /// quebrá-lo em páginas esconderia o começo da conversa de quem abriu justamente
-    /// para entender o caso.
+    /// Inteiro, do mais antigo para o mais novo. O painel lê aos pedaços, por
+    /// `GET .../history/page`.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="reportPublicId">Identificador público do relato.</param>
@@ -350,6 +349,53 @@ public class ReportsController : BaseController
             return HandleError(exception);
         }
     }
+
+    /// <summary>O histórico do relato aos pedaços, do mais novo para o mais antigo.</summary>
+    /// <remarks>
+    /// É o histórico do card fechado até alguém abrir: a primeira leitura traz os mais
+    /// recentes, e cada "Mostrar mais" traz os de antes do mais antigo que a tela já tem
+    /// (`before`). Ler tudo a cada card aberto era trazer o que quase ninguém olha.
+    ///
+    /// As mesmas regras da rota inteira: das leituras do time, só a primeira. De quem
+    /// relatou, só a primeira, e as voltas com `returns=true`. `Total` diz quantos são ao
+    /// todo, `ReporterReturns` quantas voltas ficaram de fora e `FirstReporterVisit` qual
+    /// leitura de quem relatou é a primeira.
+    ///
+    /// **Esta consulta não grava**, como a rota inteira.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="reportPublicId">Identificador público do relato.</param>
+    /// <param name="before">O evento de referência: vêm os de antes dele. Ausente traz os mais recentes.</param>
+    /// <param name="limit">Quantos eventos (de 1 a 50). Padrão 10.</param>
+    /// <param name="returns">Inclui as voltas de quem relatou à página de acompanhamento.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O pedaço do histórico, do mais novo para o mais antigo.</response>
+    /// <response code="404">Relato, projeto ou evento de referência não existe, ou a pessoa não está no projeto.</response>
+    [HttpGet("{reportPublicId:guid}/history/page")]
+    [ProducesResponseType(typeof(ApiResponse<ReportHistoryPageViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> HistoryPage(
+        Guid publicId,
+        Guid reportPublicId,
+        [FromQuery] Guid? before,
+        [FromQuery] int? limit,
+        [FromQuery] bool returns,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var pedaco = await _reportService.HistoryPageAsync(
+                publicId, reportPublicId, before, limit ?? PedacoDoHistorico, returns, cancellationToken);
+            return Success(pedaco, total: pedaco.Total);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Quantos eventos do histórico a primeira leitura traz, sem `limit`.</summary>
+    private const int PedacoDoHistorico = 10;
 
     /// <summary>Devolve o relato pedindo informação, em vez de encerrar.</summary>
     /// <remarks>

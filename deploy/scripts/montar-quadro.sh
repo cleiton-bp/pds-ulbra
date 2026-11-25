@@ -32,7 +32,10 @@ cp "$temporario/embed.html" "$temporario/tracking.html" "$temporario/marca.svg" 
   "$temporario/teste-do-botao.html" "$temporario/teste-do-botao.js" "$SAIDA/"
 cp -a "$temporario/v1/." "$SAIDA/v1/"
 cp -a "$temporario/assets/." "$SAIDA/assets/"
-sed -e "s|__API_URL__|$API_URL|g" -e "s|__MIDIA_URL__|$MIDIA_URL|g" "$RAIZ/deploy/quadro/_headers" > "$SAIDA/_headers"
+# O acompanhamento ao vivo do relato fala com a API por WebSocket: o mesmo endereco, em wss.
+API_WS_URL=$(printf '%s' "$API_URL" | sed -e 's|^https://|wss://|' -e 's|^http://|ws://|')
+sed -e "s|__API_URL__|$API_URL|g" -e "s|__API_WS_URL__|$API_WS_URL|g" -e "s|__MIDIA_URL__|$MIDIA_URL|g" \
+  "$RAIZ/deploy/quadro/_headers" > "$SAIDA/_headers"
 ! grep -q "__[A-Z_]*__" "$SAIDA/_headers" || { echo "sobrou marcador sem valor em $SAIDA/_headers"; exit 1; }
 # A raiz do quadro leva ao painel (deploy/quadro/_redirects), pelo endereco do mesmo .env.
 sed -e "s|__PAINEL_URL__|$PAINEL_URL|g" "$RAIZ/deploy/quadro/_redirects" > "$SAIDA/_redirects"

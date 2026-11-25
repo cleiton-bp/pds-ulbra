@@ -7,6 +7,12 @@ public class CreateInternalCommentDto
 {
     /// <summary>O texto. Fica entre o time, e nao sai desta tabela.</summary>
     public string? Body { get; set; }
+
+    /// <summary>
+    /// A mensagem entre o time que este comentario responde, como a citacao de um chat.
+    /// Nula quando nao responde nenhuma. Tem de ser deste mesmo relato.
+    /// </summary>
+    public Guid? ReplyToPublicId { get; set; }
 }
 
 /// <summary>
@@ -29,4 +35,11 @@ public class CreatePublicCommentDto
 {
     /// <summary>O texto que quem relatou vai ler.</summary>
     public string? Body { get; set; }
+
+    /// <summary>
+    /// A mensagem da conversa com quem relatou que este comentario responde. Nula quando nao
+    /// responde nenhuma. Tem de ser deste mesmo relato. A citacao aparece no painel; quem
+    /// relatou le so o texto.
+    /// </summary>
+    public Guid? ReplyToPublicId { get; set; }
 }

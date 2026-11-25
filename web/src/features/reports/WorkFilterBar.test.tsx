@@ -7,6 +7,7 @@ import type { ReportStateCountViewModel } from '@/contracts'
 import { NO_REPORT_FILTERS, type ReportFilters } from '@/data'
 import { type ListFilters, NO_LIST_FILTERS } from '@/features/reports/useWorkFilters'
 import { WorkFilterBar } from '@/features/reports/WorkFilterBar'
+import { abrirMenuDaBarra } from '@/test/barraDeFiltros'
 import { instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
@@ -99,21 +100,16 @@ function montar(inicio: Partial<ReportFilters>, listaInicio?: ListFilters) {
   return visto
 }
 
-async function abrirMenu(nome: string | RegExp) {
-  fireEvent.pointerDown(await screen.findByRole('button', { name: nome }), {
-    button: 0,
-    ctrlKey: false,
-    pointerType: 'mouse',
-  })
-  return screen.findByRole('menu')
-}
+/** Abre um menu da barra de filtros (os campos de lista, pelo "Filtrar"). */
+const abrirMenu = abrirMenuDaBarra
 
 describe('a barra de filtros do Trabalho', () => {
   afterEach(cleanup)
 
   it('o "×" de um filtro ligado tira so ele: os outros continuam', async () => {
     const visto = montar({ labels: ['l-1'], overdue: true, assignees: ['me'] })
-    await screen.findByRole('button', { name: 'Etiqueta: pagamentos' })
+    // Cada filtro ligado tem o seu chip na linha "Filtrando por".
+    await screen.findByTitle('Etiqueta: pagamentos')
     // Desligado, nao ha "×": nada a tirar.
     expect(screen.queryByRole('button', { name: 'Tirar o filtro Prioridade' })).toBeNull()
 
@@ -123,8 +119,8 @@ describe('a barra de filtros do Trabalho', () => {
     expect(visto.filtros.assignees).toEqual(['me'])
     expect(screen.queryByRole('button', { name: 'Tirar o filtro Etiqueta' })).toBeNull()
 
-    // O do responsavel tambem: o "Meus cards" sai com ele, que e o mesmo filtro.
-    fireEvent.click(screen.getByRole('button', { name: 'Tirar o filtro Responsável' }))
+    // O do "Meus cards" tambem: e o responsavel "voce".
+    fireEvent.click(screen.getByRole('button', { name: 'Tirar o filtro Meus cards' }))
     expect(visto.filtros.assignees).toEqual([])
     expect(visto.filtros.overdue).toBe(true)
   })
@@ -151,27 +147,36 @@ describe('a barra de filtros do Trabalho', () => {
     expect(within(outro).queryByRole('menuitem', { name: 'Limpar' })).toBeNull()
   })
 
-  it('"Mais filtros, n" conta os ligados que moram nele e diz se esta aberto', async () => {
+  it('o "Filtrar" conta os campos ligados (o "voce" e o "Meus cards", e nao conta) e mostra cada um', async () => {
     montar(
-      { priorities: ['none'], types: ['team'], labels: ['l-1'] },
+      { priorities: ['none'], types: ['team'], labels: ['l-1'], assignees: ['me'] },
       {
         columns: ['s-1'],
         sprint: null,
       },
     )
-    const mais = await screen.findByRole('button', { name: /^Mais filtros/ })
-    // Prioridade, tipo e coluna; a etiqueta fica a vista, e nao conta aqui.
-    expect(mais.textContent).toContain('Mais filtros (3)')
-    expect(mais.getAttribute('aria-expanded')).toBe('false')
-    fireEvent.click(mais)
-    expect(mais.getAttribute('aria-expanded')).toBe('true')
+    // Etiqueta, prioridade, tipo e coluna.
+    const filtrar = await screen.findByRole('button', { name: 'Filtrar, 4 ligados' })
+    expect(filtrar.textContent).toContain('4')
+    // Cada um tambem na linha "Filtrando por", com o seu "x".
+    for (const rotulo of ['Meus cards', 'Etiqueta', 'Prioridade', 'Tipo', 'Coluna'])
+      expect(screen.getByRole('button', { name: `Tirar o filtro ${rotulo}` })).toBeTruthy()
+    // Dentro do "Filtrar", cada campo diz quantos tem marcados.
+    const menu = await abrirMenu('Etiqueta')
+    await within(menu).findByRole('menuitemcheckbox', { name: 'pagamentos' })
+    expect(
+      within(menu)
+        .getByRole('menuitemcheckbox', { name: 'pagamentos' })
+        .getAttribute('aria-checked'),
+    ).toBe('true')
   })
 
-  it('o filtro ligado tem realce suave, e nao a cor cheia do botao principal', async () => {
+  it('o atalho ligado tem realce suave e o visto, e nao a cor cheia do botao principal', async () => {
     montar({ overdue: true })
     const vencidos = await screen.findByRole('button', { name: 'Vencidos' })
     expect(vencidos.getAttribute('aria-pressed')).toBe('true')
-    expect(vencidos.className).toContain('bg-accent/8')
+    expect(vencidos.className).toContain('bg-accent/15')
+    expect(vencidos.className).toContain('rounded-full')
     expect(vencidos.className).not.toMatch(/(^|\s)bg-accent(\s|$)/)
     expect(vencidos.className).not.toContain('text-accent-fg')
   })

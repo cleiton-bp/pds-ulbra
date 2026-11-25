@@ -246,7 +246,9 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
     if (!previous) return
     revisionRef.current += 1
     setDoc(format.refresh(fn(previous)))
-    setDirty(true)
+    // Publicado so para leitura, o que muda (uma tabela arrastada) fica so na tela: nao
+    // vira pendencia, entao nem trava a troca de arquivo nem pede confirmacao ao sair.
+    if (!SOMENTE_LEITURA) setDirty(true)
   }, [format, docRef, setDoc, setDirty])
 
   const close = useCallback((): void => {

@@ -89,6 +89,43 @@ function Card({ aoFechar }: { aoFechar: () => void }) {
   )
 }
 
+/**
+ * Uma caixa que sabe sair de si com outra dentro que tambem sabe, aberta depois: a
+ * correcao de um comentario na conversa expandida.
+ */
+function Conversa() {
+  const [recolhida, setRecolhida] = useState(false)
+  const [corrigindo, setCorrigindo] = useState(false)
+  const area = useRef<HTMLDivElement>(null)
+  useCardDraft({ sujo: false, cancelar: () => setRecolhida(true) }, area)
+  return (
+    <div ref={area}>
+      <button type="button" onClick={() => setCorrigindo(true)}>
+        Corrigir
+      </button>
+      {corrigindo && <Caixa nome="Correção" saiNoEsc />}
+      {recolhida && <p>Conversa recolhida</p>}
+    </div>
+  )
+}
+
+function CardComConversa({ aoFechar }: { aoFechar: () => void }) {
+  const rascunhos = useCardDrafts()
+  return (
+    <CardDraftsProvider value={rascunhos.api}>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: o Esc do card, como o do dialogo */}
+      <div
+        onKeyDown={(evento) => {
+          if (evento.key !== 'Escape') return
+          if (!rascunhos.escNaEdicao()) aoFechar()
+        }}
+      >
+        <Conversa />
+      </div>
+    </CardDraftsProvider>
+  )
+}
+
 function montar() {
   const aoFechar = vi.fn()
   render(
@@ -188,6 +225,25 @@ describe('o Esc em camadas', () => {
     comentario.focus()
     fireEvent.keyDown(comentario, { key: 'Escape' })
     expect(aoFechar).toHaveBeenCalledTimes(1)
+  })
+
+  it('uma edicao dentro de outra: sai a de dentro, e a de fora fica para o Esc seguinte', () => {
+    const aoFechar = vi.fn()
+    render(<CardComConversa aoFechar={aoFechar} />)
+    // A de dentro abre depois da de fora, como a correcao na conversa ja expandida.
+    const corrigir = screen.getByRole('button', { name: 'Corrigir' })
+    fireEvent.click(corrigir)
+    const correcao = caixa('Correção')
+    correcao.focus()
+
+    fireEvent.keyDown(correcao, { key: 'Escape' })
+    expect(screen.getByText('Correção: saiu da edição')).toBeTruthy()
+    expect(screen.queryByText('Conversa recolhida')).toBeNull()
+
+    corrigir.focus()
+    fireEvent.keyDown(corrigir, { key: 'Escape' })
+    expect(screen.getByText('Conversa recolhida')).toBeTruthy()
+    expect(aoFechar).not.toHaveBeenCalled()
   })
 })
 

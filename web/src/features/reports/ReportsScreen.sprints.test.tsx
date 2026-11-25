@@ -18,6 +18,7 @@ import { ReportsScreen } from '@/features/reports/ReportsScreen'
 import { Toaster } from '@/shared/components/Toaster'
 import { TooltipProvider } from '@/shared/components/Tooltip'
 import { useToastStore } from '@/shared/components/toastStore'
+import { abrirMenuDaBarra, fecharMenuDaBarra } from '@/test/barraDeFiltros'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
@@ -387,21 +388,11 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-/** Abre um menu da barra de filtros. O Radix abre no `pointerdown`, e nao no clique. */
-async function abrirMenu(nome: string | RegExp) {
-  fireEvent.pointerDown(await screen.findByRole('button', { name: nome }), {
-    button: 0,
-    ctrlKey: false,
-    pointerType: 'mouse',
-  })
-  return screen.findByRole('menu')
-}
+/** Abre um menu da barra de filtros (os campos de lista, pelo "Filtrar"). */
+const abrirMenu = abrirMenuDaBarra
 
 /** Fecha o menu aberto pelo Esc, como a pessoa faz. */
-async function fecharMenu() {
-  fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
-  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
-}
+const fecharMenu = fecharMenuDaBarra
 
 /** Abre a caixa de escolha (o Radix abre no `pointerdown`) e devolve os nomes das opcoes. */
 function abrirEscolha(campo: HTMLElement) {
@@ -436,7 +427,7 @@ async function semDialogo() {
 /** A Lista pronta, com as sprints lidas: o menu "Sprint" so aparece com elas. */
 async function listaPronta() {
   await screen.findByRole('link', { name: 'Revisar o checkout' })
-  await screen.findByRole('button', { name: 'Sprint' })
+  await screen.findByRole('button', { name: /^Filtrar/ })
 }
 
 /** O quadro pronto, com a sprint em andamento em cima. */
@@ -625,9 +616,7 @@ describe('o filtro "Sprint" da Lista', () => {
 
     fireEvent.click(within(concluidas).getByRole('menuitemradio', { name: 'Sprint 1' }))
     await waitFor(() => expect(sprintDaUltimaLeitura()).toBe('sp-1'))
-    expect(screen.getByRole('button', { name: 'Sprint: Sprint 1' }).textContent).toBe(
-      'Sprint: Sprint 1',
-    )
+    expect(screen.getByText('Sprint: Sprint 1').textContent).toBe('Sprint: Sprint 1')
   })
 
   it('sem sprint concluida, o menu nao tem o grupo nem a linha', async () => {
@@ -695,11 +684,11 @@ describe('o filtro "Sprint" da Lista', () => {
     await listaPronta()
     await abrirMenu('Sprint')
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sprint 1' }))
-    expect(await screen.findByRole('button', { name: 'Sprint: Sprint 1' })).toBeTruthy()
+    expect(await screen.findByText('Sprint: Sprint 1')).toBeTruthy()
     cleanup()
 
     montar()
-    expect(await screen.findByRole('button', { name: 'Sprint: Sprint 1' })).toBeTruthy()
+    expect(await screen.findByText('Sprint: Sprint 1')).toBeTruthy()
     await waitFor(() => expect(sprintDaUltimaLeitura()).toBe('sp-1'))
   })
 
@@ -712,7 +701,7 @@ describe('o filtro "Sprint" da Lista', () => {
     await listaPronta()
     await abrirMenu('Sprint')
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sprint 2 (em andamento)' }))
-    expect(await screen.findByRole('button', { name: 'Sprint: Sprint 2' })).toBeTruthy()
+    expect(await screen.findByText('Sprint: Sprint 2')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('tab', { name: /^Quadro/ }))
     const barra = await screen.findByRole('region', { name: 'Sprint em andamento: Sprint 2' })
@@ -722,7 +711,7 @@ describe('o filtro "Sprint" da Lista', () => {
     await semDialogo()
 
     fireEvent.click(screen.getByRole('tab', { name: /^Lista/ }))
-    expect(await screen.findByRole('button', { name: 'Sprint: Sprint 2' })).toBeTruthy()
+    expect(await screen.findByText('Sprint: Sprint 2')).toBeTruthy()
     const menu = await abrirMenu('Sprint: Sprint 2')
     const concluidas = within(menu).getByRole('group', { name: 'Concluídas' })
     expect(
@@ -761,7 +750,7 @@ describe('o filtro "Sprint" da Lista', () => {
       ).toEqual(['Sprint 2', 'Sprint 1']),
     )
     await fecharMenu()
-    expect(screen.getByRole('button', { name: 'Sprint: Sprint 2' })).toBeTruthy()
+    expect(screen.getByText('Sprint: Sprint 2')).toBeTruthy()
     expect(sprintDaUltimaLeitura()).toBe('sp-2')
   })
 
@@ -776,7 +765,8 @@ describe('o filtro "Sprint" da Lista', () => {
     sprintsDoProjeto([SPRINT_2], [SPRINT_1])
     await avisar({ kind: 'project' })
 
-    expect(await screen.findByRole('button', { name: 'Sprint' })).toBeTruthy()
+    // Sem sprint no filtro: nenhum chip de sprint na linha "Filtrando por".
+    await waitFor(() => expect(screen.queryByText(/^Sprint: /)).toBeNull())
     await waitFor(() => expect(ultimaLeituraDaLista()).toEqual(['p-1', 1, null, false]))
   })
 
@@ -785,7 +775,7 @@ describe('o filtro "Sprint" da Lista', () => {
     await listaPronta()
     await abrirMenu('Sprint')
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sprint 1' }))
-    expect(await screen.findByRole('button', { name: 'Sprint: Sprint 1' })).toBeTruthy()
+    expect(await screen.findByText('Sprint: Sprint 1')).toBeTruthy()
     cleanup()
 
     dublê.listarSprints.mockImplementation(async (_projeto, opcoes) => {

@@ -23,6 +23,8 @@ import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
 import { TooltipProvider } from '@/shared/components/Tooltip'
 import { useToastStore } from '@/shared/components/toastStore'
+import { abrirMenuDaBarra, fecharMenuDaBarra } from '@/test/barraDeFiltros'
+import { fraseDoHistorico } from '@/test/historicoEmPedacos'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
@@ -116,6 +118,15 @@ vi.mock('@/data', async (importOriginal) => {
       addInternalComment: dublê.comentarInterno,
       addPublicComment: dublê.comentarPublico,
       listReportHistory: dublê.historico,
+      listReportHistoryPage: async (
+        publicId: string,
+        reportPublicId: string,
+        opcoes?: { before?: string; limit?: number; returns?: boolean },
+      ) => {
+        // O historico aos pedacos sai da lista inteira do dublê (o vi.mock roda antes dos imports).
+        const { pedacoDoHistorico } = await import('@/test/historicoEmPedacos')
+        return pedacoDoHistorico(await dublê.historico(publicId, reportPublicId), opcoes)
+      },
       closeReport: dublê.encerrar,
       askInfo: dublê.pedir,
       setPosition: dublê.lugar,
@@ -297,24 +308,11 @@ beforeEach(() => {
   window.localStorage.clear()
 })
 
-/** Abre um menu da barra de filtros. O Radix abre no `pointerdown`, e nao no clique. */
-async function abrirMenu(nome: string | RegExp) {
-  fireEvent.pointerDown(await screen.findByRole('button', { name: nome }), {
-    button: 0,
-    ctrlKey: false,
-    pointerType: 'mouse',
-  })
-  return screen.findByRole('menu')
-}
+/** Abre um menu da barra de filtros (os campos de lista, pelo "Filtrar"). */
+const abrirMenu = abrirMenuDaBarra
 
-/**
- * Fecha o menu aberto pelo Esc, como a pessoa faz. Aberto, ele esconde o resto da
- * pagina do leitor de tela — e a busca por `role` nao enxergaria a lista atras.
- */
-async function fecharMenu() {
-  fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
-  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
-}
+/** Fecha o menu aberto pelo Esc, como a pessoa faz. */
+const fecharMenu = fecharMenuDaBarra
 
 describe('ReportsScreen', () => {
   afterEach(cleanup)
@@ -870,7 +868,8 @@ describe('abrir um relato', () => {
     )
     await fecharMenu()
     // O botao diz quais, e nao so quantas.
-    expect(screen.getByRole('button', { name: 'Coluna: Análise, Pronto' })).toBeTruthy()
+    // O filtro ligado aparece na linha "Filtrando por", com os nomes inteiros no title.
+    expect(screen.getByTitle('Coluna: Análise, Pronto')).toBeTruthy()
   })
 
   it('a coluna sem relato aparece, mas a desativada vazia não', async () => {
@@ -1173,6 +1172,8 @@ describe('abrir um relato', () => {
 
     // Sao dois campos com nomes proprios, e nao um com seletor de visibilidade.
     expect(await screen.findByRole('textbox', { name: 'Entre o time' })).toBeTruthy()
+    // Cada conversa na sua aba: a de quem relatou e a segunda.
+    fireEvent.click(screen.getByRole('tab', { name: /Para quem relatou/ }))
     expect(screen.getByRole('textbox', { name: 'Para quem relatou' })).toBeTruthy()
     // Quem escreve ali precisa saber que o texto sai da empresa.
     expect(screen.getByText(/lê na página de acompanhamento/)).toBeTruthy()
@@ -1202,7 +1203,11 @@ describe('abrir um relato', () => {
 
     montar('p-1', '/p/p-1/r-1')
 
-    expect(await screen.findByText('Movido de Testando para Pronto')).toBeTruthy()
+    // O historico vem fechado: abre para ler.
+    fireEvent.click(await screen.findByRole('button', { name: 'Histórico' }))
+    expect(
+      await screen.findByText(fraseDoHistorico('Caio moveu de Testando para Pronto')),
+    ).toBeTruthy()
   })
 })
 
@@ -1945,7 +1950,7 @@ describe('o quadro', () => {
 
     fireEvent.click(within(pronto).getByRole('button', { name: 'Ver na lista' }))
     // A lista abre so com essa coluna marcada — e o menu "Coluna" diz qual.
-    expect(await screen.findByRole('button', { name: 'Coluna: Pronto' })).toBeTruthy()
+    expect(await screen.findByTitle('Coluna: Pronto')).toBeTruthy()
     await waitFor(() =>
       expect(dublê.listar).toHaveBeenLastCalledWith(
         'p-1',
@@ -2312,6 +2317,9 @@ describe('o tempo real', () => {
     montar('p-1', '/p/p-1/r-1')
     const campo = await screen.findByRole('combobox', { name: 'Mover para a coluna' })
     await waitFor(() => expect(dublê.listarComentarios).toHaveBeenCalledTimes(1))
+    // O historico aberto acompanha o aviso; fechado, nem le.
+    fireEvent.click(await screen.findByRole('button', { name: 'Histórico' }))
+    await waitFor(() => expect(dublê.historico).toHaveBeenCalledTimes(1))
 
     // O aviso de outro card nao mexe neste.
     cardMudou('r-2', 's-1')
@@ -2900,7 +2908,7 @@ describe('a lista', () => {
       await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
       expect(screen.getByRole('heading', { level: 1, name: 'Trabalho' })).toBeTruthy()
       expect(screen.getByRole('button', { name: 'Novo card' })).toBeTruthy()
-      expect(screen.getByRole('button', { name: 'Coluna: Análise' })).toBeTruthy()
+      expect(screen.getByTitle('Coluna: Análise')).toBeTruthy()
       expect(screen.getByRole('button', { name: 'Arquivados' }).getAttribute('aria-pressed')).toBe(
         'false',
       )
@@ -2926,12 +2934,12 @@ describe('a lista', () => {
       montar()
       await listaNaTela()
       expect(dublê.listar.mock.calls[0]?.[4]?.columns).toEqual(['s-1'])
-      expect(await screen.findByRole('button', { name: 'Coluna: Análise' })).toBeTruthy()
+      expect(await screen.findByTitle('Coluna: Análise')).toBeTruthy()
 
       // "Limpar filtros" limpa a coluna tambem — e o que ficou guardado na aba.
       fireEvent.click(screen.getByRole('button', { name: /Limpar filtros/ }))
       await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, false]))
-      expect(screen.getByRole('button', { name: 'Coluna' })).toBeTruthy()
+      expect(screen.queryByTitle(/^Coluna:/)).toBeNull()
       expect(window.sessionStorage.getItem('pds.web.trabalho.filtros.p-1')).toBeNull()
     })
 
@@ -2949,7 +2957,7 @@ describe('a lista', () => {
       avisar({ kind: 'project' })
 
       await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
-      expect(await screen.findByRole('button', { name: 'Coluna: Análise' })).toBeTruthy()
+      expect(await screen.findByTitle('Coluna: Análise')).toBeTruthy()
       // O guardado na aba tambem: voltar a tela nao a traz de volta.
       expect(
         JSON.parse(window.sessionStorage.getItem('pds.web.trabalho.filtros.p-1') ?? '{}').columns,
@@ -3236,8 +3244,8 @@ describe('a lista', () => {
       expect(document.activeElement).not.toBe(busca())
 
       // Com um menu aberto, as letras sao dele (pular para o item).
-      await abrirMenu('Tipo')
-      fireEvent.keyDown(screen.getByRole('menu'), { key: 'c' })
+      const tipo = await abrirMenu('Tipo')
+      fireEvent.keyDown(tipo, { key: 'c' })
       fireEvent.keyDown(document.body, { key: '/' })
       await fecharMenu()
 
@@ -3404,8 +3412,8 @@ describe('a lista', () => {
       )
       expect(router.state.historyAction).toBe('REPLACE')
 
-      // O "×" tira so o responsavel — do filtro e do endereco.
-      fireEvent.click(screen.getByRole('button', { name: 'Tirar o filtro Responsável' }))
+      // O "×" do "Meus cards" tira so o responsavel, do filtro e do endereco.
+      fireEvent.click(screen.getByRole('button', { name: 'Tirar o filtro Meus cards' }))
       await waitFor(() => expect(router.state.location.search).toBe('?vencidos=1&em-aberto=1'))
       await waitFor(() => expect(ultimaLista()?.[4]?.filters?.assignees).toEqual([]))
 

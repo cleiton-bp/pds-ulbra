@@ -124,6 +124,11 @@ export const MODELING_TOUR: TourStep<ModelingStage>[] = [
     when: 'has-changes',
   },
   {
+    target: 'see',
+    title: 'O que aparece',
+    text: 'Escolha as notas, o que o clique numa tabela apaga e as linhas.',
+  },
+  {
     target: 'search',
     title: 'Buscar',
     text: 'Ache qualquer tabela pelo nome.',

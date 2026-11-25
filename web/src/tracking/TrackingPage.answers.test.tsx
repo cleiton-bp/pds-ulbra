@@ -27,6 +27,8 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
 
   return {
     ...real,
+    // Sem acompanhamento ao vivo de verdade: nada abre conexao nos testes.
+    liveTrackingService: { watch: () => ({ stop: () => {} }) },
     reportService: {
       openReportTracking: dublê.abrir,
       confirmReport: vi.fn(),

@@ -11,17 +11,23 @@ export function DropdownMenu({
   children,
   width = 'w-64',
   align = 'end',
+  open,
   onOpenChange,
 }: {
   trigger: ReactNode
   children: ReactNode
   width?: string
   align?: 'start' | 'end'
+  /**
+   * Aberto pela mao de quem chama, alem do gatilho: a mensagem do chat abre o menu dela no
+   * clique. Ausente, o menu cuida de si, como sempre.
+   */
+  open?: boolean
   /** Abriu ou fechou — o sino le os avisos ao abrir. */
   onOpenChange?: (open: boolean) => void
 }) {
   return (
-    <Menu.Root onOpenChange={onOpenChange}>
+    <Menu.Root open={open} onOpenChange={onOpenChange}>
       <Menu.Trigger asChild>{trigger}</Menu.Trigger>
       <Menu.Portal>
         <Menu.Content

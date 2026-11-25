@@ -21,12 +21,60 @@ public class ReportInternalCommentRepository
     public async Task<IReadOnlyList<ReportInternalComment>> ListByReportAsync(long reportId, CancellationToken cancellationToken = default)
         // Do mais antigo para o mais novo: comentario e conversa, e conversa se le
         // na ordem em que aconteceu. O Id desempata os do mesmo instante.
-        => await Context.ReportInternalComments
-            .Include(comment => comment.User)
-            .Where(comment => comment.ReportId == reportId)
+        => await DoRelato(reportId)
             .OrderBy(comment => comment.CreatedAt)
             .ThenBy(comment => comment.Id)
             .ToListAsync(cancellationToken);
+
+    public async Task<CommentPage<ReportInternalComment>> ListLatestAsync(long reportId, int limit, CancellationToken cancellationToken = default)
+        => Pagina(await DoRelato(reportId)
+            .OrderByDescending(comment => comment.CreatedAt)
+            .ThenByDescending(comment => comment.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken), limit);
+
+    public async Task<CommentPage<ReportInternalComment>?> ListBeforeAsync(long reportId, Guid beforePublicId, int limit, CancellationToken cancellationToken = default)
+    {
+        // A posicao da mensagem de referencia, mesmo se ela foi apagada depois de a tela
+        // carregar: o relato ja foi conferido por quem chama, e daqui so sai a posicao.
+        var ponto = await Context.ReportInternalComments
+            .IgnoreQueryFilters()
+            .Where(comment => comment.ReportId == reportId && comment.PublicId == beforePublicId)
+            .Select(comment => new { comment.CreatedAt, comment.Id })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (ponto is null)
+            return null;
+
+        // Pela posicao (data e Id), e nao por pular N: chegando mensagem nova enquanto a
+        // pessoa sobe a conversa, pular N repetiria ou perderia mensagens.
+        return Pagina(await DoRelato(reportId)
+            .Where(comment => comment.CreatedAt < ponto.CreatedAt
+                              || (comment.CreatedAt == ponto.CreatedAt && comment.Id < ponto.Id))
+            .OrderByDescending(comment => comment.CreatedAt)
+            .ThenByDescending(comment => comment.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken), limit);
+    }
+
+    public Task<ReportInternalComment?> FindInReportAsync(long reportId, Guid publicId, CancellationToken cancellationToken = default)
+        => DoRelato(reportId).FirstOrDefaultAsync(comment => comment.PublicId == publicId, cancellationToken);
+
+    /// <summary>Os internos do relato com quem escreveu e a mensagem citada (e quem a escreveu).</summary>
+    private IQueryable<ReportInternalComment> DoRelato(long reportId)
+        => Context.ReportInternalComments
+            .Include(comment => comment.User)
+            .Include(comment => comment.ReplyTo)
+            .ThenInclude(original => original!.User)
+            .Where(comment => comment.ReportId == reportId);
+
+    /// <summary>Do mais novo para o mais antigo, com um a mais: vira o pedaco, na ordem da conversa.</summary>
+    internal static CommentPage<T> Pagina<T>(List<T> doMaisNovo, int limit)
+    {
+        var temMais = doMaisNovo.Count > limit;
+        var pedaco = doMaisNovo.Take(limit).Reverse().ToList();
+        return new CommentPage<T>(pedaco, temMais);
+    }
 }
 
 public class ReportPublicCommentRepository
@@ -37,12 +85,49 @@ public class ReportPublicCommentRepository
     }
 
     public async Task<IReadOnlyList<ReportPublicComment>> ListByReportAsync(long reportId, CancellationToken cancellationToken = default)
-        => await Context.ReportPublicComments
-            .Include(comment => comment.User)
-            .Where(comment => comment.ReportId == reportId)
+        => await DoRelato(reportId)
             .OrderBy(comment => comment.CreatedAt)
             .ThenBy(comment => comment.Id)
             .ToListAsync(cancellationToken);
+
+    public async Task<CommentPage<ReportPublicComment>> ListLatestAsync(long reportId, int limit, CancellationToken cancellationToken = default)
+        => ReportInternalCommentRepository.Pagina(await DoRelato(reportId)
+            .OrderByDescending(comment => comment.CreatedAt)
+            .ThenByDescending(comment => comment.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken), limit);
+
+    public async Task<CommentPage<ReportPublicComment>?> ListBeforeAsync(long reportId, Guid beforePublicId, int limit, CancellationToken cancellationToken = default)
+    {
+        // A mesma regra do interno: a posicao da mensagem de referencia, e a pagina por ela.
+        var ponto = await Context.ReportPublicComments
+            .IgnoreQueryFilters()
+            .Where(comment => comment.ReportId == reportId && comment.PublicId == beforePublicId)
+            .Select(comment => new { comment.CreatedAt, comment.Id })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (ponto is null)
+            return null;
+
+        return ReportInternalCommentRepository.Pagina(await DoRelato(reportId)
+            .Where(comment => comment.CreatedAt < ponto.CreatedAt
+                              || (comment.CreatedAt == ponto.CreatedAt && comment.Id < ponto.Id))
+            .OrderByDescending(comment => comment.CreatedAt)
+            .ThenByDescending(comment => comment.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken), limit);
+    }
+
+    public Task<ReportPublicComment?> FindInReportAsync(long reportId, Guid publicId, CancellationToken cancellationToken = default)
+        => DoRelato(reportId).FirstOrDefaultAsync(comment => comment.PublicId == publicId, cancellationToken);
+
+    /// <summary>Os publicos do relato com quem escreveu e a mensagem citada (e quem a escreveu).</summary>
+    private IQueryable<ReportPublicComment> DoRelato(long reportId)
+        => Context.ReportPublicComments
+            .Include(comment => comment.User)
+            .Include(comment => comment.ReplyTo)
+            .ThenInclude(original => original!.User)
+            .Where(comment => comment.ReportId == reportId);
 
     public async Task<IReadOnlyList<ReportPublicComment>> ListByReportWithoutSessionAsync(long reportId, CancellationToken cancellationToken = default)
         // Sem `Include` do usuario: quem le isto e a pagina de acompanhamento, e la

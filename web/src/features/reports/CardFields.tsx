@@ -650,7 +650,8 @@ function Etiquetas({
           ))}
         </ul>
       ) : (
-        <span className="text-body text-fg-muted">Sem etiquetas</span>
+        // Com o campo logo abaixo, "Sem etiquetas" so repetia o que ele ja diz.
+        !(podeAdicionar && !cheio) && <span className="text-body text-fg-muted">Sem etiquetas</span>
       )}
 
       {podeAdicionar && !cheio && (

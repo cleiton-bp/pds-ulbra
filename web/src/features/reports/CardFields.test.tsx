@@ -14,6 +14,7 @@ import { ReportHistory } from '@/features/reports/ReportHistory'
 import { ReportTitle, textInHeadline } from '@/features/reports/ReportTitle'
 import { Toaster } from '@/shared/components/Toaster'
 import { useToastStore } from '@/shared/components/toastStore'
+import { fraseDoHistorico } from '@/test/historicoEmPedacos'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
@@ -66,6 +67,15 @@ vi.mock('@/data', async (importOriginal) => {
       setLabels: dublê.etiquetasDoCard,
       setDueDate: dublê.prazo,
       listReportHistory: dublê.historico,
+      listReportHistoryPage: async (
+        publicId: string,
+        reportPublicId: string,
+        opcoes?: { before?: string; limit?: number; returns?: boolean },
+      ) => {
+        // O historico aos pedacos sai da lista inteira do dublê (o vi.mock roda antes dos imports).
+        const { pedacoDoHistorico } = await import('@/test/historicoEmPedacos')
+        return pedacoDoHistorico(await dublê.historico(publicId, reportPublicId), opcoes)
+      },
     },
   }
 })
@@ -895,20 +905,22 @@ describe('a historia dos campos', () => {
     ])
 
     render(<ReportHistory projectPublicId="p-1" reportPublicId="r-1" versao={0} />)
+    // O historico vem fechado: abre para ler.
+    fireEvent.click(screen.getByRole('button', { name: 'Histórico' }))
 
     for (const frase of [
-      'Reescreveu o título',
-      'Tirou o título do time',
-      'Passou para Bruno Membro',
-      'Ficou sem responsável',
-      'Passou para alguém sem nome',
-      'Prioridade: Alta',
-      'Etiquetas: + pagamento, − celular',
-      'Ficou sem prazo',
+      'Ana Dona reescreveu o título',
+      'Ana Dona tirou o título do time',
+      'Ana Dona passou para Bruno Membro',
+      'Ana Dona tirou o responsável',
+      'Ana Dona passou para alguém sem nome',
+      'Ana Dona mudou a prioridade para Alta',
+      'Ana Dona mudou as etiquetas (+ pagamento, − celular)',
+      'Ana Dona tirou o prazo',
     ]) {
-      expect(await screen.findByText(frase)).toBeTruthy()
+      expect(await screen.findByText(fraseDoHistorico(frase))).toBeTruthy()
     }
     // A data sem hora nao passa por fuso: e o dia 16, e nao o 15.
-    expect(screen.getByText(/Prazo: 16/)).toBeTruthy()
+    expect(screen.getByText(/definiu o prazo para 16/)).toBeTruthy()
   })
 })

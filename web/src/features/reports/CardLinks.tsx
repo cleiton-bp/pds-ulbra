@@ -1,4 +1,12 @@
-import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { Link } from 'react-router-dom'
 import {
   CARD_LINK_RELATIONS,
@@ -16,6 +24,7 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { cn } from '@/shared/lib/cn'
+import { areaQueRola, rolarAte, semMovimento, topoDentro } from '@/shared/lib/rolagemSuave'
 
 /** O nome de cada grupo, visto do card aberto — na ordem em que aparecem. */
 const GRUPOS: Record<CardLinkRelation, string> = {
@@ -271,6 +280,53 @@ function LinkForm({
   const campo = useId()
   const formulario = useRef<HTMLFormElement>(null)
 
+  // **Abre para baixo, devagar, como o historico**, e nao como uma caixa que surge de
+  // repente (parecia um dialogo dentro do dialogo). Entra fechado e abre no quadro seguinte,
+  // para a transicao ter de onde partir; ao fechar, encolhe e so depois sai da tela.
+  const [montado, setMontado] = useState(false)
+  const [expandido, setExpandido] = useState(false)
+  const idDaArea = useId()
+  const caixa = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!aberto) return
+    // O foco vai para a busca ja no clique (sem rolar: a tela acompanha devagar, logo abaixo).
+    document.getElementById(campo)?.focus({ preventScroll: true })
+    const quadro = requestAnimationFrame(() => {
+      setExpandido(true)
+      // A tela acompanha se o formulario passar da parte visivel, ja no clique.
+      const area = areaQueRola(caixa.current)
+      const el = caixa.current
+      if (!area || !el) return
+      const de = area.scrollTop
+      rolarAte(
+        area,
+        () => {
+          const fim = topoDentro(el, area) + el.offsetHeight + 16
+          return fim > de + area.clientHeight ? fim - area.clientHeight : de
+        },
+        { duracao: ABERTURA_MS },
+      )
+    })
+    return () => cancelAnimationFrame(quadro)
+  }, [aberto, campo])
+
+  useEffect(() => {
+    if (aberto || !montado) return
+    setExpandido(false)
+    if (semMovimento()) {
+      setMontado(false)
+      return
+    }
+    const espera = setTimeout(() => setMontado(false), ABERTURA_MS)
+    return () => clearTimeout(espera)
+  }, [aberto, montado])
+
+  function abrir() {
+    setMontado(true)
+    setAberto(true)
+  }
+
   // A busca espera a pessoa parar de digitar, como a da tela de Trabalho.
   useEffect(() => {
     const busca = termo.trim()
@@ -374,22 +430,15 @@ function LinkForm({
     }
   }
 
-  if (!aberto) {
-    return (
-      <Button id={idDoBotao} size="sm" variant="quiet" onClick={() => setAberto(true)}>
-        + Vincular
-      </Button>
-    )
-  }
-
   const aviso = AVISO_DO_DUPLICADO[tipo]
 
-  if (confirmando) {
-    // Quem vai para o arquivo e quem fica: o duplicado de "e duplicado de" e este card;
-    // o de "tem como duplicado", o escolhido.
-    const duplicado = tipo === 'DuplicateOf' ? card : confirmando
-    const original = tipo === 'DuplicateOf' ? confirmando : card
-    return (
+  // Quem vai para o arquivo e quem fica: o duplicado de "e duplicado de" e este card;
+  // o de "tem como duplicado", o escolhido.
+  const duplicado = confirmando && (tipo === 'DuplicateOf' ? card : confirmando)
+  const original = confirmando && (tipo === 'DuplicateOf' ? confirmando : card)
+
+  const conteudo =
+    confirmando && duplicado && original ? (
       <form
         ref={formulario}
         onSubmit={(evento: FormEvent) => {
@@ -423,81 +472,126 @@ function LinkForm({
           </Button>
         </div>
       </form>
+    ) : (
+      <form
+        ref={formulario}
+        onSubmit={(evento: FormEvent) => {
+          evento.preventDefault()
+          // Enter com um card so na lista vincula ele, menos o duplicado, que confirma.
+          const unico = opcoes.length === 1 ? opcoes[0] : undefined
+          if (unico && !DUPLICADO.has(tipo)) void vincular(unico)
+        }}
+        className="flex flex-col gap-2"
+      >
+        <Select
+          label={`O card #${card.Number}`}
+          value={tipo}
+          onChange={(valor) => setTipo(valor as CardLinkRelation)}
+          options={ORDEM_DAS_ESCOLHAS.map((valor) => ({ value: valor, label: ESCOLHAS[valor] }))}
+        />
+        {aviso && <p className="text-caption text-fg-muted leading-normal">{aviso}</p>}
+
+        <label htmlFor={campo} className="text-detail text-fg-muted">
+          Card
+        </label>
+        <input
+          id={campo}
+          type="search"
+          value={termo}
+          onChange={(evento) => setTermo(evento.target.value)}
+          placeholder="Número ou título"
+          disabled={vinculando}
+          className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder pointer-coarse:h-10"
+        />
+
+        {achados !== null && (
+          <ul aria-label="Cards encontrados" className="flex flex-col">
+            {opcoes.length === 0 && (
+              <li className="px-1 py-1.5 text-detail text-fg-muted">Nenhum card encontrado.</li>
+            )}
+            {opcoes.map((achado) => (
+              <li key={achado.PublicId}>
+                <button
+                  type="button"
+                  onClick={() => escolher(achado)}
+                  disabled={vinculando}
+                  className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-surface-sunken disabled:opacity-60 pointer-coarse:py-2.5"
+                >
+                  <span className="flex-none font-mono text-caption text-fg-muted">
+                    #{achado.Number}
+                  </span>
+                  <span className="min-w-0 truncate text-detail text-fg">
+                    {cardHeadline(achado).text}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="quiet"
+            disabled={vinculando}
+            onClick={() => {
+              fechar()
+              setTermo('')
+            }}
+          >
+            Cancelar
+          </Button>
+        </div>
+      </form>
     )
-  }
 
   return (
-    <form
-      ref={formulario}
-      onSubmit={(evento: FormEvent) => {
-        evento.preventDefault()
-        // Enter com um card so na lista vincula ele — menos o duplicado, que confirma.
-        const unico = opcoes.length === 1 ? opcoes[0] : undefined
-        if (unico && !DUPLICADO.has(tipo)) void vincular(unico)
-      }}
-      className="flex flex-col gap-2 rounded-lg border border-border p-2.5"
-    >
-      <Select
-        label={`O card #${card.Number}`}
-        value={tipo}
-        onChange={(valor) => setTipo(valor as CardLinkRelation)}
-        options={ORDEM_DAS_ESCOLHAS.map((valor) => ({ value: valor, label: ESCOLHAS[valor] }))}
-      />
-      {aviso && <p className="text-caption text-fg-muted leading-normal">{aviso}</p>}
-
-      <label htmlFor={campo} className="text-detail text-fg-muted">
-        Card
-      </label>
-      <input
-        id={campo}
-        type="search"
-        value={termo}
-        onChange={(evento) => setTermo(evento.target.value)}
-        placeholder="Número ou título"
-        disabled={vinculando}
-        // biome-ignore lint/a11y/noAutofocus: o campo acabou de ser aberto por quem quer escrever nele
-        autoFocus
-        className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder pointer-coarse:h-10"
-      />
-
-      {achados !== null && (
-        <ul aria-label="Cards encontrados" className="flex flex-col">
-          {opcoes.length === 0 && (
-            <li className="px-1 py-1.5 text-detail text-fg-muted">Nenhum card encontrado.</li>
+    <div>
+      {/* O botao fica na tela aberto ou fechado: abre e fecha, e o "+" gira para "x". */}
+      <Button
+        id={idDoBotao}
+        size="sm"
+        variant="quiet"
+        aria-expanded={aberto}
+        aria-controls={montado ? idDaArea : undefined}
+        onClick={() => {
+          if (!aberto) {
+            abrir()
+            return
+          }
+          fechar()
+          setTermo('')
+        }}
+      >
+        <span
+          className={cn(
+            'inline-block transition-transform duration-300 ease-[var(--ease-drawer)]',
+            aberto && 'rotate-45',
           )}
-          {opcoes.map((achado) => (
-            <li key={achado.PublicId}>
-              <button
-                type="button"
-                onClick={() => escolher(achado)}
-                disabled={vinculando}
-                className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-surface-sunken disabled:opacity-60 pointer-coarse:py-2.5"
-              >
-                <span className="flex-none font-mono text-caption text-fg-muted">
-                  #{achado.Number}
-                </span>
-                <span className="min-w-0 truncate text-detail text-fg">
-                  {cardHeadline(achado).text}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="quiet"
-          disabled={vinculando}
-          onClick={() => {
-            fechar()
-            setTermo('')
-          }}
         >
-          Cancelar
-        </Button>
-      </div>
-    </form>
+          +
+        </span>{' '}
+        Vincular
+      </Button>
+
+      {montado && (
+        <div
+          id={idDaArea}
+          className={cn(
+            'grid transition-[grid-template-rows,opacity] duration-500 ease-[var(--ease-drawer)] motion-reduce:transition-none',
+            expandido ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+          )}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div ref={caixa} className="pt-2.5 pb-1">
+              {conteudo}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
+
+/** Quanto o "Vincular" leva para abrir e fechar, e a tela para acompanhar. */
+const ABERTURA_MS = 500

@@ -53,20 +53,25 @@ public class ReportCommentsController : BaseController
     ///
     /// Os dois vêm do mais antigo para o mais novo: comentário é conversa, e
     /// conversa se lê na ordem em que aconteceu.
+    ///
+    /// Com `limit`, cada lista traz só as mensagens mais recentes, e `HasOlderInternal` e
+    /// `HasOlderPublic` dizem se há anteriores: o chat do card carrega as outras ao subir,
+    /// por `GET .../comments/internal` e `GET .../comments/public`. Sem `limit`, vêm todas.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="reportPublicId">Identificador público do relato.</param>
+    /// <param name="limit">Quantas mensagens mais recentes de cada conversa (de 1 a 100). Ausente traz todas.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Os comentários do relato.</response>
     /// <response code="404">Relato ou projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<ReportCommentsViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> List(Guid publicId, Guid reportPublicId, CancellationToken cancellationToken)
+    public async Task<IActionResult> List(Guid publicId, Guid reportPublicId, [FromQuery] int? limit, CancellationToken cancellationToken)
     {
         try
         {
-            var comments = await _reportCommentService.ListAsync(publicId, reportPublicId, cancellationToken);
+            var comments = await _reportCommentService.ListAsync(publicId, reportPublicId, limit, cancellationToken);
             return Success(comments);
         }
         catch (Exception exception)
@@ -74,6 +79,66 @@ public class ReportCommentsController : BaseController
             return HandleError(exception);
         }
     }
+
+    /// <summary>Lista os comentários entre o time anteriores a uma mensagem.</summary>
+    /// <remarks>
+    /// É o chat do card subindo: `before` é a mensagem mais antiga que a tela já tem, e a
+    /// resposta traz as anteriores a ela, da mais antiga para a mais nova, com `HasOlder`
+    /// dizendo se ainda há mais. A página é pela posição da mensagem, e não por pular N:
+    /// mensagem nova chegando enquanto a pessoa sobe não repete nem perde nenhuma.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="reportPublicId">Identificador público do relato.</param>
+    /// <param name="before">A mensagem de referência: vêm as anteriores a ela.</param>
+    /// <param name="limit">Quantas mensagens (de 1 a 100). Padrão 20.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">As mensagens anteriores.</response>
+    /// <response code="404">Relato, projeto ou mensagem de referência não existe neste relato.</response>
+    [HttpGet("internal")]
+    [ProducesResponseType(typeof(ApiResponse<InternalCommentsPageViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListOlderInternal(Guid publicId, Guid reportPublicId, [FromQuery] Guid before, [FromQuery] int? limit, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var pagina = await _reportCommentService.ListOlderInternalAsync(publicId, reportPublicId, before, limit ?? PaginaPadrao, cancellationToken);
+            return Success(pagina);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Lista os comentários para quem relatou anteriores a uma mensagem.</summary>
+    /// <remarks>
+    /// O mesmo de `GET .../comments/internal`, na conversa com quem relatou.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="reportPublicId">Identificador público do relato.</param>
+    /// <param name="before">A mensagem de referência: vêm as anteriores a ela.</param>
+    /// <param name="limit">Quantas mensagens (de 1 a 100). Padrão 20.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">As mensagens anteriores.</response>
+    /// <response code="404">Relato, projeto ou mensagem de referência não existe neste relato.</response>
+    [HttpGet("public")]
+    [ProducesResponseType(typeof(ApiResponse<PublicCommentsPageViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListOlderPublic(Guid publicId, Guid reportPublicId, [FromQuery] Guid before, [FromQuery] int? limit, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var pagina = await _reportCommentService.ListOlderPublicAsync(publicId, reportPublicId, before, limit ?? PaginaPadrao, cancellationToken);
+            return Success(pagina);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>O pedaço que as rotas de mensagens anteriores devolvem sem `limit`.</summary>
+    private const int PaginaPadrao = 20;
 
     /// <summary>Escreve um comentário que fica entre o time.</summary>
     /// <remarks>
