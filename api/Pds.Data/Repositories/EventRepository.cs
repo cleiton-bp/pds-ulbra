@@ -48,8 +48,85 @@ public class EventRepository : IEventRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<HistoryPage?> ListHistoryPageAsync(long reportId, Guid? beforePublicId, int limit, bool comVoltas, CancellationToken cancellationToken = default)
+    {
+        var historico = Historico(reportId, comVoltas);
+
+        var pedaco = historico;
+        if (beforePublicId is Guid antes)
+        {
+            var ponto = await _context.Events
+                .Where(entity => entity.ReportId == reportId && entity.PublicId == antes)
+                .Select(entity => new { entity.OccurredAt, entity.Id })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (ponto is null)
+                return null;
+
+            pedaco = pedaco.Where(entity => entity.OccurredAt < ponto.OccurredAt
+                                            || (entity.OccurredAt == ponto.OccurredAt && entity.Id < ponto.Id));
+        }
+
+        // Um a mais que o pedido: se ele vier, ha mais antigos.
+        var itens = await pedaco
+            .Include(entity => entity.User)
+            .OrderByDescending(entity => entity.OccurredAt)
+            .ThenByDescending(entity => entity.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken);
+
+        var total = await historico.CountAsync(cancellationToken);
+        var visitas = await LeiturasDeQuemRelatou(reportId).CountAsync(cancellationToken);
+        var primeiraVisita = await LeiturasDeQuemRelatou(reportId)
+            .OrderBy(leitura => leitura.OccurredAt)
+            .ThenBy(leitura => leitura.Id)
+            .Select(leitura => (Guid?)leitura.PublicId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return new HistoryPage(
+            itens.Take(limit).ToList(),
+            itens.Count > limit,
+            total,
+            comVoltas ? 0 : Math.Max(visitas - 1, 0),
+            primeiraVisita);
+    }
+
+    /// <summary>
+    /// Os eventos que o historico mostra: tudo, menos as leituras repetidas. Do time, so a
+    /// primeira; de quem relatou, so a primeira, e as voltas com <paramref name="comVoltas"/>.
+    /// </summary>
+    private IQueryable<Event> Historico(long reportId, bool comVoltas)
+    {
+        var leiturasDoTime = LeiturasDoTime(reportId);
+        var leiturasDeFora = LeiturasDeQuemRelatou(reportId);
+
+        return _context.Events
+            .Where(entity => entity.ReportId == reportId)
+            .Where(entity => entity.Type != EventTypeEnum.ReportViewed
+                             || (entity.Source == EventSourceEnum.Panel
+                                 && entity.Id == leiturasDoTime
+                                     .OrderBy(leitura => leitura.OccurredAt)
+                                     .ThenBy(leitura => leitura.Id)
+                                     .Select(leitura => leitura.Id)
+                                     .FirstOrDefault())
+                             || (entity.Source == EventSourceEnum.PublicPage
+                                 && (comVoltas
+                                     || entity.Id == leiturasDeFora
+                                         .OrderBy(leitura => leitura.OccurredAt)
+                                         .ThenBy(leitura => leitura.Id)
+                                         .Select(leitura => leitura.Id)
+                                         .FirstOrDefault()))
+                             || (entity.Source != EventSourceEnum.Panel
+                                 && entity.Source != EventSourceEnum.PublicPage));
+    }
+
     public Task<bool> AnyPanelViewAsync(long reportId, CancellationToken cancellationToken = default)
         => LeiturasDoTime(reportId).AnyAsync(cancellationToken);
+
+    /// <summary>As aberturas da pagina de acompanhamento, por quem relatou.</summary>
+    private IQueryable<Event> LeiturasDeQuemRelatou(long reportId)
+        => _context.Events.Where(leitura => leitura.ReportId == reportId
+                                            && leitura.Type == EventTypeEnum.ReportViewed
+                                            && leitura.Source == EventSourceEnum.PublicPage);
 
     /// <summary>As aberturas do relato pelo painel — as do time, e nao as de quem relatou.</summary>
     private IQueryable<Event> LeiturasDoTime(long reportId)

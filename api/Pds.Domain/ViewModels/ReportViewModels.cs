@@ -662,6 +662,24 @@ public record ReporterCodeReportsViewModel(
     bool HasMore);
 
 /// <summary>
+/// Quem pode acompanhar um relato ao vivo, depois de a credencial conferir: o relato, o
+/// que a pessoa pode fazer nele e o que a tela mostra agora. Fica do lado de dentro: ao
+/// navegador so volta <see cref="Report"/>.
+/// </summary>
+/// <param name="ReportPublicId">O relato, para os avisos de card mudado o acharem.</param>
+/// <param name="TrackingCode">O protocolo, para remontar a resposta sem a credencial.</param>
+/// <param name="CanAct">
+/// Se a credencial age (o link) ou so le (o codigo e o cracha). Os avisos saem separados
+/// por isso: confirmar, reabrir e responder so aparecem para quem pode.
+/// </param>
+/// <param name="Report">O relato como a tela mostra agora.</param>
+public record LiveTrackingAccess(
+    Guid ReportPublicId,
+    string TrackingCode,
+    bool CanAct,
+    PublicReportViewModel Report);
+
+/// <summary>
 /// Um passo da jornada, como quem relatou o le.
 ///
 /// <para><b>Tudo aqui foi escrito para ser lido por quem esta de fora.</b> O rotulo

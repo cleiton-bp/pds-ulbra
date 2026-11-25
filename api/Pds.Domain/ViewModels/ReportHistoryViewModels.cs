@@ -51,3 +51,19 @@ public record ReportHistoryEntryViewModel(
     IReadOnlyList<string> Added,
     IReadOnlyList<string> Removed,
     bool? TitleRestored);
+
+/// <summary>
+/// Um pedaco do historico, do mais novo para o mais antigo. O painel abre o historico com
+/// os mais recentes e traz os de antes a pedido, em vez de ler tudo a cada card aberto.
+/// </summary>
+/// <param name="Items">Os eventos do pedaco, do mais novo para o mais antigo.</param>
+/// <param name="HasOlder">Ha eventos antes do mais antigo deste pedaco.</param>
+/// <param name="Total">Quantos eventos o historico tem ao todo, com as mesmas regras de leitura.</param>
+/// <param name="ReporterReturns">Quantas voltas de quem relatou a pagina de acompanhamento ficaram de fora. Zero quando elas ja vem no pedaco.</param>
+/// <param name="FirstReporterVisit">A primeira vez que quem relatou abriu o acompanhamento, para a tela separar a primeira das voltas. Nulo se nunca abriu.</param>
+public record ReportHistoryPageViewModel(
+    IReadOnlyList<ReportHistoryEntryViewModel> Items,
+    bool HasOlder,
+    int Total,
+    int ReporterReturns,
+    Guid? FirstReporterVisit);

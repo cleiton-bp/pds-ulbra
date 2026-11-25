@@ -81,6 +81,19 @@ public interface IReportService
     Task<PublicReportViewModel> OpenByIdentityAsync(OpenByIdentityDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Confere a credencial de quem quer acompanhar um relato ao vivo, pelas mesmas portas
+    /// da abertura (link, codigo pessoal ou cracha) e com a mesma recusa unica, **sem gravar
+    /// visualizacao**: abrir ja gravou. Recusa com <see cref="KeyNotFoundException"/>.
+    /// </summary>
+    Task<LiveTrackingAccess> AuthorizeLiveTrackingAsync(WatchReportTrackingDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// O relato como a pagina de acompanhamento mostra, para o aviso ao vivo: o mesmo que a
+    /// abertura devolve, sem credencial e sem gravar nada. Nulo quando ele deixou de abrir.
+    /// </summary>
+    Task<PublicReportViewModel?> BuildLiveTrackingAsync(string trackingCode, bool canAct, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Quem relatou diz que resolveu — <b>sem sessao</b>, pelo link.
     ///
     /// <para><b>E a metade que faltava da metafora.</b> "Concluido" e o time
@@ -289,6 +302,15 @@ public interface IReportService
     /// linhas sobre alguem ter olhado o historico.</para>
     /// </summary>
     Task<IReadOnlyList<ReportHistoryEntryViewModel>> HistoryAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Um pedaco do historico, do mais novo para o mais antigo, antes do evento
+    /// <paramref name="before"/> (sem ele, os mais recentes). <paramref name="limit"/> de 1
+    /// a 50. As voltas de quem relatou a pagina de acompanhamento so com
+    /// <paramref name="comVoltas"/>. <see cref="KeyNotFoundException"/> quando o ponto nao e
+    /// deste relato.
+    /// </summary>
+    Task<ReportHistoryPageViewModel> HistoryPageAsync(Guid projectPublicId, Guid reportPublicId, Guid? before, int limit, bool comVoltas, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Abre um relato do projeto, com o contexto que veio junto.

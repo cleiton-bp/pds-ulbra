@@ -20,15 +20,32 @@ public interface IEventRepository
     /// segunda versao do mesmo fato, e as duas divergiriam no primeiro erro de
     /// gravacao sem ninguem notar.</para>
     ///
-    /// <para>Nao ha paginacao, e e uma decisao: o historico de um relato e curto
-    /// por natureza, e quebra-lo em paginas esconderia o comeco da conversa
-    /// justamente de quem abriu para entender o caso.</para>
+    /// <para>Inteiro, para quem le a rota de sempre. O painel le aos pedacos, por
+    /// <see cref="ListHistoryPageAsync"/>.</para>
     ///
     /// <para><b>Das leituras do time, so a primeira</b> — a unica que o painel grava hoje.
     /// As de depois, de quando cada abertura gravava, continuam na tabela, que nao se
     /// apaga, mas nao viajam a cada card aberto. As de quem relatou vem todas.</para>
     /// </summary>
     Task<IReadOnlyList<Event>> ListByReportAsync(long reportId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Um pedaco do historico, do mais novo para o mais antigo: o painel mostra os mais
+    /// recentes ao abrir o historico e traz os de antes a pedido.
+    ///
+    /// <para><b>Pelo ponto, e nao pela pagina</b>: <paramref name="beforePublicId"/> e o
+    /// evento mais antigo que a tela ja tem, e vem o que aconteceu antes dele, por
+    /// (<c>OccurredAt</c>, <c>Id</c>). Evento novo chegando enquanto a pessoa le nao repete
+    /// nem pula nenhum.</para>
+    ///
+    /// <para><b>As mesmas leituras da rota inteira</b>: do time, so a primeira. De quem
+    /// relatou, so a primeira, e as voltas com <paramref name="comVoltas"/>. A contagem e
+    /// a primeira visita vem junto, para a tela dizer quantas faltam e qual leitura e a
+    /// primeira mesmo antes de chegar nela.</para>
+    ///
+    /// <para>Nulo quando o ponto nao e um evento deste relato.</para>
+    /// </summary>
+    Task<HistoryPage?> ListHistoryPageAsync(long reportId, Guid? beforePublicId, int limit, bool comVoltas, CancellationToken cancellationToken = default);
 
     /// <summary>Se o time ja abriu o relato pelo painel alguma vez.</summary>
     Task<bool> AnyPanelViewAsync(long reportId, CancellationToken cancellationToken = default);
@@ -66,3 +83,15 @@ public interface IEventRepository
     /// </summary>
     Task<int> CountAccountInvitationEmailsSinceAsync(long accountId, DateTime since, CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Um pedaco do historico: os eventos do mais novo para o mais antigo, se ha mais antigos,
+/// quantos sao ao todo, quantas voltas de quem relatou ficaram de fora e qual foi a
+/// primeira visita dela.
+/// </summary>
+public record HistoryPage(
+    IReadOnlyList<Event> Items,
+    bool HasOlder,
+    int Total,
+    int ReporterReturns,
+    Guid? FirstReporterVisit);

@@ -48,6 +48,7 @@ public sealed class HubWorkNotifier : IWorkNotifier
     public static readonly TimeSpan Prazo = TimeSpan.FromSeconds(2);
 
     private readonly IHubContext<WorkHub> _hub;
+    private readonly LiveTracking _acompanhamento;
     private readonly DataContext _dataContext;
 
     /// <summary>
@@ -60,18 +61,25 @@ public sealed class HubWorkNotifier : IWorkNotifier
 
     public HubWorkNotifier(
         IHubContext<WorkHub> hub,
+        LiveTracking acompanhamento,
         DataContext dataContext,
         IHttpContextAccessor httpContextAccessor,
         ILogger<HubWorkNotifier> logger)
     {
         _hub = hub;
+        _acompanhamento = acompanhamento;
         _dataContext = dataContext;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
 
     public Task CardChangedAsync(Guid reportPublicId)
-        => SemDerrubarAsync("card", reportPublicId, async ct =>
+    {
+        // Quem relatou e esta com o relato aberto na tela recebe o que mudou para ela. Sem
+        // ninguem acompanhando, isto nao consulta nada (ver LiveTracking).
+        _acompanhamento.Changed(reportPublicId);
+
+        return SemDerrubarAsync("card", reportPublicId, async ct =>
         {
             var card = await _dataContext.Reports
                 .TagWith(QueryTag)
@@ -106,6 +114,7 @@ public sealed class HubWorkNotifier : IWorkNotifier
                 await MandarAoTimeAsync("card", pai.PublicId, card.Project, "CardChanged",
                     new CardChangedNotice(card.Project, pai.PublicId, pai.State, pai.ArchivedAt != null, origem), ct);
         });
+    }
 
     public Task ProjectChangedAsync(Guid projectPublicId)
         => SemDerrubarAsync("projeto", projectPublicId, ct =>
