@@ -46,4 +46,13 @@ public class ReportInternalComment : PdsBaseEntity
 
     /// <summary>O texto, como o time escreveu.</summary>
     public string Body { get; set; } = string.Empty;
+
+    /// <summary>
+    /// A mensagem desta mesma conversa que esta responde, como a citacao de um chat. Nula na
+    /// mensagem que nao responde nenhuma. Apagada a original, a resposta continua, e a
+    /// citacao diz que ela saiu.
+    /// </summary>
+    public long? ReplyToId { get; set; }
+
+    public ReportInternalComment? ReplyTo { get; set; }
 }

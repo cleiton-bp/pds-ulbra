@@ -3143,6 +3143,11 @@ namespace Pds.Data.Migrations
                         .HasColumnName("public_id")
                         .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
 
+                    b.Property<long?>("ReplyToId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reply_to_id")
+                        .HasComment("A mensagem entre o time que este comentario responde, como a citacao de um chat. Nula quando nao responde nenhuma.");
+
                     b.Property<long>("ReportId")
                         .HasColumnType("bigint")
                         .HasColumnName("report_id")
@@ -3167,6 +3172,9 @@ namespace Pds.Data.Migrations
                     b.HasIndex("PublicId")
                         .IsUnique()
                         .HasDatabaseName("ux_report_internal_comments_public_id");
+
+                    b.HasIndex("ReplyToId")
+                        .HasDatabaseName("ix_report_internal_comments_reply_to_id");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_report_internal_comments_user_id");
@@ -3276,6 +3284,11 @@ namespace Pds.Data.Migrations
                         .HasColumnName("public_id")
                         .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
 
+                    b.Property<long?>("ReplyToId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reply_to_id")
+                        .HasComment("A mensagem da conversa com quem relatou que este comentario responde, citada no painel. Nula quando nao responde nenhuma. Quem relatou le so o texto.");
+
                     b.Property<long>("ReportId")
                         .HasColumnType("bigint")
                         .HasColumnName("report_id")
@@ -3300,6 +3313,9 @@ namespace Pds.Data.Migrations
                     b.HasIndex("PublicId")
                         .IsUnique()
                         .HasDatabaseName("ux_report_public_comments_public_id");
+
+                    b.HasIndex("ReplyToId")
+                        .HasDatabaseName("ix_report_public_comments_reply_to_id");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_report_public_comments_user_id");
@@ -4260,6 +4276,12 @@ namespace Pds.Data.Migrations
 
             modelBuilder.Entity("Pds.Domain.Entities.ReportInternalComment", b =>
                 {
+                    b.HasOne("Pds.Domain.Entities.ReportInternalComment", "ReplyTo")
+                        .WithMany()
+                        .HasForeignKey("ReplyToId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_report_internal_comments_reply_to_id");
+
                     b.HasOne("Pds.Domain.Entities.Report", "Report")
                         .WithMany()
                         .HasForeignKey("ReportId")
@@ -4273,6 +4295,8 @@ namespace Pds.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_report_internal_comments_users_user_id");
+
+                    b.Navigation("ReplyTo");
 
                     b.Navigation("Report");
 
@@ -4302,6 +4326,12 @@ namespace Pds.Data.Migrations
 
             modelBuilder.Entity("Pds.Domain.Entities.ReportPublicComment", b =>
                 {
+                    b.HasOne("Pds.Domain.Entities.ReportPublicComment", "ReplyTo")
+                        .WithMany()
+                        .HasForeignKey("ReplyToId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_report_public_comments_report_public_comments_reply_to_id");
+
                     b.HasOne("Pds.Domain.Entities.Report", "Report")
                         .WithMany()
                         .HasForeignKey("ReportId")
@@ -4314,6 +4344,8 @@ namespace Pds.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_report_public_comments_users_user_id");
+
+                    b.Navigation("ReplyTo");
 
                     b.Navigation("Report");
 

@@ -19,7 +19,20 @@ public interface IReportCommentService
     /// <para>Exige sessao, como toda rota do painel — e nao existe nenhuma rota
     /// publica que alcance esta.</para>
     /// </summary>
-    Task<ReportCommentsViewModel> ListAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default);
+    /// <param name="projectPublicId">O projeto.</param>
+    /// <param name="reportPublicId">O relato.</param>
+    /// <param name="limit">
+    /// Quantas mensagens, as mais recentes, de cada conversa. Nulo traz todas, como antes; o
+    /// chat do card pede um pedaco e carrega as anteriores ao subir.
+    /// </param>
+    /// <param name="cancellationToken"></param>
+    Task<ReportCommentsViewModel> ListAsync(Guid projectPublicId, Guid reportPublicId, int? limit = null, CancellationToken cancellationToken = default);
+
+    /// <summary>Os comentarios entre o time anteriores a uma mensagem, para o chat ao subir.</summary>
+    Task<InternalCommentsPageViewModel> ListOlderInternalAsync(Guid projectPublicId, Guid reportPublicId, Guid beforePublicId, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Os comentarios para quem relatou anteriores a uma mensagem, para o chat ao subir.</summary>
+    Task<PublicCommentsPageViewModel> ListOlderPublicAsync(Guid projectPublicId, Guid reportPublicId, Guid beforePublicId, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>Escreve um comentario que fica entre o time.</summary>
     Task<InternalCommentViewModel> AddInternalAsync(Guid projectPublicId, Guid reportPublicId, CreateInternalCommentDto dto, CancellationToken cancellationToken = default);

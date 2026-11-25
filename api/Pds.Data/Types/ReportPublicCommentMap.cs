@@ -40,5 +40,15 @@ public class ReportPublicCommentMap : BaseEntityConfiguration<ReportPublicCommen
             .WithMany()
             .HasForeignKey(comment => comment.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(comment => comment.ReplyToId)
+            .HasColumnName("reply_to_id")
+            .HasComment("A mensagem da conversa com quem relatou que este comentario responde, citada no painel. Nula quando nao responde nenhuma. Quem relatou le so o texto.");
+
+        // SetNull: se a original sair de verdade do banco, a resposta fica e so a citacao se solta.
+        builder.HasOne(comment => comment.ReplyTo)
+            .WithMany()
+            .HasForeignKey(comment => comment.ReplyToId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

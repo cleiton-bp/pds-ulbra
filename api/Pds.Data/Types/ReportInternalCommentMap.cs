@@ -41,5 +41,17 @@ public class ReportInternalCommentMap : BaseEntityConfiguration<ReportInternalCo
             .WithMany()
             .HasForeignKey(comment => comment.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(comment => comment.ReplyToId)
+            .HasColumnName("reply_to_id")
+            .HasComment("A mensagem entre o time que este comentario responde, como a citacao de um chat. Nula quando nao responde nenhuma.");
+
+        // SetNull: se a original sair de verdade do banco, a resposta fica e so a citacao se
+        // solta. A apagada pela tela (exclusao logica) some da leitura pelo filtro, e a
+        // citacao diz que ela saiu.
+        builder.HasOne(comment => comment.ReplyTo)
+            .WithMany()
+            .HasForeignKey(comment => comment.ReplyToId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

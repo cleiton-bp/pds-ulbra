@@ -38,32 +38,97 @@ public class ReportCommentService : IReportCommentService
         _notifier = notifier;
     }
 
-    public async Task<ReportCommentsViewModel> ListAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default)
+    /// <summary>O maior pedaco que uma leitura da conversa devolve.</summary>
+    public const int MaxPageSize = 100;
+
+    public async Task<ReportCommentsViewModel> ListAsync(Guid projectPublicId, Guid reportPublicId, int? limit = null, CancellationToken cancellationToken = default)
     {
         var reportId = await RequireReportIdAsync(projectPublicId, reportPublicId, cancellationToken);
-
-        var internos = await _unitOfWork.ReportInternalComments.ListByReportAsync(reportId, cancellationToken);
-        var publicos = await _unitOfWork.ReportPublicComments.ListByReportAsync(reportId, cancellationToken);
         var eu = _accountContext.UserId;
 
+        // Sem limite, a conversa inteira, como era: quem ainda nao pede pedacos continua
+        // recebendo tudo.
+        if (limit is null)
+        {
+            var todosInternos = await _unitOfWork.ReportInternalComments.ListByReportAsync(reportId, cancellationToken);
+            var todosPublicos = await _unitOfWork.ReportPublicComments.ListByReportAsync(reportId, cancellationToken);
+
+            return new ReportCommentsViewModel(
+                todosInternos.Select(comment => ParaInterno(comment, eu)).ToList(),
+                todosPublicos.Select(comment => ParaPublico(comment, eu)).ToList());
+        }
+
+        var tamanho = Math.Clamp(limit.Value, 1, MaxPageSize);
+        var internos = await _unitOfWork.ReportInternalComments.ListLatestAsync(reportId, tamanho, cancellationToken);
+        var publicos = await _unitOfWork.ReportPublicComments.ListLatestAsync(reportId, tamanho, cancellationToken);
+
         return new ReportCommentsViewModel(
-            internos.Select(comment => new InternalCommentViewModel(
-                comment.PublicId,
-                comment.User?.Name ?? string.Empty,
-                comment.Body,
-                comment.CreatedAt,
-                EditadoEm(comment),
-                comment.UserId == eu)).ToList(),
-            // **`UserId` nulo e quem relatou**, e nao um autor sem nome. Os dois
-            // casos existem — a conta esvaziada tambem deixa o nome nulo —, e
-            // trata-los pelo mesmo sinal poria palavra de um na boca do outro.
-            publicos.Select(comment => new PublicCommentViewModel(
-                comment.PublicId,
-                comment.UserId is null,
-                comment.User?.Name,
-                comment.Body,
-                comment.CreatedAt)).ToList());
+            internos.Items.Select(comment => ParaInterno(comment, eu)).ToList(),
+            publicos.Items.Select(comment => ParaPublico(comment, eu)).ToList(),
+            internos.HasOlder,
+            publicos.HasOlder);
     }
+
+    public async Task<InternalCommentsPageViewModel> ListOlderInternalAsync(Guid projectPublicId, Guid reportPublicId, Guid beforePublicId, int limit, CancellationToken cancellationToken = default)
+    {
+        var reportId = await RequireReportIdAsync(projectPublicId, reportPublicId, cancellationToken);
+        var pagina = await _unitOfWork.ReportInternalComments.ListBeforeAsync(
+                         reportId, beforePublicId, Math.Clamp(limit, 1, MaxPageSize), cancellationToken)
+                     ?? throw new KeyNotFoundException("Mensagem nao encontrada.");
+        var eu = _accountContext.UserId;
+
+        return new InternalCommentsPageViewModel(
+            pagina.Items.Select(comment => ParaInterno(comment, eu)).ToList(), pagina.HasOlder);
+    }
+
+    public async Task<PublicCommentsPageViewModel> ListOlderPublicAsync(Guid projectPublicId, Guid reportPublicId, Guid beforePublicId, int limit, CancellationToken cancellationToken = default)
+    {
+        var reportId = await RequireReportIdAsync(projectPublicId, reportPublicId, cancellationToken);
+        var pagina = await _unitOfWork.ReportPublicComments.ListBeforeAsync(
+                         reportId, beforePublicId, Math.Clamp(limit, 1, MaxPageSize), cancellationToken)
+                     ?? throw new KeyNotFoundException("Mensagem nao encontrada.");
+        var eu = _accountContext.UserId;
+
+        return new PublicCommentsPageViewModel(
+            pagina.Items.Select(comment => ParaPublico(comment, eu)).ToList(), pagina.HasOlder);
+    }
+
+    /// <summary>O comentario entre o time como o painel o le, com a foto e a citacao.</summary>
+    private static InternalCommentViewModel ParaInterno(ReportInternalComment comment, long? eu)
+        => new(
+            comment.PublicId,
+            comment.User?.Name ?? string.Empty,
+            comment.Body,
+            comment.CreatedAt,
+            EditadoEm(comment),
+            comment.UserId == eu,
+            comment.User?.AvatarUrl,
+            comment.ReplyToId is null
+                ? null
+                // A original apagada sai da leitura pelo filtro: a citacao fica, dizendo que ela saiu.
+                : comment.ReplyTo is { } original
+                    ? new CommentReplyViewModel(original.PublicId, original.User?.Name ?? string.Empty, false, original.Body, original.UserId == eu)
+                    : new CommentReplyViewModel(null, null, false, null));
+
+    /// <summary>
+    /// O comentario para quem relatou como o painel o le. <b><c>UserId</c> nulo e quem
+    /// relatou</b>, e nao um autor sem nome: a conta esvaziada tambem deixa o nome nulo, e
+    /// trata-los pelo mesmo sinal poria palavra de um na boca do outro.
+    /// </summary>
+    private static PublicCommentViewModel ParaPublico(ReportPublicComment comment, long? eu)
+        => new(
+            comment.PublicId,
+            comment.UserId is null,
+            comment.User?.Name,
+            comment.Body,
+            comment.CreatedAt,
+            comment.UserId is not null && comment.UserId == eu,
+            comment.User?.AvatarUrl,
+            comment.ReplyToId is null
+                ? null
+                : comment.ReplyTo is { } original
+                    ? new CommentReplyViewModel(original.PublicId, original.User?.Name, original.UserId is null, original.Body, original.UserId is not null && original.UserId == eu)
+                    : new CommentReplyViewModel(null, null, false, null));
 
     public async Task<InternalCommentViewModel> AddInternalAsync(Guid projectPublicId, Guid reportPublicId, CreateInternalCommentDto dto, CancellationToken cancellationToken = default)
     {
@@ -71,11 +136,18 @@ public class ReportCommentService : IReportCommentService
         var body = RequireBody(dto.Body, ReportInternalComment.MaxBodyLength);
         var userId = RequireUserId();
 
+        // A citacao so vale dentro da mesma conversa, e do mesmo relato.
+        var original = dto.ReplyToPublicId is { } citada
+            ? await _unitOfWork.ReportInternalComments.FindInReportAsync(report.Id, citada, cancellationToken)
+              ?? throw new KeyNotFoundException("A mensagem respondida nao foi encontrada.")
+            : null;
+
         var comment = new ReportInternalComment
         {
             ReportId = report.Id,
             UserId = userId,
             Body = body,
+            ReplyToId = original?.Id,
         };
 
         await _unitOfWork.ReportInternalComments.AddAsync(comment, cancellationToken);
@@ -89,7 +161,9 @@ public class ReportCommentService : IReportCommentService
         foreach (var pessoa in mencionados)
             await _notifier.NotificationArrivedAsync(projectPublicId, pessoa, NotificationKindEnum.Mention);
 
-        return new InternalCommentViewModel(comment.PublicId, user?.Name ?? string.Empty, comment.Body, comment.CreatedAt, null, true);
+        comment.User = user!;
+        comment.ReplyTo = original;
+        return ParaInterno(comment, userId);
     }
 
     /// <summary>
@@ -128,10 +202,9 @@ public class ReportCommentService : IReportCommentService
                 await _notifier.NotificationArrivedAsync(projectPublicId, pessoa, NotificationKindEnum.Mention);
         }
 
-        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
-
-        return new InternalCommentViewModel(
-            comment.PublicId, user?.Name ?? string.Empty, comment.Body, comment.CreatedAt, EditadoEm(comment), true);
+        // Depois de gravado, lido de novo com quem escreveu e a citacao, como a conversa o mostra.
+        var completo = await _unitOfWork.ReportInternalComments.FindInReportAsync(report.Id, commentPublicId, cancellationToken);
+        return ParaInterno(completo ?? comment, userId);
     }
 
     /// <summary>
@@ -208,6 +281,9 @@ public class ReportCommentService : IReportCommentService
     /// <summary>O comentario interno deste relato, escrito por quem pergunta — ou a recusa.</summary>
     private async Task<ReportInternalComment> RequireOwnInternalAsync(Report report, Guid commentPublicId, long userId, CancellationToken cancellationToken)
     {
+        // **So a mensagem, sem quem escreveu nem a citacao.** Corrigir e apagar gravam pelo
+        // `Update`, que percorre o que veio junto: com a mensagem citada carregada, ela seria
+        // gravada tambem e passaria a dizer "editado" sem ninguem ter mexido nela.
         var comment = await _unitOfWork.ReportInternalComments.GetByPublicIdAsync(commentPublicId, cancellationToken);
 
         if (comment is null || comment.ReportId != report.Id)
@@ -244,11 +320,18 @@ public class ReportCommentService : IReportCommentService
         var body = RequireBody(dto.Body, ReportPublicComment.MaxBodyLength);
         var userId = RequireUserId();
 
+        // A citacao so vale dentro da conversa com quem relatou, e do mesmo relato.
+        var original = dto.ReplyToPublicId is { } citada
+            ? await _unitOfWork.ReportPublicComments.FindInReportAsync(report.Id, citada, cancellationToken)
+              ?? throw new KeyNotFoundException("A mensagem respondida nao foi encontrada.")
+            : null;
+
         var comment = new ReportPublicComment
         {
             ReportId = report.Id,
             UserId = userId,
             Body = body,
+            ReplyToId = original?.Id,
         };
 
         await _unitOfWork.ReportPublicComments.AddAsync(comment, cancellationToken);
@@ -259,10 +342,11 @@ public class ReportCommentService : IReportCommentService
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
 
-        // Falso: esta rota e a do painel, e quem escreve por ela e sempre do time.
-        // A resposta de quem relatou entra por outra porta, sem sessao.
-        return new PublicCommentViewModel(
-            comment.PublicId, false, user?.Name, comment.Body, comment.CreatedAt);
+        // Do time: esta rota e a do painel, e quem escreve por ela e sempre do time. A
+        // resposta de quem relatou entra por outra porta, sem sessao.
+        comment.User = user;
+        comment.ReplyTo = original;
+        return ParaPublico(comment, userId);
     }
 
     /// <summary>
