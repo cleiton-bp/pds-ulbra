@@ -464,19 +464,22 @@ export function TeamCardBody({
                 soonDays={soonDays}
               />
 
-              <dl className="flex flex-col gap-1.5 border-border border-t pt-3">
-                <DetailRow
-                  label="Criado"
-                  value={
-                    <>
-                      <span className="tabular-nums">{formatDateTime(card.CreatedAt)}</span>
-                      {detalhe?.CreatedByName && (
-                        <span className="text-fg-muted">, por {detalhe.CreatedByName}</span>
-                      )}
-                    </>
-                  }
-                />
-              </dl>
+              <section>
+                <h4 className="mb-2 font-medium text-caption text-fg-muted">Card</h4>
+                <dl className="flex flex-col gap-1.5">
+                  <DetailRow
+                    label="Criado"
+                    value={
+                      <>
+                        <span className="tabular-nums">{formatDateTime(card.CreatedAt)}</span>
+                        {detalhe?.CreatedByName && (
+                          <span className="text-fg-muted">, por {detalhe.CreatedByName}</span>
+                        )}
+                      </>
+                    }
+                  />
+                </dl>
+              </section>
             </DetailsBox>
           </>
         }

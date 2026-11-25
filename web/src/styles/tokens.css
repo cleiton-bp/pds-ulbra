@@ -253,6 +253,15 @@
   --chip-purple-glyph: var(--purple-11);
   --chip-pink-glyph: var(--pink-11);
 
+  /* O chat do card. O balao nao tem borda, so o fundo, entao cada tom precisa se separar
+     da janela (`surface-raised`) nos dois temas. O seu lado e verde, o dos outros e
+     cinza, e o lado do time na conversa com quem relatou e ambar, a cor do que sai para
+     fora. O escuro herda o verde e o cinza pelo degrau reatribuido; o ambar 4 nao e
+     reatribuido la, e o bloco escuro escolhe o dele. */
+  --chat-mine: var(--grass-4);
+  --chat-theirs: var(--slate-4);
+  --chat-outward: var(--amber-4);
+
   /* o editor de codigo: acompanha o tema da tela, como o resto do painel. O fundo e o do
      cartao, a barra e o da pagina, e as cores da sintaxe sao os degraus 11 do Radix, que
      o bloco escuro ja troca: cada uma com 4,5:1 sobre o fundo nos dois temas (conferido em
@@ -380,6 +389,7 @@
   --accent-fg: var(--slate-1);
   --accent-hover: var(--slate-12-hover);
   --warn-surface-hover: var(--amber-5);
+  --chat-outward: var(--amber-5);
   --nav-active: var(--slate-5);
   --focus: var(--slate-10);
 

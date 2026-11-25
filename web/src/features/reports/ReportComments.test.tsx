@@ -3,7 +3,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   InternalCommentViewModel,
   PublicCommentViewModel,
@@ -13,6 +13,7 @@ import { PanelError } from '@/data'
 import { ReportComments, type ReportConversation } from '@/features/reports/ReportComments'
 import { Toaster } from '@/shared/components/Toaster'
 import { useToastStore } from '@/shared/components/toastStore'
+import { instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
  * O QUE ESTES TESTES TRAVAM: a conversa do card aberto — corrigir, apagar e responder.
@@ -85,6 +86,10 @@ function conversa(data: ReportCommentsViewModel): ReportConversation {
     refresh: vi.fn(),
     revalidate: vi.fn(),
     falas: new Set(data.Public.map((fala) => fala.PublicId)),
+    temMais: { Internal: false, Public: false },
+    carregando: { Internal: false, Public: false },
+    carregarAnteriores: vi.fn(),
+    procurar: vi.fn().mockResolvedValue(false),
   }
 }
 
@@ -114,10 +119,31 @@ function comentario(texto: string | RegExp): HTMLElement {
   return screen.getByText(texto).closest('li') as HTMLElement
 }
 
-const caixaDeFora = () =>
-  screen.getByRole('textbox', { name: 'Para quem relatou' }) as HTMLTextAreaElement
-const caixaDeDentro = () =>
-  screen.getByRole('textbox', { name: 'Entre o time' }) as HTMLTextAreaElement
+/** Abre o menu da mensagem (os tres pontos) e escolhe a acao. */
+async function escolher(texto: string | RegExp, acao: string) {
+  const mensagem = comentario(texto)
+  fireEvent.keyDown(within(mensagem).getByRole('button', { name: 'Ações da mensagem' }), {
+    key: 'Enter',
+  })
+  fireEvent.click(await screen.findByRole('menuitem', { name: acao }))
+}
+
+// O menu da mensagem e Radix, que mede e posiciona o que o jsdom nao tem.
+beforeAll(() => instalarRemendosDoRadix())
+
+/** As conversas ficam em abas: escolhe a aba, quando ela existe e nao esta escolhida. */
+function escolherAba(nome: RegExp) {
+  const aba = screen.queryByRole('tab', { name: nome })
+  if (aba && aba.getAttribute('aria-selected') !== 'true') fireEvent.click(aba)
+}
+const caixaDeFora = () => {
+  escolherAba(/Para quem relatou/)
+  return screen.getByRole('textbox', { name: 'Para quem relatou' }) as HTMLTextAreaElement
+}
+const caixaDeDentro = () => {
+  escolherAba(/Entre o time/)
+  return screen.getByRole('textbox', { name: 'Entre o time' }) as HTMLTextAreaElement
+}
 
 /** O relogio anda, e as promessas que ele soltou terminam. */
 async function passar(ms: number) {
@@ -146,7 +172,7 @@ afterEach(() => {
 })
 
 describe('corrigir e apagar o comentario entre o time', () => {
-  it('so o comentario de quem le tem "Editar" e "Apagar"; o corrigido diz "(editado)"', () => {
+  it('so o comentario de quem le tem "Editar" e "Apagar" no menu; o corrigido diz "editado"', async () => {
     montar({
       Internal: [
         interno(),
@@ -162,13 +188,25 @@ describe('corrigir e apagar o comentario entre o time', () => {
     })
 
     const meu = comentario('Acho que e o gateway.')
-    expect(within(meu).getByRole('button', { name: 'Editar o seu comentário' })).toBeTruthy()
-    expect(within(meu).getByRole('button', { name: 'Apagar o seu comentário' })).toBeTruthy()
-    expect(within(meu).queryByText('(editado)')).toBeNull()
+    expect(within(meu).queryByText('editado')).toBeNull()
+    fireEvent.keyDown(within(meu).getByRole('button', { name: 'Ações da mensagem' }), {
+      key: 'Enter',
+    })
+    expect(await screen.findByRole('menuitem', { name: 'Editar' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Apagar' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Responder' })).toBeTruthy()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
 
+    // Do Bruno: responder e copiar, mas corrigir e apagar sao so de quem escreveu.
     const doBruno = comentario('Do Bruno.')
-    expect(within(doBruno).queryByRole('button')).toBeNull()
-    expect(within(doBruno).getByText('(editado)')).toBeTruthy()
+    expect(within(doBruno).getByText('editado')).toBeTruthy()
+    fireEvent.keyDown(within(doBruno).getByRole('button', { name: 'Ações da mensagem' }), {
+      key: 'Enter',
+    })
+    expect(await screen.findByRole('menuitem', { name: 'Responder' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Editar' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Apagar' })).toBeNull()
   })
 
   it('editar traz as mencoes de volta a "@Nome", e salvar manda as marcas de quem ficou', async () => {
@@ -181,7 +219,7 @@ describe('corrigir e apagar o comentario entre o time', () => {
       Public: [],
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar o seu comentário' }))
+    await escolher(/Olha/, 'Editar')
     const campo = screen.getByRole('textbox', {
       name: 'Corrigir o comentário',
     }) as HTMLTextAreaElement
@@ -204,7 +242,7 @@ describe('corrigir e apagar o comentario entre o time', () => {
     )
     const corrigido = comentario('@João Ávila')
     expect(corrigido.textContent).toContain('Olha @João Ávila, so ele')
-    expect(within(corrigido).getByText('(editado)')).toBeTruthy()
+    expect(within(corrigido).getByText('editado')).toBeTruthy()
     expect(revalidate).toHaveBeenCalled()
   })
 
@@ -217,19 +255,19 @@ describe('corrigir e apagar o comentario entre o time', () => {
     const corrigir = () =>
       screen.getByRole('textbox', { name: 'Corrigir o comentário' }) as HTMLTextAreaElement
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar o seu comentário' }))
+    await escolher('Acho que e o gateway.', 'Editar')
     fireEvent.change(corrigir(), { target: { value: 'Outra coisa' } })
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(screen.getByText('Acho que e o gateway.')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar o seu comentário' }))
+    await escolher('Acho que e o gateway.', 'Editar')
     fireEvent.keyDown(corrigir(), { key: 'Enter', ctrlKey: true })
     await waitFor(() =>
       expect(screen.queryByRole('textbox', { name: 'Corrigir o comentário' })).toBeNull(),
     )
     expect(dublê.corrigir).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar o seu comentário' }))
+    await escolher('Acho que e o gateway.', 'Editar')
     fireEvent.change(corrigir(), { target: { value: 'E o gateway mesmo.' } })
     fireEvent.keyDown(corrigir(), { key: 'Enter', ctrlKey: true })
     await waitFor(() =>
@@ -244,7 +282,7 @@ describe('corrigir e apagar o comentario entre o time', () => {
     dublê.corrigir.mockRejectedValue(new PanelError('So quem escreveu corrige o comentario.', 403))
     montar({ Internal: [interno()], Public: [] })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar o seu comentário' }))
+    await escolher('Acho que e o gateway.', 'Editar')
     const campo = screen.getByRole('textbox', {
       name: 'Corrigir o comentário',
     }) as HTMLTextAreaElement
@@ -259,7 +297,7 @@ describe('corrigir e apagar o comentario entre o time', () => {
     dublê.apagar.mockResolvedValue(undefined)
     const { revalidate } = montar({ Internal: [interno()], Public: [] })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apagar o seu comentário' }))
+    await escolher('Acho que e o gateway.', 'Apagar')
     let pergunta = await screen.findByRole('alertdialog', { name: 'Apagar o comentário?' })
     expect(
       within(pergunta).getByText('Quem foi mencionado nele deixa de ver o aviso no sino.'),
@@ -268,7 +306,7 @@ describe('corrigir e apagar o comentario entre o time', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
     expect(dublê.apagar).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apagar o seu comentário' }))
+    await escolher('Acho que e o gateway.', 'Apagar')
     pergunta = await screen.findByRole('alertdialog', { name: 'Apagar o comentário?' })
     fireEvent.click(within(pergunta).getByRole('button', { name: 'Apagar' }))
 
@@ -282,7 +320,7 @@ describe('corrigir e apagar o comentario entre o time', () => {
     dublê.apagar.mockRejectedValue(new PanelError('So quem escreveu apaga o comentario.', 403))
     montar({ Internal: [interno()], Public: [] })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apagar o seu comentário' }))
+    await escolher('Acho que e o gateway.', 'Apagar')
     fireEvent.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Apagar' }),
     )
@@ -396,10 +434,9 @@ describe('a resposta a quem relatou espera antes de sair', () => {
 
   it('no relato arquivado, a caixa de quem relatou so se le', () => {
     montar({ Internal: [], Public: [publico()] }, { paraQuemRelatou: 'ler' })
+    escolherAba(/Para quem relatou/)
     expect(screen.getByText('Ja corrigimos, pode testar?')).toBeTruthy()
-    expect(
-      screen.getByText('O relato está arquivado. Para escrever a quem relatou, desarquive antes.'),
-    ).toBeTruthy()
+    expect(screen.getByText('Para escrever a quem relatou, desarquive o relato')).toBeTruthy()
     expect(screen.queryByRole('textbox', { name: 'Para quem relatou' })).toBeNull()
   })
 })
@@ -440,5 +477,229 @@ describe('Ctrl+Enter envia', () => {
     fireEvent.keyDown(caixaDeFora(), { key: 'Enter' })
     expect(dublê.comentarInterno).not.toHaveBeenCalled()
     expect(screen.queryByText('Enviando para quem relatou…')).toBeNull()
+  })
+})
+
+describe('a conversa como chat', () => {
+  it('responder poe a citacao em cima do campo, e ela vai junto no envio', async () => {
+    montar({
+      Internal: [
+        interno({ PublicId: 'c-2', AuthorName: 'Bruno Membro', Body: 'Do Bruno.', IsYours: false }),
+      ],
+      Public: [],
+    })
+
+    await escolher('Do Bruno.', 'Responder')
+    expect(screen.getByText('Respondendo a Bruno Membro')).toBeTruthy()
+
+    fireEvent.change(caixaDeDentro(), { target: { value: 'Concordo.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Comentar entre o time' }))
+
+    await waitFor(() =>
+      expect(dublê.comentarInterno).toHaveBeenCalledWith('p-1', 'r-1', {
+        Body: 'Concordo.',
+        ReplyToPublicId: 'c-2',
+      }),
+    )
+    await waitFor(() => expect(screen.queryByText('Respondendo a Bruno Membro')).toBeNull())
+  })
+
+  it('cancelar a resposta tira a citacao, e o envio sai sem ela', async () => {
+    montar({
+      Internal: [
+        interno({ PublicId: 'c-2', AuthorName: 'Bruno Membro', Body: 'Do Bruno.', IsYours: false }),
+      ],
+      Public: [],
+    })
+
+    await escolher('Do Bruno.', 'Responder')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar a resposta' }))
+    expect(screen.queryByText('Respondendo a Bruno Membro')).toBeNull()
+
+    fireEvent.change(caixaDeDentro(), { target: { value: 'Sem citar.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Comentar entre o time' }))
+    await waitFor(() =>
+      expect(dublê.comentarInterno).toHaveBeenCalledWith('p-1', 'r-1', {
+        Body: 'Sem citar.',
+        ReplyToPublicId: undefined,
+      }),
+    )
+  })
+
+  it('o dia aparece no centro antes da primeira mensagem dele, uma vez por dia', () => {
+    montar({
+      Internal: [
+        interno({
+          PublicId: 'c-1',
+          Body: 'Primeira do dia 24.',
+          CreatedAt: '2026-11-24T12:00:00.000Z',
+        }),
+        interno({
+          PublicId: 'c-2',
+          Body: 'Segunda do dia 24.',
+          CreatedAt: '2026-11-24T13:00:00.000Z',
+        }),
+        interno({ PublicId: 'c-3', Body: 'Do dia 25.', CreatedAt: '2026-11-25T12:00:00.000Z' }),
+      ],
+      Public: [],
+    })
+
+    const conversa = screen.getByRole('region', { name: 'Entre o time' })
+    const dias = within(conversa)
+      .getAllByText(/de novembro|Hoje|Ontem/)
+      .filter((elemento) => elemento.tagName === 'SPAN')
+    expect(dias).toHaveLength(2)
+  })
+
+  it('com mensagens anteriores, o topo oferece carregar e pede o pedaco daquela conversa', () => {
+    const lida = {
+      ...conversa({ Internal: [interno()], Public: [] }),
+      temMais: { Internal: true, Public: false },
+    }
+    render(
+      <MemoryRouter>
+        <ReportComments
+          projectPublicId="p-1"
+          reportPublicId="r-1"
+          conversa={lida}
+          aoComentar={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    const entreOTime = screen.getByRole('region', { name: 'Entre o time' })
+    fireEvent.click(
+      within(entreOTime).getByRole('button', { name: 'Carregar mensagens anteriores' }),
+    )
+    expect(lida.carregarAnteriores).toHaveBeenCalledWith('Internal')
+
+    // A de quem relatou nao tem mais antigas: diz que comeca ali.
+    escolherAba(/Para quem relatou/)
+    const comQuemRelatou = screen.getByRole('region', { name: 'Para quem relatou' })
+    expect(
+      within(comQuemRelatou).queryByRole('button', { name: 'Carregar mensagens anteriores' }),
+    ).toBeNull()
+  })
+
+  it('expandir leva a conversa para cima do card, e recolher a devolve ao lugar', () => {
+    montar({ Internal: [interno({ PublicId: 'c-1', Body: 'Oi.' })], Public: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir a conversa' }))
+
+    const expandida = document.querySelector('[data-chat-expandido]')
+    expect(expandida).not.toBeNull()
+    expect(within(expandida as HTMLElement).getByText('Oi.')).toBeTruthy()
+    expect(
+      within(expandida as HTMLElement).getByRole('textbox', { name: 'Entre o time' }),
+    ).toBeTruthy()
+
+    // Expandida, as abas vao junto: da para trocar de conversa sem recolher.
+    fireEvent.click(screen.getByRole('tab', { name: /Para quem relatou/ }))
+    expect(
+      within(expandida as HTMLElement).getByRole('textbox', { name: 'Para quem relatou' }),
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recolher a conversa' }))
+    expect(document.querySelector('[data-chat-expandido]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Expandir a conversa' })).toBeTruthy()
+  })
+
+  it('as conversas ficam em abas: uma de cada vez, e o rascunho fica na de tras', () => {
+    montar({
+      Internal: [interno({ PublicId: 'c-1', Body: 'Entre nos.' })],
+      Public: [publico({ PublicId: 'pc-1', Body: 'Para fora.' })],
+    })
+    expect(screen.getByRole('region', { name: 'Entre o time' })).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Para quem relatou' })).toBeNull()
+
+    fireEvent.change(caixaDeDentro(), { target: { value: 'Pela metade' } })
+    fireEvent.click(screen.getByRole('tab', { name: /Para quem relatou/ }))
+    expect(screen.getByRole('region', { name: 'Para quem relatou' })).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Entre o time' })).toBeNull()
+
+    // As setas trocam de aba, e o texto da outra continua la.
+    fireEvent.keyDown(screen.getByRole('tab', { name: /Para quem relatou/ }), {
+      key: 'ArrowLeft',
+    })
+    expect(screen.getByRole('tab', { name: /Entre o time/ }).getAttribute('aria-selected')).toBe(
+      'true',
+    )
+    expect(caixaDeDentro().value).toBe('Pela metade')
+  })
+
+  it('a resposta de quem relatou sem retorno do time acende a aba, ate ser vista', () => {
+    montar({
+      Internal: [interno()],
+      Public: [
+        publico({ PublicId: 'pc-1', CreatedAt: '2026-10-07T12:00:00.000Z' }),
+        publico({
+          PublicId: 'pc-2',
+          FromReporter: true,
+          AuthorName: null,
+          Body: 'Testei e funcionou.',
+          CreatedAt: '2026-10-07T13:00:00.000Z',
+        }),
+      ],
+    })
+    expect(screen.getByRole('tab', { name: /Para quem relatou, mensagem nova/ })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Para quem relatou/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Entre o time/ }))
+    expect(screen.queryByRole('tab', { name: /mensagem nova/ })).toBeNull()
+  })
+
+  it('o card do time nao tem abas: so a conversa do time', () => {
+    montar({ Internal: [interno()], Public: [] }, { paraQuemRelatou: 'nenhum' })
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Entre o time' })).toBeTruthy()
+  })
+
+  it('o campo diz para quem se escreve, e o enviar diz o atalho', () => {
+    montar()
+    expect(caixaDeDentro().getAttribute('placeholder')).toBe('Escreva para o time')
+    expect(screen.getByText('Só o time lê, e com @ você avisa alguém no sino')).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Comentar entre o time' }).getAttribute('title'),
+    ).toBe('Comentar entre o time (Ctrl+Enter)')
+    expect(caixaDeFora().getAttribute('placeholder')).toBe('Escreva para quem relatou')
+  })
+
+  it('a citacao mostra quem escreveu e o que disse; a apagada diz que saiu', () => {
+    montar({
+      Internal: [
+        interno({
+          PublicId: 'c-5',
+          Body: 'Resposta.',
+          ReplyTo: {
+            PublicId: 'c-1',
+            AuthorName: 'Bruno Membro',
+            FromReporter: false,
+            Body: 'Original.',
+          },
+        }),
+        interno({
+          PublicId: 'c-6',
+          Body: 'Outra resposta.',
+          ReplyTo: { PublicId: null, AuthorName: null, FromReporter: false, Body: null },
+        }),
+        interno({
+          PublicId: 'c-7',
+          Body: 'Respondendo a mim mesmo.',
+          ReplyTo: {
+            PublicId: 'c-2',
+            AuthorName: 'Ana Leitora',
+            FromReporter: false,
+            Body: 'Minha.',
+            IsYours: true,
+          },
+        }),
+      ],
+      Public: [],
+    })
+
+    expect(screen.getByRole('button', { name: 'Ir para a mensagem de Bruno Membro' })).toBeTruthy()
+    expect(screen.getByText('Original.')).toBeTruthy()
+    expect(screen.getByText('Esta mensagem foi apagada')).toBeTruthy()
+    // A propria mensagem citada diz "Você", como no campo de resposta.
+    expect(screen.getByRole('button', { name: 'Ir para a mensagem de Você' })).toBeTruthy()
   })
 })

@@ -32,6 +32,7 @@ import {
   useSprintsForFilter,
 } from '@/features/reports/sprints/sprintLook'
 import { useToastStore } from '@/shared/components/toastStore'
+import { fraseDoHistorico } from '@/test/historicoEmPedacos'
 import { instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 instalarRemendosDoRadix()
@@ -100,6 +101,15 @@ vi.mock('@/data', async (importOriginal) => {
       setSprint: dublê.planejar,
       setPoints: dublê.pontos,
       listReportHistory: dublê.historico,
+      listReportHistoryPage: async (
+        publicId: string,
+        reportPublicId: string,
+        opcoes?: { before?: string; limit?: number; returns?: boolean },
+      ) => {
+        // O historico aos pedacos sai da lista inteira do dublê (o vi.mock roda antes dos imports).
+        const { pedacoDoHistorico } = await import('@/test/historicoEmPedacos')
+        return pedacoDoHistorico(await dublê.historico(publicId, reportPublicId), opcoes)
+      },
     },
     projectTeamService: { listMembers: dublê.membros },
     projectPriorityService: { listPriorities: dublê.prioridades },
@@ -547,10 +557,12 @@ describe('o histórico', () => {
       linha('h-4', 'CardPointsChanged', null, '2.5'),
     ])
     render(<ReportHistory projectPublicId="p-1" reportPublicId="c-1" versao={0} />)
-    expect(await screen.findByText('Planejado na Sprint 1')).toBeTruthy()
-    expect(screen.getByText('De Sprint 1 para Sprint 2')).toBeTruthy()
-    expect(screen.getByText('De Sprint 2 para o backlog')).toBeTruthy()
-    expect(screen.getByText('Estimativa: 2,5')).toBeTruthy()
+    // O historico vem fechado: abre para ler.
+    fireEvent.click(await screen.findByRole('button', { name: 'Histórico' }))
+    expect(await screen.findByText(fraseDoHistorico('Ana planejou na Sprint 1'))).toBeTruthy()
+    expect(screen.getByText(fraseDoHistorico('Ana mudou de Sprint 1 para Sprint 2'))).toBeTruthy()
+    expect(screen.getByText(fraseDoHistorico('Ana levou de Sprint 2 para o backlog'))).toBeTruthy()
+    expect(screen.getByText(fraseDoHistorico('Ana estimou em 2,5'))).toBeTruthy()
   })
 })
 

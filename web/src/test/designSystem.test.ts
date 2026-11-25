@@ -353,6 +353,13 @@ const PARES: Array<{ fg: string; bg: string; onde: string; minimo: number }> = [
   { fg: 'chip-red-fg', bg: 'chip-red-surface', onde: 'etiqueta red', minimo: 4.5 },
   { fg: 'chip-purple-fg', bg: 'chip-purple-surface', onde: 'etiqueta purple', minimo: 4.5 },
   { fg: 'chip-pink-fg', bg: 'chip-pink-surface', onde: 'etiqueta pink', minimo: 4.5 },
+  // O chat do card: o texto e a hora (apoio) sobre cada balao, sem borda.
+  { fg: 'fg', bg: 'chat-mine', onde: 'texto no seu balao', minimo: 4.5 },
+  { fg: 'fg-muted', bg: 'chat-mine', onde: 'hora no seu balao', minimo: 4.5 },
+  { fg: 'fg', bg: 'chat-theirs', onde: 'texto no balao dos outros', minimo: 4.5 },
+  { fg: 'fg-muted', bg: 'chat-theirs', onde: 'hora no balao dos outros', minimo: 4.5 },
+  { fg: 'fg', bg: 'chat-outward', onde: 'texto no balao para quem relatou', minimo: 4.5 },
+  { fg: 'fg-muted', bg: 'chat-outward', onde: 'hora no balao para quem relatou', minimo: 4.5 },
   // A pagina de entrada: a mesa da maquete (e do fecho) e a loja de exemplo.
   { fg: 'fg', bg: 'landing-mat', onde: 'titulo sobre a mesa', minimo: 4.5 },
   { fg: 'fg-muted', bg: 'landing-mat', onde: 'dica sobre a mesa', minimo: 4.5 },

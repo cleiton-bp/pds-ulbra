@@ -76,6 +76,15 @@ vi.mock('@/data', async (importOriginal) => {
       setArchived: vi.fn(),
       listComments: dublê.comentarios,
       listReportHistory: dublê.historico,
+      listReportHistoryPage: async (
+        publicId: string,
+        reportPublicId: string,
+        opcoes?: { before?: string; limit?: number; returns?: boolean },
+      ) => {
+        // O historico aos pedacos sai da lista inteira do dublê (o vi.mock roda antes dos imports).
+        const { pedacoDoHistorico } = await import('@/test/historicoEmPedacos')
+        return pedacoDoHistorico(await dublê.historico(publicId, reportPublicId), opcoes)
+      },
       listLinks: dublê.vinculos,
       listReports: dublê.listar,
       addInternalComment: dublê.comentarInterno,
@@ -329,7 +338,7 @@ describe('as saidas do relato aberto', () => {
     await detalheNaTela()
     expect(
       screen.getByText(
-        'Encerrar pede um motivo, e é ele que quem relatou lê. Pedir informação devolve o relato sem encerrar.',
+        'Encerrar pede um motivo para quem relatou, e pedir informação devolve o relato sem encerrar',
       ),
     ).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Pedir informação' }))
@@ -417,7 +426,7 @@ describe('as saidas do relato aberto', () => {
     montar()
     await detalheNaTela()
     expect(screen.queryByRole('button', { name: 'Pedir informação' })).toBeNull()
-    expect(screen.getByText('Encerrar pede um motivo, e é ele que quem relatou lê.')).toBeTruthy()
+    expect(screen.getByText('Encerrar pede um motivo, que é o que quem relatou lê')).toBeTruthy()
   })
 })
 
@@ -531,6 +540,24 @@ describe('o que quem relatou ve', () => {
 })
 
 describe('o Esc em camadas, e a pergunta antes de descartar', () => {
+  it('a conversa expandida cobre o card; o Esc recolhe, e o seguinte fecha o card', async () => {
+    const { aoFechar } = montar()
+    const expandir = await screen.findAllByRole('button', { name: 'Expandir a conversa' })
+    fireEvent.click(expandir[0] as HTMLElement)
+
+    const recolher = screen.getByRole('button', { name: 'Recolher a conversa' })
+    expect(recolher.closest('[data-chat-expandido]')).not.toBeNull()
+    // O foco fica no botao, que foi junto com a conversa.
+    expect(document.activeElement).toBe(recolher)
+
+    teclar('Escape', recolher)
+    await waitFor(() => expect(document.querySelector('[data-chat-expandido]')).toBeNull())
+    expect(aoFechar).not.toHaveBeenCalled()
+
+    teclar('Escape')
+    expect(aoFechar).toHaveBeenCalledTimes(1)
+  })
+
   it('o Esc na edicao sem mudanca sai so dela; o seguinte fecha o card', async () => {
     const { aoFechar } = montar()
     fireEvent.click(await screen.findByRole('button', { name: 'Dar um título' }))
@@ -654,6 +681,7 @@ describe('o Esc em camadas, e a pergunta antes de descartar', () => {
   it('o Esc com o comentario pela metade tambem pergunta, em vez de levar o texto', async () => {
     const { aoFechar } = montar()
     await detalheNaTela()
+    fireEvent.click(screen.getByRole('tab', { name: /Para quem relatou/ }))
     const caixa = screen.getByRole('textbox', { name: 'Para quem relatou' })
     caixa.focus()
     fireEvent.change(caixa, { target: { value: 'Ja corrigimos, pode testar?' } })
@@ -680,7 +708,17 @@ describe('o Esc em camadas, e a pergunta antes de descartar', () => {
       Public: [],
     })
     const { aoFechar } = montar()
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar o seu comentário' }))
+    // Editar mora no menu da mensagem (os tres pontos).
+    const editar = async () => {
+      const mensagem = (await screen.findByText('Acho que e o gateway.')).closest(
+        'li',
+      ) as HTMLElement
+      fireEvent.keyDown(within(mensagem).getByRole('button', { name: 'Ações da mensagem' }), {
+        key: 'Enter',
+      })
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Editar' }))
+    }
+    await editar()
     const campo = screen.getByRole('textbox', { name: 'Corrigir o comentário' })
     expect(document.activeElement).toBe(campo)
     fireEvent.change(campo, { target: { value: 'E o gateway mesmo.' } })
@@ -698,7 +736,7 @@ describe('o Esc em camadas, e a pergunta antes de descartar', () => {
     expect(aoFechar).not.toHaveBeenCalled()
 
     // Sem mudanca, o Esc sai da correcao sem perguntar; o seguinte fecha o card.
-    fireEvent.click(screen.getByRole('button', { name: 'Editar o seu comentário' }))
+    await editar()
     const deNovo = screen.getByRole('textbox', { name: 'Corrigir o comentário' })
     teclar('Escape', deNovo)
     await waitFor(() =>

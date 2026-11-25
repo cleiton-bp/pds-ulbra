@@ -47,6 +47,15 @@ vi.mock('@/data', async (importOriginal) => {
       setArchived: vi.fn(),
       listComments: dublê.comentarios,
       listReportHistory: dublê.historico,
+      listReportHistoryPage: async (
+        publicId: string,
+        reportPublicId: string,
+        opcoes?: { before?: string; limit?: number; returns?: boolean },
+      ) => {
+        // O historico aos pedacos sai da lista inteira do dublê (o vi.mock roda antes dos imports).
+        const { pedacoDoHistorico } = await import('@/test/historicoEmPedacos')
+        return pedacoDoHistorico(await dublê.historico(publicId, reportPublicId), opcoes)
+      },
       listLinks: dublê.vinculos,
       listReports: vi.fn(),
       addInternalComment: vi.fn(),

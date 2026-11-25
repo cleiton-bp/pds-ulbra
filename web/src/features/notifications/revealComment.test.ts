@@ -2,6 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { commentAnchorId, revealComment } from '@/features/notifications/revealComment'
+import { COMMENT_SEARCH_EVENT } from '@/shared/lib/commentSearch'
 
 /**
  * O QUE ESTES TESTES TRAVAM: abrir a mencao leva ate o comentario (S-08).
@@ -34,6 +35,28 @@ describe('levar ate o comentario da mencao', () => {
     document.body.append(no)
     return { no, rolar, acender }
   }
+
+  it('na aba escondida, pede a conversa do time e espera ela aparecer', () => {
+    const painel = document.createElement('div')
+    painel.hidden = true
+    document.body.append(painel)
+    const { no, rolar, acender } = comentario('k-9')
+    painel.append(no)
+    // Quem mostra as conversas troca de aba quando o sino pede o comentario.
+    const trocar = () => {
+      painel.hidden = false
+    }
+    document.addEventListener(COMMENT_SEARCH_EVENT, trocar)
+
+    revealComment('k-9')
+    vi.advanceTimersByTime(150)
+    expect(rolar).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(150)
+    expect(rolar).toHaveBeenCalledTimes(1)
+    expect(acender).toHaveBeenCalledTimes(1)
+    document.removeEventListener(COMMENT_SEARCH_EVENT, trocar)
+  })
 
   it('o endereco e o que o card aberto poe em cada comentario', () => {
     expect(commentAnchorId('k-1')).toBe('comentario-k-1')

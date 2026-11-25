@@ -61,6 +61,9 @@
   --color-chip-green-surface: var(--chip-green-surface);
   --color-chip-green-border: var(--chip-green-border);
   --color-chip-green-fg: var(--chip-green-fg);
+  --color-chat-mine: var(--chat-mine);
+  --color-chat-theirs: var(--chat-theirs);
+  --color-chat-outward: var(--chat-outward);
   --color-chip-yellow-surface: var(--chip-yellow-surface);
   --color-chip-yellow-border: var(--chip-yellow-border);
   --color-chip-yellow-fg: var(--chip-yellow-fg);
@@ -246,6 +249,7 @@
  */
 :root {
   --layer-sticky: 1;
+  --layer-cover: 2;
   --layer-hint: 5;
   --layer-drawer-veil: 10;
   --layer-drawer: 20;
@@ -264,6 +268,15 @@
  */
 @utility z-sticky {
   z-index: var(--layer-sticky);
+}
+
+/**
+ * O que cobre o corpo de um dialogo inteiro, la dentro dele: a conversa do card
+ * expandida. Acima do que e posicionado no corpo (o preso e os controles da coluna do
+ * lado), e abaixo do balao do guia e de tudo que abre por cima do dialogo.
+ */
+@utility z-cover {
+  z-index: var(--layer-cover);
 }
 /**
  * O balao do guia na primeira visita: por cima da tela, mas **abaixo** da gaveta e dos
@@ -1109,6 +1122,19 @@
   overflow-x: auto;
   overflow-y: hidden;
   box-shadow: inset 0 -1px 0 var(--border);
+}
+
+/**
+ * As pontas do chat do card: a conversa que continua acima ou abaixo some aos poucos, em
+ * vez de ser cortada por uma borda. A cor e a da janela do card, onde o chat mora, aberto
+ * no card ou expandido por cima dele.
+ */
+@utility chat-fade-top {
+  background: linear-gradient(to bottom, var(--surface-raised), transparent);
+}
+
+@utility chat-fade-bottom {
+  background: linear-gradient(to top, var(--surface-raised), transparent);
 }
 
 @utility range-soft {

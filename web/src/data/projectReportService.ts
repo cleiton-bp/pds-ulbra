@@ -11,15 +11,18 @@ import type {
   DeleteBlockedOriginReportsRequest,
   EditCommentRequest,
   EditTeamCardRequest,
+  InternalCommentsPageViewModel,
   InternalCommentViewModel,
   ModerateReportRequest,
   ModerationItemViewModel,
   ModerationQueueViewModel,
   MoveReportRequest,
+  PublicCommentsPageViewModel,
   PublicCommentViewModel,
   ReportCommentsViewModel,
   ReportDetailViewModel,
   ReportHistoryEntryViewModel,
+  ReportHistoryPageViewModel,
   ReportListOrder,
   ReportModerationState,
   ReportStateCountViewModel,
@@ -447,8 +450,31 @@ export interface ProjectReportService {
     request: AskInfoRequest,
   ): Promise<ReportDetailViewModel>
 
-  /** Os comentarios do relato, em duas listas separadas. */
-  listComments(publicId: string, reportPublicId: string): Promise<ReportCommentsViewModel>
+  /**
+   * Os comentarios do relato, em duas listas separadas. Com `limit`, so as mensagens mais
+   * recentes de cada conversa, e as marcas `HasOlder...` dizem se ha anteriores.
+   */
+  listComments(
+    publicId: string,
+    reportPublicId: string,
+    options?: { limit?: number },
+  ): Promise<ReportCommentsViewModel>
+
+  /** Os comentarios entre o time anteriores a `before`: o chat do card subindo. */
+  listOlderInternalComments(
+    publicId: string,
+    reportPublicId: string,
+    before: string,
+    limit?: number,
+  ): Promise<InternalCommentsPageViewModel>
+
+  /** Os comentarios para quem relatou anteriores a `before`: o chat do card subindo. */
+  listOlderPublicComments(
+    publicId: string,
+    reportPublicId: string,
+    before: string,
+    limit?: number,
+  ): Promise<PublicCommentsPageViewModel>
 
   /**
    * Escreve um comentario que fica entre o time.
@@ -494,4 +520,15 @@ export interface ProjectReportService {
     publicId: string,
     reportPublicId: string,
   ): Promise<ReportHistoryEntryViewModel[]>
+
+  /**
+   * Um pedaco do historico, do mais novo para o mais antigo: sem `before`, os mais
+   * recentes; com ele, os de antes desse evento. `returns` traz as voltas de quem relatou.
+   * Nao registra visualizacao.
+   */
+  listReportHistoryPage(
+    publicId: string,
+    reportPublicId: string,
+    options?: { before?: string; limit?: number; returns?: boolean },
+  ): Promise<ReportHistoryPageViewModel>
 }

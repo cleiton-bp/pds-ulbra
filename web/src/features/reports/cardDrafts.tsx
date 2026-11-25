@@ -89,14 +89,20 @@ export function useCardDrafts() {
   const escNaEdicao = useCallback(() => {
     const foco = document.activeElement
     if (!foco) return false
-    for (const leitura of registros.current.values()) {
-      const rascunho = leitura()
-      if (rascunho.cancelar && rascunho.area?.contains(foco)) {
-        rascunho.cancelar()
-        return true
-      }
-    }
-    return false
+    // **A mais de dentro primeiro.** A correcao de um comentario mora dentro da conversa
+    // expandida, e as duas sabem sair no Esc: sai a correcao, e a conversa fica.
+    const comFoco = [...registros.current.values()]
+      .map((leitura) => leitura())
+      .filter((rascunho) => rascunho.cancelar && rascunho.area?.contains(foco))
+    const dentro = comFoco.find(
+      (rascunho) =>
+        !comFoco.some(
+          (outro) => outro !== rascunho && outro.area && rascunho.area?.contains(outro.area),
+        ),
+    )
+    if (!dentro?.cancelar) return false
+    dentro.cancelar()
+    return true
   }, [])
 
   const api = useMemo<CardDraftsApi>(

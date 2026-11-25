@@ -253,6 +253,10 @@ describe('o campo com "@"', () => {
       refresh: vi.fn(),
       revalidate: vi.fn(),
       falas: new Set<string>(),
+      temMais: { Internal: false, Public: false },
+      carregando: { Internal: false, Public: false },
+      carregarAnteriores: vi.fn(),
+      procurar: vi.fn().mockResolvedValue(false),
     }
     render(
       <MemoryRouter>
@@ -265,8 +269,9 @@ describe('o campo com "@"', () => {
       </MemoryRouter>,
     )
 
+    // A caixa de quem relatou fica na outra aba: o campo existe, escondido, e nao menciona.
     const interno = screen.getByRole('textbox', { name: 'Entre o time' }) as HTMLTextAreaElement
-    const publico = screen.getByRole('textbox', { name: 'Para quem relatou' })
+    const publico = screen.getByRole('textbox', { name: 'Para quem relatou', hidden: true })
     expect(publico.getAttribute('aria-autocomplete')).toBeNull()
 
     digitar(interno, 'Olha @bru')

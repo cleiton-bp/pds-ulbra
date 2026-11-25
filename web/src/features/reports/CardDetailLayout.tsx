@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useId, useState } from 'react'
 import type { ReportSummaryViewModel } from '@/contracts'
 import { CardTypeIcon } from '@/features/reports/cardLook'
+import { mostrarConversaDoTime } from '@/features/reports/conversaDoTime'
 import { reportTypeName } from '@/shared/components/ReportTypeGlyph'
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { cn } from '@/shared/lib/cn'
@@ -90,7 +91,11 @@ export function CardDetailLayout({
 
   if (largo)
     return (
-      <div className="-mx-6 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_21rem] grid-rows-[minmax(0,1fr)] border-border border-t">
+      // `relative`: a conversa expandida cobre este corpo inteiro, as duas colunas. E
+      // `overflow-clip` porque, posicionado, ele vira a referencia de todo absoluto que nao
+      // tem outra no caminho (o texto so para leitor de tela, as pontas do chat): sem o
+      // corte, eles somavam altura ao corpo do dialogo, e aparecia uma segunda barra.
+      <div className="relative -mx-6 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_21rem] grid-rows-[minmax(0,1fr)] overflow-clip border-border border-t">
         {/* Cada coluna reserva o lugar da barra (8 px) e recua o resto: a barra encosta na
             divisoria ou na borda, e nada pula para o lado quando ela aparece. */}
         <div className="flex min-h-0 min-w-0 flex-col gap-5 overflow-y-auto py-5 pr-6 pl-6 [scrollbar-gutter:stable]">
@@ -117,21 +122,26 @@ export function CardDetailLayout({
 
   return (
     <>
-      <div className="-mx-4 min-h-0 flex-1 overflow-y-auto overscroll-contain border-border border-t px-4 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 sm:pr-4 sm:[scrollbar-gutter:stable]">
-        <div className="flex flex-col gap-6">
-          <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-cabeca')}>
-            {cabeca}
-          </div>
-          <div className="flex min-w-0 flex-col gap-4" {...guideTarget('card-lado')}>
-            {lado}
-          </div>
-          {depois && (
-            <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-depois')}>
-              {depois}
+      {/* `relative` em volta da area que rola: a conversa expandida cobre o corpo inteiro, e
+          nao rola junto com ele. O `overflow-clip`, como no computador, segura o que e
+          absoluto la dentro, para o dialogo nao ganhar uma segunda barra. */}
+      <div className="relative -mx-4 flex min-h-0 flex-1 flex-col overflow-clip border-border border-t sm:-mx-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:pr-4 sm:[scrollbar-gutter:stable]">
+          <div className="flex flex-col gap-6">
+            <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-cabeca')}>
+              {cabeca}
             </div>
-          )}
-          <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-atividade')}>
-            {atividade}
+            <div className="flex min-w-0 flex-col gap-4" {...guideTarget('card-lado')}>
+              {lado}
+            </div>
+            {depois && (
+              <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-depois')}>
+                {depois}
+              </div>
+            )}
+            <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-atividade')}>
+              {atividade}
+            </div>
           </div>
         </div>
       </div>
@@ -209,14 +219,14 @@ export function DetailsBox({ children, resumo }: { children: ReactNode; resumo?:
       }
     }
     return (
-      <section className="rounded-lg border border-border">
+      <section className="border-border border-t pt-3">
         <h3>
           <button
             type="button"
             aria-expanded={aberto}
             aria-controls={corpoId}
             onClick={alternar}
-            className="flex w-full items-start gap-2 px-3.5 py-2.5 text-left"
+            className="flex w-full cursor-pointer items-start gap-2 text-left"
           >
             <svg
               viewBox="0 0 12 12"
@@ -258,19 +268,19 @@ export function DetailsBox({ children, resumo }: { children: ReactNode; resumo?:
           )}
         >
           <div className="min-h-0 overflow-hidden">
-            <div className="flex flex-col gap-3 border-border border-t px-3.5 py-3">{children}</div>
+            <div className="flex flex-col gap-4 pt-3">{children}</div>
           </div>
         </div>
       </section>
     )
   }
 
+  // Sem caixa em volta: o titulo, os campos e duas secoes com nome (Relato, Onde
+  // aconteceu). A borda, o cabecalho e as divisorias pesavam mais que o conteudo.
   return (
-    <section className="rounded-lg border border-border">
-      <h3 className="border-border border-b px-3.5 py-2.5 font-medium text-detail text-fg">
-        Detalhes
-      </h3>
-      <div className="flex flex-col gap-3 px-3.5 py-3">{children}</div>
+    <section className="border-border border-t pt-4">
+      <h3 className="mb-3 font-medium text-detail text-fg">Detalhes</h3>
+      <div className="flex flex-col gap-4">{children}</div>
     </section>
   )
 }
@@ -342,6 +352,8 @@ function ComentarNoPe() {
         type="button"
         tabIndex={campoAVista ? -1 : undefined}
         onClick={() => {
+          // As conversas ficam em abas: a do time vem para a frente antes do foco ir para ela.
+          mostrarConversaDoTime()
           const campo = acharCampoDeComentario()
           if (!campo) return
           campo.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
