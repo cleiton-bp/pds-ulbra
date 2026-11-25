@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { PublicAttachmentViewModel, PublicReportViewModel } from '@/contracts'
-import { isPanelError, reportService } from '@/data/publicIndex'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type {
+  PublicAttachmentViewModel,
+  PublicReportViewModel,
+  WatchReportTrackingRequest,
+} from '@/contracts'
+import { isPanelError, liveTrackingService, reportService } from '@/data/publicIndex'
 import { AttachmentProgress, resumoDoFim } from '@/embed/AttachmentPicker'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 import { Button } from '@/shared/components/Button'
@@ -141,8 +145,46 @@ export function TrackingReport({
     void abrir()
   }, [abrir])
 
+  /**
+   * **Ao vivo enquanto o relato esta na tela.** Aberto, a tela se inscreve uma vez com a
+   * credencial que o abriu e passa a receber o relato atualizado quando o time mexe nele:
+   * a linha do andamento anda sem a pessoa recarregar. Ela nao busca nada enquanto
+   * acompanha, e fechar a tela encerra a inscricao. Pelos valores soltos da credencial, e
+   * nao pelo objeto: quem monta a entrada a recria a cada desenho.
+   */
+  const aberto = estado.tipo === 'aberto'
+  const { code, token, key, reporterCode, identityToken } = entrada
+  const [anuncio, setAnuncio] = useState('')
+  // O relato na tela agora, para comparar a etapa fora da atualizacao do estado.
+  const naTela = useRef<PublicReportViewModel | null>(null)
+  naTela.current = estado.tipo === 'aberto' ? estado.relato : null
+  useEffect(() => {
+    if (!aberto) return
+
+    const pedido: WatchReportTrackingRequest =
+      token.length > 0
+        ? { TrackingCode: code, Token: token }
+        : reporterCode.length > 0
+          ? { TrackingCode: code, Key: key, ReporterCode: reporterCode }
+          : { TrackingCode: code, Key: key, IdentityToken: identityToken }
+
+    const acompanhamento = liveTrackingService.watch(pedido, (novo) => {
+      // Quem usa leitor de tela ouve que a etapa mudou: a linha que anda so se ve.
+      const antes = naTela.current ? etapaAtual(naTela.current) : null
+      const depois = etapaAtual(novo)
+      if (antes !== null && depois !== null && depois !== antes) {
+        setAnuncio(`O andamento mudou para ${depois}`)
+      }
+      setEstado((agora) => (agora.tipo === 'aberto' ? { ...agora, relato: novo } : agora))
+    })
+    return () => acompanhamento.stop()
+  }, [aberto, code, token, key, reporterCode, identityToken])
+
   return (
     <>
+      <p className="sr-only" aria-live="polite">
+        {anuncio}
+      </p>
       {estado.tipo === 'carregando' && <Carregando compacto={compacto} />}
       {estado.tipo === 'aberto' && (
         <Relato
@@ -158,6 +200,11 @@ export function TrackingReport({
       {estado.tipo === 'falhou' && <Falhou onRetry={() => void abrir()} />}
     </>
   )
+}
+
+/** O nome da etapa em que o relato esta agora, ou nulo se ele ainda nao entrou na jornada. */
+function etapaAtual(relato: PublicReportViewModel): string | null {
+  return relato.Journey.find((etapa) => etapa.IsCurrent)?.Label ?? null
 }
 
 function Relato({
