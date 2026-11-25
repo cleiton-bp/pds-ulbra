@@ -124,6 +124,36 @@ Authorization: Bearer &lt;AccessToken&gt;</code></pre>
   está gravada.</p>
 </details>
 
+<h2>Para quem relatou</h2>
+
+<p>Com o relato aberto, na página de acompanhamento ou em "Os seus relatos" do formulário, a
+linha do andamento anda e a resposta do time aparece sem recarregar.</p>
+
+<ol>
+  <li>A tela abre uma conexão com o hub público (SignalR, em <code>/realtime/tracking</code>), sem sessão e sem cookie.</li>
+  <li>Inscreve-se uma vez com <code>Watch</code>, levando a mesma credencial que abriu o relato: o token do link, a chave com o código pessoal ou a chave com o crachá.</li>
+  <li>Recebe <code>ReportUpdated</code>, com o relato inteiro como a página mostra. Ela não busca nada enquanto acompanha.</li>
+</ol>
+
+<pre><code>Watch         { "TrackingCode": "7K2M-9QXP-4TRV", "Token": "..." }
+ReportUpdated { "TrackingCode": "7K2M-9QXP-4TRV", "Journey": [ ... ], "Closure": null, ... }</code></pre>
+
+<ul>
+  <li><code>Watch</code> devolve o relato de agora, ou <code>null</code> na recusa. A recusa é uma só para tudo, como nas rotas de abrir.</li>
+  <li>O aviso sai só quando muda o que a pessoa veria: etapa, encerramento, conversa ou pergunta. Comentário interno, etiqueta, responsável e coluna que leva à mesma etapa não avisam.</li>
+  <li>Quem age (o link) e quem só lê (o código e o crachá) ficam em grupos separados, e ninguém recebe confirmar, reabrir ou responder sem poder.</li>
+  <li>Acompanhar não grava visualização: abrir o relato já gravou.</li>
+  <li>Sem ninguém inscrito no relato, a mudança do card não consulta nada para isto.</li>
+  <li>Sair do relato ou fechar o formulário fecha a conexão. Caiu, reconecta pelas mesmas esperas do painel e se inscreve de novo.</li>
+</ul>
+
+<div class="note warn">
+  <strong>Sem sessão, e por isso fechado</strong>
+  <p>Uma inscrição por conexão, e a conexão que erra a credencial três vezes cai. O hub só
+  aceita <code>Watch</code>, com mensagens de até 4 KB, e conta as conexões por IP
+  (<code>LIVE_TRACKING_RATE_LIMIT_PER_MINUTE</code>, padrão 60).</p>
+</div>
+
 <h2>O que não chega ao vivo</h2>
 
 <ul>
@@ -135,6 +165,5 @@ Authorization: Bearer &lt;AccessToken&gt;</code></pre>
 <div class="note warn">
   <strong>Uma instância da API</strong>
   <p>Os grupos de conexão ficam na memória do processo. Com duas instâncias, o hub precisa de um
-  backplane (Redis). É <strong>Continuidade</strong>, junto do acompanhamento ao vivo para quem
-  relatou.</p>
+  backplane (Redis), para os dois hubs. É <strong>Continuidade</strong>.</p>
 </div>

@@ -21,6 +21,7 @@ duas tabelas, vazar exige escrever uma consulta que ninguém teria motivo para e
   <tr><td><code>report_id</code></td><td>Relato comentado.</td></tr>
   <tr><td><code>user_id</code></td><td>Quem escreveu, do lado de dentro. <b>Obrigatório no interno</b>. <b>Anulável no público</b>: nulo quer dizer que foi <b>quem relatou</b>, respondendo a um pedido de informação.</td></tr>
   <tr><td><code>body</code></td><td>O texto, até 5000 nas duas. Limites separados de propósito: o público sai para fora e pode ganhar regra própria.</td></tr>
+  <tr><td><code>reply_to_id</code></td><td>A mensagem que esta responde, <b>na mesma tabela</b>: a resposta nunca cita a outra conversa. Nula quando não responde. Apagar a original de vez anula a referência.</td></tr>
 </table>
 </div>
 
@@ -29,6 +30,15 @@ duas tabelas, vazar exige escrever uma consulta que ninguém teria motivo para e
   <li><strong>O texto não entra no evento</strong>: a tabela de eventos nunca se apaga, e não pode guardar cópia do dado interno.</li>
   <li><strong>O público não se corrige</strong>: quem relatou pode já ter lido.</li>
 </ul>
+
+<details class="mais">
+  <summary>Como a conversa chega aos pedaços</summary>
+  <p>O painel abre com as 20 mais novas e pede as anteriores perto do começo da conversa. A
+  referência é a mensagem mais antiga que a tela já tem: a consulta ordena por
+  <code>created_at</code> e <code>id</code> e pega as de antes dela, então mensagem nova
+  chegando no meio não repete nem pula nenhuma. A original de uma resposta apagada continua
+  citada, e a tela diz que ela foi apagada.</p>
+</details>
 
 <details class="mais">
   <summary>Como o interno se corrige</summary>

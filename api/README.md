@@ -79,6 +79,12 @@ Em produção, vêm das variáveis reais do ambiente.
 | `MEDIA_STORAGE_READ_URL_MINUTES` | não | Validade do link de leitura. Padrão 5 |
 | `MEDIA_STORAGE_PLAYBACK_URL_MINUTES` | não | Validade do link de um vídeo antigo, que é lido em pedaços enquanto toca. Padrão 15 |
 | `MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE` | não | Pedidos e confirmações de envio por IP, por minuto. Padrão 20 |
+| `LIVE_TRACKING_RATE_LIMIT_PER_MINUTE` | não | Pedidos por IP, por minuto, ao hub do acompanhamento ao vivo de quem relatou. Padrão 60 |
+| `GENERAL_RATE_LIMIT_ENABLED` | não | Liga o limite geral de pedidos. Ausente, segue o ambiente: desligado no desenvolvimento e ligado na VPS; `true` liga também no desenvolvimento, para testar |
+| `GENERAL_RATE_LIMIT_ANONYMOUS_PER_MINUTE` | não | Pedidos por minuto, por IP, sem login. Padrão 300 |
+| `GENERAL_RATE_LIMIT_ACCOUNT_PER_MINUTE` | não | Pedidos por minuto, por conta, com login. Padrão 600 |
+| `GENERAL_RATE_LIMIT_PENALTY_MINUTES` | não | Minutos de bloqueio de cada vez seguida que passa do limite, separados por vírgula. Padrão `1,5,15,60` |
+| `GENERAL_RATE_LIMIT_FORGET_MINUTES` | não | Minutos sem passar do limite para as vezes anteriores serem esquecidas. Padrão 60 |
 | `PANEL_URL` | não | O endereço do painel, que vai no link do convite — `http://localhost:5173` no desenvolvimento. Ausente, o convite não sai; sem `http`/`https`, ou com `?` ou `#`, a subida recusa |
 | `INVITATION_EMAILS_PER_HOUR` | não | Convites por projeto por hora, os novos e os reenviados somados. Padrão 20 |
 | `INVITATION_EMAILS_PER_ACCOUNT_PER_HOUR` | não | Convites por conta por hora, somando todos os projetos dela. Padrão 40 |
