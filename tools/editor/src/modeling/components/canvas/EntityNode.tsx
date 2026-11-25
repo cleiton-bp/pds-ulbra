@@ -43,7 +43,7 @@ const fieldTitle = (field: Field, change: FieldChange | undefined): string | und
  * clique na linha nao virar arrasto da caixa.
  */
 function EntityNode({ id, data, selected }: NodeProps<EntityFlowNode>) {
-  const { entity, dim, change, collapsed, notes, far, zoom } = data
+  const { entity, dim, change, collapsed, notes } = data
   const { actions, editField, locked, showEntityNotes, inline, startInline, stopInline, lockedAttempt } = useCanvasEditing()
   const inlineUid = !locked && inline?.kind === 'field' && inline.entityUid === entity.uid ? inline.fieldUid : ''
 
@@ -76,15 +76,9 @@ function EntityNode({ id, data, selected }: NodeProps<EntityFlowNode>) {
     kind ? `is-${kind}` : '',
   ].filter(Boolean).join(' ')
 
-  // De longe, o nome cresce por cima da tabela, no tamanho que continua legivel
-  // naquela distancia, e o resto esmaece. A caixa mantem o tamanho: nada pula, e as
-  // ligacoes continuam presas nas mesmas colunas.
-  const farFont = Math.max(13, Math.min(12 / Math.max(zoom, 0.05), 210 / (Math.max(entity.name.length, 4) * 0.62)))
-
+  // As colunas ficam a vista em qualquer zoom: a caixa e a mesma de perto e de longe.
   return (
-    <div className={`${className}${far ? ' is-far' : ''}`} title={far ? (entity.label ? `${entity.name} (${entity.label})` : entity.name) : undefined}>
-      {/* O nome de longe: por cima da caixa, aparece e some com transicao. */}
-      <span className="entity-node__far-name" aria-hidden={!far} style={{ fontSize: farFont }}>{entity.name}</span>
+    <div className={className}>
       {/* Borda da caixa: os quatro lados, para ligar a tabela inteira. */}
       {SIDES.map((side) => (
         <Handle

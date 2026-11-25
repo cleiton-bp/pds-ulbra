@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import * as api from '../shared/api'
-import { whenLabel } from '../shared/dates'
 import { ENVIRONMENTS, type Environment, type EnvironmentId } from '../shared/environments'
 import { useNavigation } from '../shared/navigation'
 import { lastFile } from '../shared/session'
@@ -40,6 +39,12 @@ function EnvironmentIcon({ id }: { id: EnvironmentId }) {
 }
 
 const shortName = (name: string): string => name.replace(/\.yaml$/, '')
+
+/** Quanto o arquivo desenha, do jeito que se fala: "1 tabela", "36 tabelas", "9 casos de uso". */
+export function countLabel(env: EnvironmentId, count: number): string {
+  if (env === 'modeling') return count === 0 ? 'nenhuma tabela' : count === 1 ? '1 tabela' : `${count} tabelas`
+  return count === 0 ? 'nenhum caso de uso' : count === 1 ? '1 caso de uso' : `${count} casos de uso`
+}
 
 /** Ordem de leitura: pelo número na frente do nome (`9-…` antes de `10-…`), e o exemplo no fim. */
 function byReadingOrder(a: FileEntry, b: FileEntry): number {
@@ -112,9 +117,7 @@ function EnvironmentCard({ env, files }: CardProps) {
                   onClick={() => void go({ env: env.id, file: file.name })}
                 >
                   <span className="file-link__title">{file.title || shortName(file.name)}</span>
-                  <time className="file-link__when" dateTime={new Date(file.mtime).toISOString()}>
-                    {whenLabel(file.mtime)}
-                  </time>
+                  <span className="file-link__count">{countLabel(env.id, file.count ?? 0)}</span>
                   <span className="file-link__name">
                     {shortName(file.name)}
                     {file.name === last && <span className="file-link__tag">último aberto</span>}

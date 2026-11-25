@@ -23,7 +23,7 @@ npm run dev        # http://localhost:5180
 A tela de início responde, sem clique nenhum, o que se precisa ao chegar:
 
 - **onde eu parei**: o botão **continuar em…** de cada ambiente abre o último arquivo usado nele;
-- **o que existe**: a lista inteira de arquivos, pelo título de cada um (“Mídia”, e não só `07-media-attachments`), com a data da última mexida;
+- **o que existe**: a lista inteira de arquivos, pelo título de cada um (“Mídia”, e não só `07-media-attachments`), com quanto cada um desenha: as tabelas da modelagem (todas, as que vieram de antes junto, sem o `base_columns`) ou os casos de uso;
 - **como começo algo novo**: **+ nova modelagem** / **+ novo arquivo** entra no ambiente com o campo de nome pronto para digitar.
 
 As teclas `1` e `2` entram sem mouse. Se o servidor não responder, a tela diz e oferece **tentar de novo**.
@@ -47,10 +47,12 @@ Ao entrar num ambiente sem arquivo no endereço, abre o último usado nele.
 |---|---|
 | Leitura e edição | abre em **Leitura**: nada se arrasta nem se edita, no desenho e no painel, para entender o arquivo sem o risco de mexer nele. **Leitura/Editando** na barra, ou `Alt+E`, troca, e a escolha fica lembrada |
 | Gravar | sozinho, 800ms após parar de mexer, e `⌘S` grava na hora |
+| No ar | a cópia publicada é só para ver: não há **Leitura/Editando** nem o estado da gravação na barra, e nada se cria, edita ou apaga. Dá para arrastar as tabelas, e só elas, para ver melhor; o arrasto fica na tela e some ao recarregar |
 | Laterais | o botão `«`/`»` no topo de cada uma recolhe; recolhida, ela vira uma faixa na borda com o nome (**Arquivos**, **Detalhes**), e clicar na faixa abre de novo. `Alt+1` abre e fecha a lista de arquivos, e `Alt+2`, o painel. Arraste a borda para alargar, e o clique duplo na borda volta à largura de fábrica. O desenho guarda sempre 40% da janela (nunca menos de 520px): a borda para nesse limite, e a janela que estreita encolhe as laterais até o mínimo delas, sem nada rolar para o lado; a largura escolhida volta quando a janela alarga |
 | Buscar | `⌘K` ou `Ctrl+K` (ou **Buscar** na barra): digite parte do nome e Enter leva até ele |
 | Zoom | os botões no canto do desenho: −, a porcentagem (clique volta a 100%), + e **Tudo** |
-| De longe | abaixo de 45% de zoom, na modelagem, o nome de cada tabela aparece grande por cima dela e as colunas esmaecem, mas a caixa não muda de tamanho, então nada pula; passar o mouse numa tabela mostra um cartão com o resumo (o que mudou, colunas, notas) e acende as ligações dela |
+| De longe | na modelagem, as colunas de cada tabela ficam à vista em qualquer zoom, e a caixa é a mesma de perto e de longe; abaixo de 45% só as ligações afinam e as notas apagam. Passar o mouse numa tabela, sem nenhuma escolhida, acende as ligações dela |
+| Foco | o que o clique numa tabela apaga, escolhido no menu **Ver**. **Só ela**: as outras tabelas, ligadas a ela ou não, ficam no lugar, quase da cor do fundo, as linhas somem e só as notas dela ficam. **Ela e as ligações**: ficam acesas ela, as tabelas ligadas a ela e as linhas entre elas. **Nada apaga**: tudo continua aceso, e as linhas dela ganham destaque. Clicar fora devolve tudo, e clicar em outra tabela passa o foco para ela |
 | O desenho só se mexe quando você mexe | clicar numa tabela só escolhe; para chegar perto, a roda, o `+` (que aproxima mantendo a tabela escolhida no lugar) ou **Aproximar**, que aparece sobre ela. A busca, a lista de mudanças e o percurso deslizam até a tabela no zoom em que você está, sem aproximar |
 | Movimento | as laterais deslizam ao abrir e fechar, o desenho surge aos poucos ao trocar de arquivo, e seleção, realce, menus e painel mudam com transição curta, e tudo fica desligado quando o sistema pede menos movimento |
 | Rolagem | as barras são finas e sem trilho, e só aparecem com o mouse sobre a área que rola |
@@ -75,7 +77,7 @@ O editor para e pergunta, em vez de gravar, quando gravar apagaria algo:
 | Ligar | arraste de um ponto até outro: da **borda** da caixa, ou da **linha de um campo** (aparece no hover) |
 | Mover | arraste a caixa pelo cabeçalho |
 | Reordenar coluna | arraste pelo `⠿` na lista de colunas do painel |
-| Notas | menu **Notas** na barra: **resumidas** (a nota de uma tabela vira o marcador no cabeçalho dela, e o texto abre no painel), **inteiras** (em caixa, como no arquivo) ou **ocultas**, e `Alt+3` esconde e mostra |
+| Ver | menu **Ver** na barra (o olho), com tudo o que muda o jeito de ver o desenho, e cada escolha fica lembrada no navegador. **Notas**: **resumidas** (a nota de uma tabela vira o marcador no cabeçalho dela, e o texto abre no painel), **inteiras** (em caixa, no lugar gravado no arquivo) ou **ocultas** (`Alt+3`). **Ao clicar numa tabela**: **Só ela** (padrão), **Ela e as ligações** ou **Nada apaga** (ver Foco), e **Trazer as notas dela para o lado** (ligado de fábrica), que mostra as notas da tabela clicada inteiras, numa coluna ao lado dela, por cima de tudo e na ordem das colunas que explicam. Vale com as notas resumidas (elas surgem ao lado e somem ao soltar) e com as inteiras (elas deslizam do lugar delas e voltam), e não com as ocultas. **Linhas**: **Mostrar as linhas de ligação**; desmarcado, a linha só aparece ao passar o mouse numa tabela. A nota tem fundo sólido e fica atrás das tabelas, então nunca cobre as colunas |
 
 O lado em que a linha encosta se reajusta sozinho quando você move as caixas. Com uma tabela escolhida, só as ligações dela ficam acesas, com o `1:N` escrito.
 
@@ -90,8 +92,8 @@ Cada arquivo de modelagem repete as tabelas de antes para dar contexto. O editor
 | **só texto** (azul) | só a descrição, o rótulo ou a observação de uma coluna mudou (`✎`) |
 | sem mudança | igual ao anterior |
 
-- **Mudanças** e **Tudo**, na barra: em **Mudanças** a tabela sem mudança fica recolhida no cabeçalho e só as notas novas aparecem; **Tudo** mostra cada tabela inteira e todas as notas.
-- O arquivo abre com o desenho inteiro enquadrado. **Percorrer mudanças**, no canto do desenho, liga o percurso: ele desliza de tabela em tabela (as novas, depois as alteradas), com **Anterior**, **Próxima** e **Sair** numa barra, e `←` e `→` também andam, enquanto `Esc` sai. Trocar entre **Mudanças** e **Tudo** não move o desenho.
+- **Mudanças** e **Tudo**, na barra: o editor abre em **Tudo**, que mostra cada tabela inteira, com as mudanças marcadas, e todas as notas; em **Mudanças** a tabela sem mudança fica recolhida no cabeçalho e só as notas novas aparecem. A escolha fica lembrada.
+- O arquivo abre com o desenho inteiro enquadrado, sem aproximar sozinho de tabela nenhuma. **Percorrer mudanças**, no canto do desenho, liga o percurso: ele desliza de tabela em tabela (as novas, depois as alteradas, paradas na primeira coluna que mudou), com **Anterior**, **Próxima** e **Sair** numa barra, e `←` e `→` também andam, enquanto `Esc` sai. Trocar entre **Mudanças** e **Tudo** não move o desenho.
 - O painel, com nada escolhido, abre com uma frase que resume o arquivo e lista as mudanças em grupos (tabelas novas, alteradas coluna por coluna, só de texto, ligações e notas novas, e o que saiu); os de leitura menos urgente (só texto, ligações, o que saiu) vêm fechados, e cada item leva até ele. As observações só reescritas viram uma linha, **e mais N observações reescritas**, que abre a lista no painel da tabela. **Comparado com** troca o arquivo-base, ou desliga a comparação.
 - Escolhida uma tabela, o painel mostra no topo o que mudou nela, depois as colunas e as notas dela.
 

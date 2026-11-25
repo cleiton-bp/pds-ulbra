@@ -17,10 +17,6 @@ export type EntityNodeData = {
   change: EntityChange | null
   collapsed: boolean
   notes: { total: number; fresh: number }
-  /** Desenho visto de longe: o cartao so com o nome (ver `FAR_ZOOM` no Board). */
-  far: boolean
-  /** O zoom atual, em degraus, para o nome do cartao de longe continuar legivel. */
-  zoom: number
 }
 /**
  * `dim` apaga a nota que nao e da tabela escolhida; `compact` desenha so as primeiras

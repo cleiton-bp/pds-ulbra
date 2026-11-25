@@ -7,13 +7,17 @@
 
 .app--modeling {
 
-  /* Fora do realce: continua legível de perto, mas para de competir. */
-  .note-node.is-dim { opacity: 0.25; }
+  /* A nota que não é da tabela escolhida: quase da cor do fundo, como as outras tabelas. */
+  .note-node.is-dim { opacity: 0.1; }
 
-  .entity-node.is-dim { opacity: 0.35; }
+  /* A tabela fora do foco da escolhida: continua no lugar, quase da cor do fundo. */
+  .entity-node.is-dim { opacity: 0.1; }
 
-  /* Ligação fora da tabela escolhida, ou entre duas tabelas sem mudança. */
+  /* Ligação entre duas tabelas sem mudança, na vista "Mudanças". */
   .react-flow__edge.is-faded { opacity: 0.14; }
+
+  /* A linha que o foco ou o menu "Ver" esconde: some, sem sair do desenho. */
+  .react-flow__edge.is-gone { opacity: 0; pointer-events: none; }
 
   /* ---- caixa de entidade no canvas ---------------------------------------- */
   .entity-node {
@@ -205,8 +209,9 @@
   .node-edit__note { font-size: 12px; }
 
   /* ---- caixa de nota no canvas -------------------------------------------- */
+  /* Fundo sólido: o texto da nota nunca se mistura com o que estiver atrás dela. */
   .note-node {
-    background: rgba(240, 180, 41, 0.08);
+    background: #221e14;
     border: 1px solid rgba(240, 180, 41, 0.35);
     border-radius: var(--radius);
     padding: 9px 11px;
@@ -491,46 +496,35 @@
 @keyframes lock-hint-in { from { opacity: 0; transform: translate(-50%, -6px); } }
 
 /* ---- o desenho visto de longe ------------------------------------------- */
-/* A caixa não muda de tamanho: o nome aparece por cima, grande o bastante para a
-   distância, e o que está dentro esmaece. Tudo em transição: o zoom cruza o limite
-   e a tela se ajusta, sem salto. */
+/* A tabela não muda: as colunas continuam à vista em qualquer zoom. De longe, só as
+   ligações afinam e as notas apagam, para o desenho inteiro não virar um borrão. */
+
 .app--modeling .entity-node { position: relative; }
 
-.app--modeling .entity-node__far-name {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 14px;
-  font-family: var(--mono);
-  font-weight: 700;
-  line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  background: rgba(26, 30, 37, 0.86);
-  color: var(--text);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--medium) var(--ease);
+/* A coluna de notas da tabela escolhida: as notas deslizam do lugar delas no arquivo
+   até o lado da tabela, e voltam ao soltar; as das outras tabelas apagam. No arrasto
+   (editando), a nota acompanha a mão, sem atraso. */
+.app--modeling .react-flow__node-note:not(.dragging) {
+  transition: transform 360ms var(--ease), opacity var(--medium) var(--ease);
 }
 
-.app--modeling .entity-node.is-far .entity-node__far-name { opacity: 1; }
+.app--modeling .react-flow__node-note.is-set-aside { opacity: 0; pointer-events: none; }
 
-.app--modeling .entity-node.is-new .entity-node__far-name { color: var(--new); }
+.app--modeling .react-flow__node-note.is-arranged .note-node {
+  border-color: rgba(240, 180, 41, 0.7);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  /* Com as notas resumidas a nota nao estava no desenho: ela surge ao lado da tabela. */
+  animation: rise-in var(--medium) var(--ease);
+}
 
-.app--modeling .entity-node.is-changed .entity-node__far-name { color: var(--changed); }
+/* A seta da nota arrumada aparece quando a nota chega, e não antes dela. */
+.app--modeling .react-flow__edge.edge-anchor.is-arranged { animation: anchor-in 520ms var(--ease); }
 
-.app--modeling .entity-node.is-collapsed .entity-node__far-name { color: var(--text-dim); }
+.app--modeling .react-flow__edge.edge-anchor.is-set-aside { opacity: 0; }
 
-.app--modeling .entity-node__fields,
-.app--modeling .entity-node__head,
-.app--modeling .entity-node__same { transition: opacity var(--medium) var(--ease); }
+.app--modeling .react-flow__edge.edge-anchor { transition: opacity var(--medium) var(--ease); }
 
-.app--modeling .entity-node.is-far .entity-node__fields,
-.app--modeling .entity-node.is-far .entity-node__same { opacity: 0.15; }
+@keyframes anchor-in { 0%, 60% { opacity: 0; } 100% { opacity: 1; } }
 
 /* As notas, de longe, apagam em vez de sumir. */
 .app--modeling .note-node.is-far { opacity: 0.12; }

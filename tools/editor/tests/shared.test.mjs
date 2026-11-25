@@ -101,24 +101,20 @@ describe('servidor: pasta e nome', () => {
   })
 })
 
-describe('quando o arquivo foi mexido', () => {
-  let whenLabel
-  before(async () => { ({ whenLabel } = await server.ssrLoadModule('/src/shared/dates.ts')) })
-
-  // 24 de setembro de 2026, 20h: a noite, quando o erro dos blocos de 24h aparecia.
-  const now = new Date(2026, 8, 24, 20, 0).getTime()
-  const at = (day, hour) => new Date(2026, 8, day, hour, 0).getTime()
-
-  it('conta dias do calendário, e não blocos de 24 horas', () => {
-    assert.equal(whenLabel(at(24, 6), now), 'hoje')
-    assert.equal(whenLabel(at(23, 23), now), 'ontem')
-    assert.equal(whenLabel(at(23, 6), now), 'ontem')
-    assert.equal(whenLabel(at(21, 12), now), 'há 3 dias')
+describe('o que a lista do início mostra de cada arquivo', () => {
+  it('conta as tabelas sem as colunas padrão, e os casos de uso', async () => {
+    const modeling = (await files.listFiles('modeling')).files.find((file) => file.name === '15-performance.yaml')
+    assert.equal(modeling.count, 35)
+    const useCases = (await files.listFiles('use-cases')).files.find((file) => file.name === 'example.yaml')
+    assert.ok(useCases.count > 0)
   })
 
-  it('de uma semana para trás, mostra a data', () => {
-    assert.match(whenLabel(at(10, 12), now), /^10 de set\.?$/)
-    assert.match(whenLabel(new Date(2025, 11, 31).getTime(), now), /2025/)
+  it('fala no singular e no plural', async () => {
+    const { countLabel } = await server.ssrLoadModule('/src/shell/Home.tsx')
+    assert.equal(countLabel('modeling', 1), '1 tabela')
+    assert.equal(countLabel('modeling', 36), '36 tabelas')
+    assert.equal(countLabel('use-cases', 1), '1 caso de uso')
+    assert.equal(countLabel('use-cases', 0), 'nenhum caso de uso')
   })
 })
 

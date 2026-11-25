@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 import {
   Background,
   ConnectionMode,
@@ -14,6 +13,7 @@ import {
   type Viewport,
 } from '@xyflow/react'
 
+import { SOMENTE_LEITURA } from '../../../shared/readOnly'
 import ZoomBar from '../../../shared/ZoomBar'
 import type { ModelActions } from '../../hooks/useModelActions'
 import { relationLabel } from '../../model/constants'
@@ -31,11 +31,22 @@ import {
 const NODE_TYPES = { entity: EntityNode, note: NoteNode }
 
 /**
- * Abaixo deste zoom o desenho e lido "de longe": o nome da tabela cresce por cima
- * dela, as linhas de coluna esmaecem, as ligacoes ficam finas e as notas apagam. A
- * caixa nao muda de tamanho (so o que esta dentro dela), entao nada pula.
+ * Abaixo deste zoom o desenho e lido "de longe": as ligacoes ficam finas e as notas
+ * apagam. A tabela nao muda: as colunas continuam a vista em qualquer zoom, porque
+ * esconder os dados de quem olha o desenho inteiro era o que mais atrapalhava a leitura.
  */
 const FAR_ZOOM = 0.45
+
+/** Entre a tabela escolhida e a coluna das notas dela, e entre uma nota e a seguinte. */
+const NOTE_COLUMN_GAP = 56
+const NOTE_STACK_GAP = 16
+
+/**
+ * O que acontece ao clicar numa tabela: so ela fica acesa (as outras tabelas e as
+ * linhas apagam), ela e as tabelas ligadas a ela com as linhas entre elas, ou nada
+ * apaga e so as linhas dela ganham destaque. Escolha do menu "Ver".
+ */
+export type ClickFocus = 'only' | 'links' | 'none'
 
 /** "Mudanças" recolhe o que nao mudou; "Tudo" mostra cada tabela inteira. */
 export type ModelView = 'changes' | 'all'
@@ -50,15 +61,16 @@ export type NotesMode = 'markers' | 'boxes' | 'hidden'
 /** Pedido de "leve ate": muda o `seq` a cada clique, mesmo para o mesmo elemento. */
 export type FocusRequest = { kind: 'entity' | 'note'; uid: string; seq: number } | null
 
-/** Uma parada do percurso pelas mudancas: as novas primeiro, depois as alteradas. */
-export type WalkStop = { uid: string; name: string; kind: 'new' | 'changed' }
-
-/** O que o cartao de espiar mostra, e de qual tabela. */
-export type Peek = { uid: string; content: ReactNode } | null
+/**
+ * Uma parada do percurso pelas mudancas: as novas primeiro, depois as alteradas.
+ * `field` e a primeira coluna nova ou mudada da tabela alterada: e nela que a tela
+ * para, e nao no topo da tabela.
+ */
+export type WalkStop = { uid: string; name: string; kind: 'new' | 'changed'; field?: string }
 
 /**
  * O que fica por cima do desenho e precisa do React Flow: o zoom, o enquadramento,
- * o "mostrar no desenho", o percurso pelas mudancas, o botao "Aproximar" e o cartao de espiar.
+ * o "mostrar no desenho", o percurso pelas mudancas e o botao "Aproximar".
  * Componente proprio porque so os filhos de <ReactFlow> alcancam o `useReactFlow`.
  *
  * **O desenho so se mexe quando a pessoa mexe.** Clicar escolhe e acende; para chegar
@@ -67,17 +79,16 @@ export type Peek = { uid: string; content: ReactNode } | null
  * em que a pessoa estava, nunca aproximam sozinhos.
  */
 function CanvasChrome({
-  stops, framingReady, focusRequest, selectedUid, peek, onSelect,
+  stops, framingReady, focusRequest, selectedUid, onSelect,
 }: {
   stops: WalkStop[]
   framingReady: boolean
   focusRequest: FocusRequest
   /** A tabela escolhida: o "Aproximar" aparece sobre ela, e o + aproxima ancorado nela. */
   selectedUid: string
-  peek: Peek
   onSelect: (selection: Selection) => void
 }) {
-  const { fitView, getNode, setCenter, getZoom } = useReactFlow()
+  const { fitView, getNode, getInternalNode, setCenter, getZoom } = useReactFlow()
   const viewport = useViewport()
   const framed = useRef(false)
   /** Em que parada do percurso a tela esta; `null` com ele desligado. */
@@ -91,6 +102,17 @@ function CanvasChrome({
     const height = node.measured?.height ?? 300
     return { x: node.position.x + width / 2, y: node.position.y + Math.min(height / 2, 260) }
   }, [getNode])
+
+  /** Onde a parada do percurso fica: a altura da coluna que mudou, ou o meio da tabela. */
+  const pointOf = useCallback((stop: WalkStop): { x: number; y: number } | null => {
+    const id = nodeId.entity(stop.uid)
+    const middle = middleOf(id)
+    if (!middle || !stop.field) return middle
+    const node = getInternalNode(id)
+    const handle = node?.internals.handleBounds?.source?.find((item) => item.id === handleId.field(stop.field ?? '', 'left'))
+    if (!node || !handle) return middle
+    return { x: middle.x, y: node.internals.positionAbsolute.y + handle.y + handle.height / 2 }
+  }, [middleOf, getInternalNode])
 
   /** Desliza ate a tabela no zoom de agora. */
   const slideTo = useCallback((id: string): void => {
@@ -106,10 +128,13 @@ function CanvasChrome({
 
   // Abre com o desenho inteiro, assentando num movimento curto. Espera a comparacao
   // chegar e as caixas sem mudanca recolherem, senao enquadraria o tamanho de antes.
+  // Marca so quando enquadra: no StrictMode o efeito roda, limpa e roda de novo.
   useEffect(() => {
     if (!framingReady || framed.current) return
-    framed.current = true
-    const timer = setTimeout(() => void fitView({ padding: 0.12, maxZoom: 1, duration: 260 }), 120)
+    const timer = setTimeout(() => {
+      framed.current = true
+      void fitView({ padding: 0.12, maxZoom: 1, duration: 260 })
+    }, 120)
     return () => clearTimeout(timer)
   }, [framingReady, fitView])
 
@@ -128,8 +153,9 @@ function CanvasChrome({
     if (!stop) return
     setWalk(wrapped)
     onSelect({ type: 'entity', uid: stop.uid })
-    slideTo(nodeId.entity(stop.uid))
-  }, [stops, onSelect, slideTo])
+    const point = pointOf(stop)
+    if (point) void setCenter(point.x, point.y, { zoom: getZoom(), duration: 420 })
+  }, [stops, onSelect, pointOf, setCenter, getZoom])
 
   // No percurso: ← e → andam, Esc sai. Fora de campo de texto, para nao roubar a tecla de quem digita.
   useEffect(() => {
@@ -161,8 +187,6 @@ function CanvasChrome({
   const stop = walk === null ? undefined : stops[walk]
   // O "Aproximar" so faz sentido enquanto a tabela ainda esta pequena para ler.
   const chosen = selectedUid && viewport.zoom < 0.8 ? onScreen(selectedUid) : null
-  // Espiar so de longe: perto, a propria tabela ja se le.
-  const peekBox = peek && viewport.zoom < 0.7 ? onScreen(peek.uid) : null
 
   return (
     <>
@@ -180,11 +204,6 @@ function CanvasChrome({
           <Icon name="plus" size={13} />
           <span>Aproximar</span>
         </button>
-      )}
-      {peek && peekBox && (
-        <div className="peek" style={{ left: peekBox.left + peekBox.width + 12, top: Math.max(8, peekBox.top) }} role="tooltip">
-          {peek.content}
-        </div>
       )}
       {stop && walk !== null && (
         <div className="walk" role="toolbar" aria-label="percorrer as mudanças">
@@ -215,6 +234,12 @@ type BoardProps = {
   notesMode: NotesMode
   /** "Leitura": nada se arrasta, se liga ou se edita no canvas. */
   locked: boolean
+  /** O que o clique numa tabela apaga (ver `ClickFocus`). */
+  clickFocus: ClickFocus
+  /** As linhas de ligacao com nada escolhido; desligadas, so aparecem no mouse ou no foco. */
+  showLines: boolean
+  /** Com as notas inteiras, o clique numa tabela traz as notas dela para o lado. */
+  notesAside: boolean
   selection: Selection
   onSelect: (selection: Selection) => void
   actions: ModelActions
@@ -228,14 +253,18 @@ type BoardProps = {
 }
 
 export default function Board({
-  doc, changes, framingReady, view, notesMode, locked, selection, onSelect, actions,
-  focusRequest, onShowEntityNotes, onEditField, onRequestEdit, onViewportChange,
+  doc, changes, framingReady, view, notesMode, locked, clickFocus, showLines, notesAside,
+  selection, onSelect, actions, focusRequest, onShowEntityNotes, onEditField, onRequestEdit,
+  onViewportChange,
 }: BoardProps) {
-  // O zoom em degraus de 5%: decide se o desenho e lido de longe (ver `FAR_ZOOM`) e o
-  // tamanho do nome no cartao. Em degraus para nao refazer as caixas a cada quadro.
+  // Publicado so para leitura, a pessoa pode arrastar as tabelas para ver melhor, e so
+  // isso: nada se edita e nada vai para o arquivo (ver `readOnly.ts`).
+  const canMoveTables = !locked || SOMENTE_LEITURA
+  // O zoom em degraus de 5%: decide se o desenho e lido de longe (ver `FAR_ZOOM`). Em
+  // degraus para nao refazer as caixas a cada quadro.
   const [zoom, setZoom] = useState(1)
   const far = zoom < FAR_ZOOM
-  // A tabela sob o mouse: acende as ligacoes dela e, de longe, abre o cartao de espiar.
+  // A tabela sob o mouse: acende as ligacoes dela, quando nenhuma esta escolhida.
   const [hovered, setHovered] = useState('')
 
   // O que esta aberto para edicao no proprio desenho. Mora aqui, e nao no documento,
@@ -268,7 +297,8 @@ export default function Board({
     inline,
     startInline: (target: Exclude<InlineEditing, null>) => setInline(target),
     stopInline: () => setInline(null),
-    lockedAttempt: () => setLockHint(Date.now()),
+    // Publicado so para leitura nao ha edicao para oferecer: o aviso nao aparece.
+    lockedAttempt: () => { if (!SOMENTE_LEITURA) setLockHint(Date.now()) },
     showEntityNotes: onShowEntityNotes,
     editField: onEditField,
   }), [actions, locked, inline, onShowEntityNotes, onEditField])
@@ -292,21 +322,39 @@ export default function Board({
     [changes],
   )
 
-  /** A tabela escolhida: acende as ligacoes e as notas dela, e apaga as outras. */
+  /** A tabela escolhida: so ela e as notas dela ficam acesas; o resto apaga e as linhas somem. */
   const selectedEntity = selection?.type === 'entity'
     ? doc.entities.find((entity) => entity.uid === selection.uid)?.name ?? ''
     : ''
 
+  /** A tabela escolhida e as ligadas a ela por uma relacao, em qualquer sentido. */
+  const linked = useMemo(() => {
+    const names = new Set<string>()
+    if (!selectedEntity) return names
+    names.add(selectedEntity)
+    for (const relation of doc.relations) {
+      if (relation.from === selectedEntity) names.add(relation.to)
+      if (relation.to === selectedEntity) names.add(relation.from)
+    }
+    return names
+  }, [selectedEntity, doc.relations])
+
+  /** As notas da tabela escolhida vem para o lado dela (opcao do menu "Ver", nao com as notas ocultas). */
+  const bringingNotes = notesAside && notesMode !== 'hidden' && Boolean(selectedEntity)
+
   /**
    * As notas que vao para o desenho. Na vista "Mudanças" com base, so as novas; nos
    * marcadores, a nota presa a uma tabela existente nao vira caixa: ela e contada
-   * no cabecalho da tabela e lida no painel.
+   * no cabecalho da tabela e lida no painel. A excecao e a tabela escolhida, quando
+   * as notas dela vem para o lado: ai elas aparecem inteiras, so enquanto ela estiver
+   * escolhida.
    */
   const visibleNotes = useMemo<Note[]>(() => {
     if (notesMode === 'hidden') return []
     const pool = view === 'changes' && comparing ? doc.notes.filter(isFresh) : doc.notes
-    return notesMode === 'markers' ? pool.filter((note) => !byName.has(note.anchor)) : pool
-  }, [doc.notes, notesMode, view, comparing, isFresh, byName])
+    if (notesMode !== 'markers') return pool
+    return pool.filter((note) => !byName.has(note.anchor) || (bringingNotes && note.anchor === selectedEntity))
+  }, [doc.notes, notesMode, view, comparing, isFresh, byName, bringingNotes, selectedEntity])
 
   /** As notas de cada tabela, para o marcador do cabecalho: todas, e as novas. */
   const notesByEntity = useMemo(() => {
@@ -322,6 +370,67 @@ export default function Board({
     return counts
   }, [doc.notes, notesMode, byName, isFresh])
 
+  /**
+   * Com uma tabela escolhida, as notas dela se arrumam numa coluna ao lado da tabela,
+   * inteiras e por cima do resto, na ordem das colunas que explicam. Com as notas
+   * inteiras elas deslizam de onde estao no arquivo, e as das outras tabelas saem de
+   * cena; com as resumidas elas aparecem ali e somem ao soltar. So na tela: o arquivo
+   * guarda a posicao de sempre, e soltar a tabela devolve cada nota ao lugar.
+   * A coluna fica do lado onde a maioria delas ja estava, e passa a uma segunda coluna
+   * quando ficaria mais comprida que a tabela (ou 900px, o que for maior).
+   */
+  const arranged = useMemo(() => {
+    const spots = new Map<string, { x: number; y: number }>()
+    const entity = bringingNotes ? byName.get(selectedEntity) : undefined
+    if (!entity) return spots
+    const mine = visibleNotes.filter((note) => note.anchor === entity.name)
+    if (mine.length === 0) return spots
+
+    const box = measured[nodeId.entity(entity.uid)] ?? { width: 240, height: 300 }
+    const widthOf = (note: Note): number => measured[nodeId.note(note.uid)]?.width ?? Math.max(note.width, 320)
+    const heightOf = (note: Note): number => measured[nodeId.note(note.uid)]?.height ?? 160
+    const middle = entity.position.x + box.width / 2
+    const onLeft = mine.filter((note) => note.position.x + widthOf(note) / 2 < middle).length > mine.length / 2
+    const row = (note: Note): number => (note.anchorField ? entity.fields.findIndex((field) => field.name === note.anchorField) : -1)
+    const ordered = [...mine].sort((a, b) => row(a) - row(b) || a.position.y - b.position.y)
+
+    const top = entity.position.y
+    const limit = Math.max(box.height, 900)
+    // A borda da coluna que fica do lado da tabela: dali a coluna cresce para fora.
+    let edge = onLeft ? entity.position.x - NOTE_COLUMN_GAP : entity.position.x + box.width + NOTE_COLUMN_GAP
+    let y = top
+    let widest = 0
+    for (const note of ordered) {
+      const width = widthOf(note)
+      const height = heightOf(note)
+      if (y > top && y + height > top + limit) {
+        edge = onLeft ? edge - widest - NOTE_COLUMN_GAP : edge + widest + NOTE_COLUMN_GAP
+        y = top
+        widest = 0
+      }
+      spots.set(note.uid, { x: onLeft ? edge - width : edge, y })
+      y += height + NOTE_STACK_GAP
+      widest = Math.max(widest, width)
+    }
+    return spots
+  }, [bringingNotes, selectedEntity, byName, visibleNotes, measured])
+
+  /**
+   * Com as notas trazidas para o lado, as que nao sao da tabela escolhida saem de cena,
+   * a menos que o clique nao apague nada.
+   */
+  const setAside = useCallback(
+    (note: Note): boolean => notesAside && notesMode === 'boxes' && Boolean(selectedEntity)
+      && clickFocus !== 'none' && !arranged.has(note.uid),
+    [notesAside, notesMode, selectedEntity, clickFocus, arranged],
+  )
+
+  /** A nota que apaga com o foco: a que nao e da tabela escolhida, se o clique apaga algo. */
+  const noteOutOfFocus = useCallback(
+    (note: Note): boolean => Boolean(selectedEntity) && clickFocus !== 'none' && note.anchor !== selectedEntity,
+    [selectedEntity, clickFocus],
+  )
+
   const nodes = useMemo<AppNode[]>(() => {
     const entities: AppNode[] = doc.entities.map((entity) => ({
       id: nodeId.entity(entity.uid),
@@ -329,38 +438,47 @@ export default function Board({
       position: entity.position,
       data: {
         entity,
-        // Com uma tabela escolhida na vista "Mudanças", as recolhidas nao competem.
-        dim: Boolean(selectedEntity) && isCollapsed(entity) && entity.name !== selectedEntity,
+        // Fora do foco da tabela escolhida: fica no lugar, quase da cor do fundo, ate
+        // clicar fora ou escolher outra. O que esta fora depende da escolha do menu "Ver".
+        dim: Boolean(selectedEntity) && (clickFocus === 'only' ? entity.name !== selectedEntity
+          : clickFocus === 'links' ? !linked.has(entity.name) : false),
         change: changeOf(entity),
         collapsed: isCollapsed(entity),
         notes: notesByEntity.get(entity.name) ?? { total: 0, fresh: 0 },
-        far,
-        zoom,
       },
       measured: measured[nodeId.entity(entity.uid)],
       selected: selection?.type === 'entity' && selection.uid === entity.uid,
+      // A tabela fica por cima das notas: o texto de uma nota nunca cobre as colunas.
+      zIndex: 1,
     }))
 
     const notes: AppNode[] = visibleNotes.map((note) => ({
       id: nodeId.note(note.uid),
       type: 'note',
-      position: note.position,
+      position: arranged.get(note.uid) ?? note.position,
+      className: arranged.has(note.uid) ? 'is-arranged' : setAside(note) ? 'is-set-aside' : undefined,
+      // A coluna da tabela escolhida passa por cima de tudo; as outras notas ficam atras das tabelas.
+      zIndex: arranged.has(note.uid) ? 3 : 0,
       data: {
         note,
-        dim: Boolean(selectedEntity) && note.anchor !== selectedEntity,
-        compact: notesMode === 'markers',
+        dim: noteOutOfFocus(note),
+        // A trazida para o lado da tabela vem inteira, mesmo com as notas resumidas.
+        compact: notesMode === 'markers' && !arranged.has(note.uid),
         fresh: comparing && isFresh(note),
         // De longe a nota apaga em vez de sumir: nada salta quando o zoom cruza o limite.
-        far: far && !(selection?.type === 'note' && selection.uid === note.uid),
+        // A escolhida e as arrumadas ao lado da tabela escolhida continuam inteiras.
+        far: far && !arranged.has(note.uid) && !(selection?.type === 'note' && selection.uid === note.uid),
       },
       measured: measured[nodeId.note(note.uid)],
       selected: selection?.type === 'note' && selection.uid === note.uid,
       // A nota resumida e para ler, nao para arrumar: arrastar mudaria a posicao gravada.
-      draggable: !locked && notesMode === 'boxes',
+      // A arrumada ao lado da tabela tambem nao: o lugar dela ali e so de tela. No
+      // publicado so para leitura, so as tabelas se arrastam.
+      draggable: !locked && notesMode === 'boxes' && !arranged.has(note.uid),
     }))
 
     return [...entities, ...notes]
-  }, [doc.entities, visibleNotes, notesByEntity, selectedEntity, isCollapsed, changeOf, comparing, isFresh, notesMode, locked, selection, measured, far, zoom])
+  }, [doc.entities, visibleNotes, notesByEntity, selectedEntity, clickFocus, linked, isCollapsed, changeOf, comparing, isFresh, notesMode, locked, selection, measured, far, arranged, setAside, noteOutOfFocus])
 
   const edges = useMemo<Edge[]>(() => {
     /** O ponto exato onde a linha gruda: a altura do campo, ou a borda da caixa. */
@@ -381,19 +499,30 @@ export default function Board({
       const sides = pickSides(boxCenter(from), boxCenter(to), onField)
       const isSelected = selection?.type === 'relation' && selection.uid === relation.uid
       const isNew = Boolean(changes?.newRelations.has(relationKey(relation)))
-      const touches = Boolean(selectedEntity) && (relation.from === selectedEntity || relation.to === selectedEntity)
       // Passar o mouse numa tabela ja mostra com quem ela se liga, sem precisar clicar.
       const hoverName = hovered ? doc.entities.find((entity) => entity.uid === hovered)?.name : ''
       const hoveredTouch = Boolean(hoverName) && (relation.from === hoverName || relation.to === hoverName)
 
-      // Com uma tabela escolhida, so as ligacoes dela ficam acesas; na vista
+      // Com uma tabela escolhida, a escolha do menu "Ver" decide: "so ela" esconde todas
+      // as linhas; "ela e as ligacoes" deixa so as dela, acesas; "nada apaga" acende as
+      // dela e manda as outras para o fundo. Sem nada escolhido, as linhas aparecem se
+      // estiverem ligadas no menu, e a da tabela sob o mouse aparece sempre. Na vista
       // "Mudanças", a ligacao entre duas tabelas sem mudanca fica ao fundo.
-      const faded = (Boolean(selectedEntity) && !touches && !isSelected)
-        || (!selectedEntity && view === 'changes' && comparing && !isNew && isCollapsed(from) && isCollapsed(to))
+      const touches = Boolean(selectedEntity) && (relation.from === selectedEntity || relation.to === selectedEntity)
+      const lit = touches && clickFocus !== 'only'
+      const gone = selectedEntity
+        ? !lit && (clickFocus !== 'none' || !showLines)
+        : !showLines && !hoveredTouch
+      const faded = !gone && !lit && !isSelected && (
+        (Boolean(selectedEntity) && clickFocus === 'none')
+        || (!selectedEntity && view === 'changes' && comparing && !isNew && isCollapsed(from) && isCollapsed(to) && !hoveredTouch)
+      )
 
       return [{
         id: edgeId.relation(relation.uid),
-        className: [isNew ? 'is-new' : '', faded && !hoveredTouch ? 'is-faded' : '', touches ? 'is-related' : '', hoveredTouch && !touches ? 'is-hover' : '', far ? 'is-far' : ''].filter(Boolean).join(' ') || undefined,
+        className: gone
+          ? 'is-gone'
+          : [isNew ? 'is-new' : '', faded ? 'is-faded' : '', lit ? 'is-related' : '', hoveredTouch && !selectedEntity ? 'is-hover' : '', far ? 'is-far' : ''].filter(Boolean).join(' ') || undefined,
         source: nodeId.entity(from.uid),
         target: nodeId.entity(to.uid),
         sourceHandle: attach(from, relation.fromField, sides.source),
@@ -401,25 +530,26 @@ export default function Board({
         type: 'smoothstep',
         // O "1:N" so onde ajuda a ler: na ligacao escolhida, nas da tabela escolhida e
         // nas novas. Em todas, cobria o desenho de rotulos.
-        label: isSelected || touches || (isNew && !far) ? relationLabel(relation.kind) : undefined,
+        label: !gone && (isSelected || lit || (isNew && !far && !selectedEntity)) ? relationLabel(relation.kind) : undefined,
         selected: isSelected,
-        zIndex: isSelected || touches ? 2 : 0,
+        zIndex: isSelected || lit ? 2 : 0,
         markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-        style: { strokeWidth: isSelected || touches ? 2.4 : far ? 1 : isNew ? 2 : 1.4 },
+        style: { strokeWidth: isSelected || lit ? 2.4 : far ? 1 : isNew ? 2 : 1.4 },
       }]
     })
 
-    // A seta da nota so existe com a nota em caixa: no marcador, a ligacao e o
-    // proprio cabecalho da tabela.
-    const anchors: Edge[] = notesMode !== 'boxes' ? [] : visibleNotes.flatMap((note) => {
+    // A seta da nota so existe com a nota em caixa (ou trazida para o lado da tabela):
+    // no marcador, a ligacao e o proprio cabecalho da tabela.
+    const anchors: Edge[] = visibleNotes.filter((note) => notesMode === 'boxes' || arranged.has(note.uid)).flatMap((note) => {
       if (!note.anchor) return []
       const target = byName.get(note.anchor)
       if (!target) return []
 
       const onField = Boolean(note.anchorField) && !isCollapsed(target)
-      const sides = pickSides(boxCenter(note as Note), boxCenter(target), onField)
+      const spot = arranged.get(note.uid)
+      const sides = pickSides(boxCenter(spot ? { ...note, position: spot } : note), boxCenter(target), onField)
       const isSelected = selection?.type === 'note' && selection.uid === note.uid
-      const dim = Boolean(selectedEntity) && note.anchor !== selectedEntity
+      const state = spot ? ' is-arranged' : setAside(note) ? ' is-set-aside' : noteOutOfFocus(note) ? ' is-faded' : ''
 
       return [{
         id: edgeId.anchor(note.uid),
@@ -428,7 +558,7 @@ export default function Board({
         sourceHandle: handleId.box(sides.source),
         targetHandle: attach(target, note.anchorField, sides.target),
         type: 'smoothstep',
-        className: `edge-anchor${dim ? ' is-faded' : ''}`,
+        className: `edge-anchor${state}`,
         selected: isSelected,
         markerEnd: { type: MarkerType.Arrow, width: 16, height: 16 },
         style: { strokeDasharray: '5 4', strokeWidth: isSelected ? 2 : 1.2 },
@@ -436,48 +566,20 @@ export default function Board({
     })
 
     return [...relations, ...anchors]
-  }, [doc.relations, doc.entities, visibleNotes, notesMode, byName, changes, comparing, view, isCollapsed, selectedEntity, selection, hovered, far])
-
-  /** O cartao de espiar da tabela sob o mouse: o que ela e e o que mudou nela. */
-  const peek = useMemo<Peek>(() => {
-    const entity = hovered ? doc.entities.find((item) => item.uid === hovered) : undefined
-    if (!entity) return null
-    const change = changeOf(entity)
-    const kind = change && change.kind !== 'same' ? change.kind : null
-    const fields = change && change.kind !== 'new' ? [...change.fields.values()].filter((field) => field.kind !== 'text') : []
-    const notes = doc.notes.filter((note) => note.anchor === entity.name).length
-    return {
-      uid: entity.uid,
-      content: (
-        <>
-          <div className="peek__head">
-            <code>{entity.name}</code>
-            {kind && <span className={`tag tag--${kind}`}>{kind === 'new' ? 'nova' : kind === 'changed' ? 'alterada' : 'só texto'}</span>}
-          </div>
-          {entity.label && <p className="peek__label">{entity.label}</p>}
-          {fields.length > 0 && (
-            <ul className="peek__list">
-              {fields.slice(0, 5).map((field) => (
-                <li key={field.name}><span className={`mark mark--${field.kind}`}>{field.kind === 'new' ? '+' : '~'}</span><code>{field.name}</code></li>
-              ))}
-              {change?.removedFields.slice(0, 3).map((field) => (
-                <li key={`r-${field.name}`}><span className="mark mark--removed">−</span><code>{field.name}</code></li>
-              ))}
-              {fields.length > 5 && <li className="peek__more">e mais {fields.length - 5}</li>}
-            </ul>
-          )}
-          <p className="peek__foot">{entity.fields.length} colunas{notes > 0 ? `, ${notes} nota(s)` : ''}, clique para escolher</p>
-        </>
-      ),
-    }
-  }, [hovered, doc.entities, doc.notes, changeOf])
+  }, [doc.relations, doc.entities, visibleNotes, notesMode, byName, changes, comparing, view, isCollapsed, selectedEntity, clickFocus, showLines, selection, hovered, far, arranged, setAside, noteOutOfFocus])
 
   /** As paradas do percurso: as tabelas novas primeiro, depois as alteradas. */
   const stops = useMemo<WalkStop[]>(() => {
     if (!changes) return []
     const of = (kind: 'new' | 'changed'): WalkStop[] => doc.entities
       .filter((entity) => changes.entities.get(entity.name)?.kind === kind)
-      .map((entity) => ({ uid: entity.uid, name: entity.name, kind }))
+      .map((entity) => {
+        const fields = changes.entities.get(entity.name)?.fields
+        const field = kind === 'changed'
+          ? entity.fields.find((item) => ['new', 'changed'].includes(fields?.get(item.name)?.kind ?? ''))?.uid
+          : undefined
+        return { uid: entity.uid, name: entity.name, kind, field }
+      })
     return [...of('new'), ...of('changed')]
   }, [doc.entities, changes])
 
@@ -498,14 +600,14 @@ export default function Board({
       })
     }
 
-    if (locked) return
+    if (!canMoveTables) return
     for (const change of changesOfNodes) {
       if (change.type !== 'position' || !change.position) continue
       const { kind, uid } = parseNodeId(change.id)
       if (kind === 'entity') actions.moveEntity(uid, change.position)
-      else if (kind === 'note') actions.updateNote(uid, { position: change.position })
+      else if (kind === 'note' && !locked) actions.updateNote(uid, { position: change.position })
     }
-  }, [actions, locked])
+  }, [actions, locked, canMoveTables])
 
   /**
    * Entidade + entidade vira relação; nota + entidade vira a seta da nota.
@@ -590,7 +692,7 @@ export default function Board({
           setZoom((current) => (current === step ? current : step))
         }}
         connectionMode={ConnectionMode.Loose}
-        nodesDraggable={!locked}
+        nodesDraggable={canMoveTables}
         nodesConnectable={!locked}
         // Apagar é sempre pelo painel ou pela caixa: a tecla Delete removeria o nó
         // sem passar pelo documento.
@@ -606,7 +708,6 @@ export default function Board({
           framingReady={framingReady}
           focusRequest={focusRequest}
           selectedUid={selection?.type === 'entity' ? selection.uid : ''}
-          peek={peek}
           onSelect={onSelect}
         />
         <Background gap={20} size={1} />
