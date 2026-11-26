@@ -342,14 +342,6 @@ export function PublicStagesScreen() {
     }
   }
 
-  /** O Salvar do aberto, pelo aviso de saida: o mesmo caminho do botao. */
-  function salvarAberto() {
-    if (editando === null || !rascunho || etapaIncompleta(rascunho) || salvando) return
-    const pedido = pedidoDe(rascunho)
-    if (editando === NOVA) void criar(pedido)
-    else void salvar(editando, pedido)
-  }
-
   async function remover(etapa: ProjectPublicStageViewModel) {
     try {
       await projectPublicStageService.removePublicStage(project.PublicId, etapa.PublicId)
@@ -686,7 +678,7 @@ export function PublicStagesScreen() {
         onConfirm={confirmarTroca}
       />
 
-      <LeaveGuard when={sujo} onSave={podeSalvar ? salvarAberto : undefined} />
+      <LeaveGuard when={sujo} canSave={podeSalvar} />
     </div>
   )
 }
@@ -834,7 +826,7 @@ function FormularioEtapa({
       {erro && <p className="text-detail text-error-fg leading-relaxed">{erro}</p>}
 
       <div className="flex gap-2">
-        <Button size="sm" onClick={enviar} disabled={incompleto || salvando}>
+        <Button size="sm" onClick={enviar} disabled={incompleto || salvando} data-salvar-da-tela>
           {salvando ? 'Salvando…' : 'Salvar'}
         </Button>
         <Button size="sm" variant="ghost" onClick={onCancelar} disabled={salvando}>

@@ -22,6 +22,11 @@ interface ConfirmDialogProps {
   primary?: 'confirm' | 'cancel'
   onConfirm: () => Promise<void> | void
   onCancel?: () => void
+  /**
+   * Para onde o foco vai ao fechar. Sem ele, volta para onde estava antes de abrir; quem
+   * leva a pessoa a outro lugar da tela cancela o evento e poe o foco la.
+   */
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 export function ConfirmDialog({
@@ -35,6 +40,7 @@ export function ConfirmDialog({
   primary = 'confirm',
   onConfirm,
   onCancel,
+  onCloseAutoFocus,
 }: ConfirmDialogProps) {
   const [running, setRunning] = useState(false)
 
@@ -63,6 +69,7 @@ export function ConfirmDialog({
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-veil bg-overlay data-[state=closed]:animate-veil-out data-[state=open]:animate-veil-in" />
         <AlertDialog.Content
+          onCloseAutoFocus={onCloseAutoFocus}
           className={cn(
             '-translate-x-1/2 -translate-y-1/2 fixed top-1/2 left-1/2 z-dialog w-[min(27.5rem,calc(100vw-2rem))] rounded-xl border bg-surface-raised p-6 data-[state=closed]:animate-dialog-out data-[state=open]:animate-dialog-in',
             tone === 'warn' ? 'border-warn-border' : 'border-border',

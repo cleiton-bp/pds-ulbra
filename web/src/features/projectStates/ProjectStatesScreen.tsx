@@ -799,17 +799,7 @@ export function ProjectStatesScreen() {
 
       {/* Uma pergunta so ao sair, para a coluna aberta e para as regras: o roteador
           aceita um bloqueio de cada vez. */}
-      <LeaveGuard
-        when={sujo || regras.dirty}
-        onSave={
-          !sujo || podeSalvar
-            ? () => {
-                if (sujo) void salvar()
-                if (regras.dirty) void regras.save()
-              }
-            : undefined
-        }
-      />
+      <LeaveGuard when={sujo || regras.dirty} canSave={!sujo || podeSalvar} />
     </div>
   )
 }

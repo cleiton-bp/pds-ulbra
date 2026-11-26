@@ -386,7 +386,12 @@ export function TypeEditor({
       )}
 
       <div className="flex gap-2">
-        <Button variant="primary" disabled={incompleto || salvando} onClick={enviar}>
+        <Button
+          variant="primary"
+          disabled={incompleto || salvando}
+          onClick={enviar}
+          data-salvar-da-tela
+        >
           {salvando ? 'Salvando…' : isNew ? 'Criar tipo' : 'Salvar'}
         </Button>
         <Button variant="ghost" disabled={salvando} onClick={onCancelar}>

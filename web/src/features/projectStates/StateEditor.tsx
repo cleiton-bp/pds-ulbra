@@ -115,6 +115,7 @@ export function StateEditor({
           variant="primary"
           disabled={draft.nome.trim().length === 0 || saving}
           onClick={onSave}
+          data-salvar-da-tela
         >
           {saving ? 'Salvando…' : 'Salvar'}
         </Button>

@@ -92,7 +92,12 @@ export function BoardRules({ regras }: { regras: ReturnType<typeof useCycleSetti
         />
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button variant="primary" disabled={!dirty || saving} onClick={() => void regras.save()}>
+          <Button
+            variant="primary"
+            disabled={!dirty || saving}
+            onClick={() => void regras.save()}
+            data-salvar-da-tela
+          >
             {saving ? 'Salvando…' : 'Salvar'}
           </Button>
           {dirty && (

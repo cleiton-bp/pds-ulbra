@@ -15,8 +15,9 @@ import { SettingsHeader } from '@/shared/components/SettingsHeader'
  * convida a clicar sem nada para salvar; com mudanca, diz quantas sao.
  *
  * **Sair com mudanca pergunta antes**, e o destaque e voltar: "Voltar e salvar" fica
- * na tela e salva, que e o que a pessoa ia fazer se tivesse visto o botao. So a troca
- * de endereco conta — a mesma tela com outra busca e a propria tela se atualizando.
+ * na tela, nao salva sozinho, e leva a pessoa ate o Publicar (ou Salvar), com o foco nele
+ * e o botao chamando atencao: quem clica e ela. So a troca de endereco conta — a mesma
+ * tela com outra busca e a propria tela se atualizando.
  * Fechar a aba ou recarregar fica com o aviso do navegador.
  */
 interface Props {
@@ -192,9 +193,9 @@ describe('SettingsHeader', () => {
     expect(router.state.location.pathname).toBe('/outra')
   })
 
-  it('sair com mudança pergunta antes, e "Voltar e salvar" fica na tela e salva', async () => {
+  it('sair com mudança pergunta antes, e "Voltar e salvar" fica na tela e leva ao Publicar, sem publicar', async () => {
     const salvar = vi.fn()
-    const router = montar({ salvar })
+    const router = montar({ salvar, publishes: true })
 
     fireEvent.click(botao('mudar'))
     fireEvent.click(screen.getByRole('link', { name: 'ir para outra tela' }))
@@ -207,8 +208,15 @@ describe('SettingsHeader', () => {
     fireEvent.click(within(pergunta).getByRole('button', { name: 'Voltar e salvar' }))
 
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
-    expect(salvar).toHaveBeenCalledTimes(1)
     expect(router.state.location.pathname).toBe('/tela')
+    // Nada foi publicado: o botao esta a espera, com o foco e chamando atencao.
+    expect(salvar).not.toHaveBeenCalled()
+    const publicar = screen.getByRole('button', { name: 'Publicar' })
+    await waitFor(() => expect(document.activeElement).toBe(publicar))
+    expect(publicar.hasAttribute('data-chamando')).toBe(true)
+    // O clique e da pessoa.
+    fireEvent.click(publicar)
+    expect(salvar).toHaveBeenCalledTimes(1)
   })
 
   it('"Sair sem salvar" sai, sem salvar', async () => {
