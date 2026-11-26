@@ -6,7 +6,6 @@ import {
   MAX_PUBLIC_STAGES,
   MIN_PUBLIC_STAGES,
   type ProjectPublicStageViewModel,
-  type PublicOutcome,
   type SaveProjectPublicStageRequest,
 } from '@/contracts'
 import { describeError, projectPublicStageService, projectStatusMappingService } from '@/data'
@@ -18,7 +17,6 @@ import { LeaveGuard } from '@/shared/components/LeaveGuard'
 import { LiveBadge } from '@/shared/components/LiveBadge'
 import { MovedAnchors } from '@/shared/components/MovedAnchors'
 import { type JourneyStage, PublicJourney } from '@/shared/components/PublicJourney'
-import { RadioGroup } from '@/shared/components/SettingsControls'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { SortableListItem } from '@/shared/components/SortableListItem'
 import { TextField } from '@/shared/components/TextField'
@@ -29,7 +27,6 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useListOrder } from '@/shared/hooks/useListOrder'
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { cn } from '@/shared/lib/cn'
-import { PUBLIC_OUTCOMES, publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
 import { useScreenGuide } from '@/shared/tour/guideStore'
 
 /** O que `editando` guarda quando o item aberto e o de criar, e nao o de uma etapa. */
@@ -58,7 +55,7 @@ const LIGAR_EM_COLUNAS = '../states#colunas-no-andamento'
  * olhando para linhas soltas fazia escrever etapa que nao se liga na seguinte.
  *
  * **Cada etapa e um item de acordeao**, como os tipos: fechada, ela diz em palavras o
- * que e ("Termina · Foi feito · Colunas: A, B"); aberta, mostra o formulario. Nao e o
+ * que e ("Pode voltar, Colunas: A, B"); aberta, mostra o formulario. Nao e o
  * `SettingsGroup` porque o cabecalho leva a alca, as setas e o Apagar — botoes que nao
  * podem morar dentro do `<summary>` —, e porque fechar com rascunho pergunta antes.
  *
@@ -69,9 +66,11 @@ const LIGAR_EM_COLUNAS = '../states#colunas-no-andamento'
  * motivo ao lado explica por que o botao sumiu; um botao que some sem explicacao
  * parece defeito.
  *
- * **Etapa terminal pede desfecho no mesmo instante em que e marcada.** Nao da para
- * salvar uma sem o outro, porque um fim sem explicacao e pior do que nenhum fim: a
- * pessoa le "encerrado" e nao sabe se foi feito ou descartado.
+ * **Aqui so fica o que muda a linha do tempo de quem relatou.** A etapa final, o
+ * desfecho dela e o "espera quem relatou" sairam da tela: nenhum dos tres chegava a
+ * pessoa. O desfecho que ela le (foi feito, nao sera feito, sem retorno, ja existia)
+ * e escolhido com o motivo no Encerrar do card. Os valores ja gravados seguem na
+ * etapa, e o rascunho os devolve como vieram.
  *
  * **Qual coluna cai em qual etapa se escolhe em Colunas, e so la.** Aqui a tela so le
  * a ligacao (versionada) para dizer, em cada etapa, de onde ela anda — e avisa, com o
@@ -188,10 +187,6 @@ export function PublicStagesScreen() {
    * mínimo") e não um aviso de que a coisa já está no ar incompleta.
    */
   const abaixoDoPiso = etapas !== null && total > 0 && total < MIN_PUBLIC_STAGES
-
-  // Sem etapa que termina, quem relatou nunca le como o relato acabou: a linha do tempo
-  // para no meio. Conta o que esta gravado, que e o que ja sai para quem acompanha.
-  const semFinal = etapas !== null && total > 0 && !etapas.some((etapa) => etapa.IsTerminal)
 
   const etapaAberta =
     editando !== null && editando !== NOVA
@@ -313,7 +308,7 @@ export function PublicStagesScreen() {
       devolverFoco(idResumo(criada.PublicId))
     } catch (falha) {
       // O erro fica **no formulario**, e nao num aviso que passa: rotulo repetido,
-      // texto comprido e desfecho faltando tem o que corrigir, e a correcao e ali.
+      // e texto comprido tem o que corrigir, e a correcao e ali.
       setErroForm(describeError(falha))
     } finally {
       setSalvando(false)
@@ -448,6 +443,10 @@ export function PublicStagesScreen() {
           À direita, a linha do tempo como quem relatou vê. Clique numa etapa dela para ver o relato
           parado ali.
         </p>
+        <p>
+          Como o relato terminou (foi feito, não será feito, sem retorno ou já existia) não se
+          escolhe aqui: o time escolhe ao encerrar o card, junto com o motivo que a pessoa lê.
+        </p>
       </HowItWorks>
 
       <EditorWithPreview
@@ -457,7 +456,7 @@ export function PublicStagesScreen() {
           etapas !== null ? (
             <section
               id="previa"
-              className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-5"
+              className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-4"
             >
               <header className="mb-1 flex items-baseline justify-between gap-3">
                 <h2 className="font-semibold text-fg text-lead">Prévia</h2>
@@ -465,15 +464,18 @@ export function PublicStagesScreen() {
                   {sujo ? 'ainda não salvo' : 'igual ao que quem relatou vê'}
                 </span>
               </header>
-              <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-                O andamento na página de acompanhamento, com a etapa aberta como está escrita agora.
-                Clique numa etapa para ver o relato nela; as datas são de exemplo.
+              <p className="mb-3 text-detail text-fg-muted leading-relaxed">
+                Clique numa etapa para ver o relato nela. As datas são de exemplo.
               </p>
+              {/* A pagina de acompanhamento, e nela o andamento sem a moldura propria: tres
+                  molduras uma dentro da outra tiravam 80 px da largura, e cada etapa quebrava
+                  em mais linhas. */}
               <div className="rounded-lg border border-border bg-surface p-4">
                 <PublicJourney
                   stages={naPrevia.stages}
                   currentId={naPrevia.atual}
                   onSelect={setAgora}
+                  className="rounded-none border-0 bg-transparent p-0"
                 />
               </div>
             </section>
@@ -547,16 +549,6 @@ export function PublicStagesScreen() {
                   {total === 1 ? 'um passo' : `${total} passos`}. Ela só conta uma história a partir
                   de {MIN_PUBLIC_STAGES}, até lá, quem acompanha vê o relato chegar e terminar, sem
                   o meio.
-                </p>
-              )}
-
-              {semFinal && (
-                <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-detail text-fg-muted leading-relaxed">
-                  <Etiqueta tom="aviso">Sem etapa final</Etiqueta>
-                  <span>
-                    Quem relatou nunca lê como terminou. Abra a última etapa e marque “O relato
-                    termina nesta etapa”.
-                  </span>
                 </p>
               )}
 
@@ -727,7 +719,7 @@ function FormularioEtapa({
     onMudar(mudanca)
   }
 
-  // Sem rotulo, sem frase, e sem desfecho na etapa que termina, nao ha o que
+  // Sem rotulo ou sem frase, nao ha o que
   // gravar. O botao desabilitado diz isso antes de a API ter de dizer — e a API
   // continua dizendo, porque quem chama a rota direto nao passa por aqui.
   const incompleto = etapaIncompleta(rascunho)
@@ -773,55 +765,13 @@ function FormularioEtapa({
         onSubmit={enviar}
       />
 
-      <div className="flex flex-col gap-2.5">
-        <Check
-          label="O relato termina nesta etapa"
-          hint="É o fim da linha do tempo: quem relatou lê o desfecho que você escolher."
-          checked={rascunho.IsTerminal}
-          disabled={salvando}
-          onChange={(IsTerminal) =>
-            // Desmarcar leva o desfecho junto: desfecho no meio da jornada e um
-            // final que a linha do tempo nao teria como desenhar, e a API recusa.
-            mudar({ IsTerminal, Outcome: IsTerminal ? rascunho.Outcome : null })
-          }
-        />
-        <Check
-          label="A jornada pode voltar para esta etapa"
-          hint="Sem isto a linha do tempo só anda para a frente, mesmo que o card volte de coluna."
-          checked={rascunho.AllowsReturn}
-          disabled={salvando}
-          onChange={(AllowsReturn) => mudar({ AllowsReturn })}
-        />
-        <Check
-          label="Esta etapa espera uma resposta de quem relatou"
-          hint="Marca que a vez é de quem relatou, e não do time. Por enquanto só fica registrado."
-          checked={rascunho.AwaitsReporter}
-          disabled={salvando}
-          onChange={(AwaitsReporter) => mudar({ AwaitsReporter })}
-        />
-      </div>
-
-      {rascunho.IsTerminal && (
-        <div>
-          <div className="mb-1.5 text-detail text-fg-muted">Como o relato termina aqui</div>
-          {/* Em pecas com desenho, e nao numa lista que abre: sao quatro, e ver as quatro
-              de uma vez e o que faz escolher a certa. */}
-          <RadioGroup<PublicOutcome>
-            label="Como o relato termina aqui"
-            value={rascunho.Outcome}
-            onChange={(Outcome) => mudar({ Outcome })}
-            options={PUBLIC_OUTCOMES.map((outcome) => ({
-              value: outcome,
-              label: publicOutcomeLabel(outcome),
-              drawing: <DesenhoDoDesfecho outcome={outcome} />,
-              disabled: salvando,
-            }))}
-          />
-          <p className="mt-1.5 text-caption text-fg-muted leading-relaxed">
-            A lista é igual em todos os projetos: é a última coisa que quem relatou lê.
-          </p>
-        </div>
-      )}
+      <Check
+        label="O relato pode voltar para esta etapa"
+        hint="Sem marcar, a linha do tempo de quem relatou só anda para a frente, mesmo que o card volte de coluna ou o relato seja reaberto."
+        checked={rascunho.AllowsReturn}
+        disabled={salvando}
+        onChange={(AllowsReturn) => mudar({ AllowsReturn })}
+      />
 
       {erro && <p className="text-detail text-error-fg leading-relaxed">{erro}</p>}
 
@@ -837,43 +787,7 @@ function FormularioEtapa({
   )
 }
 
-/** O desenho de cada desfecho, na peca de escolher. */
-function DesenhoDoDesfecho({ outcome }: { outcome: PublicOutcome }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="size-4 text-fg-muted"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {outcome === 'Done' && <path d="m3.5 8.5 3 3 6-7" />}
-      {outcome === 'WontDo' && (
-        <>
-          <circle cx="8" cy="8" r="5" />
-          <path d="m4.5 11.5 7-7" />
-        </>
-      )}
-      {outcome === 'NoAnswer' && (
-        <>
-          <path d="M3 4.5h10v6H7l-3 2.5v-2.5H3z" />
-          <path d="M6 7.5h.01M8 7.5h.01M10 7.5h.01" />
-        </>
-      )}
-      {outcome === 'Duplicate' && (
-        <>
-          <rect x="5.5" y="5.5" width="7" height="7" rx="1" />
-          <path d="M3.5 10.5v-6a1 1 0 0 1 1-1h6" />
-        </>
-      )}
-    </svg>
-  )
-}
-
-/** Uma marca da etapa, dita por extenso. "Terminal" sozinho e palavra nossa. */
+/** Uma marca da etapa, dita por extenso. */
 function Etiqueta({
   tom = 'neutro',
   children,
@@ -937,7 +851,11 @@ function Check({
   )
 }
 
-/** O rascunho de uma etapa: a gravada, ou tudo em branco para a nova. */
+/**
+ * O rascunho de uma etapa: a gravada, ou tudo em branco para a nova. A etapa final,
+ * o desfecho e o "espera quem relatou" nao aparecem mais na tela: voltam a API como
+ * vieram, e a etapa nova vai sem eles.
+ */
 function rascunhoDe(inicial?: ProjectPublicStageViewModel): SaveProjectPublicStageRequest {
   return {
     Label: inicial?.Label ?? '',
@@ -960,20 +878,13 @@ function rascunhoMudou(
     rascunho.Label !== antes.Label ||
     rascunho.Description !== antes.Description ||
     (rascunho.NextStep ?? '') !== (antes.NextStep ?? '') ||
-    rascunho.IsTerminal !== antes.IsTerminal ||
-    rascunho.AllowsReturn !== antes.AllowsReturn ||
-    rascunho.AwaitsReporter !== antes.AwaitsReporter ||
-    rascunho.Outcome !== antes.Outcome
+    rascunho.AllowsReturn !== antes.AllowsReturn
   )
 }
 
-/** Sem rotulo, sem frase, ou terminal sem desfecho: nao ha o que gravar. */
+/** Sem rotulo ou sem frase: nao ha o que gravar. */
 function etapaIncompleta(rascunho: SaveProjectPublicStageRequest): boolean {
-  return (
-    rascunho.Label.trim().length === 0 ||
-    rascunho.Description.trim().length === 0 ||
-    (rascunho.IsTerminal && rascunho.Outcome === null)
-  )
+  return rascunho.Label.trim().length === 0 || rascunho.Description.trim().length === 0
 }
 
 /** O pedido que vai a API, a partir do rascunho. */
@@ -987,23 +898,14 @@ function pedidoDe(rascunho: SaveProjectPublicStageRequest): SaveProjectPublicSta
 }
 
 /**
- * O que a etapa e, em palavras, para o cabecalho fechado: "Termina · Foi feito ·
- * Colunas: A, B". Sem marca nenhuma e sem coluna conhecida, a frase dela — o cabecalho
- * nunca fica so com o nome.
+ * O que a etapa e, em palavras, para o cabecalho fechado: "Pode voltar, Colunas: A, B".
+ * Sem marca e sem coluna conhecida, a frase dela: o cabecalho nunca fica so com o nome.
  */
 function descreverEtapa(
-  marcas: Pick<
-    SaveProjectPublicStageRequest,
-    'IsTerminal' | 'Outcome' | 'AllowsReturn' | 'AwaitsReporter' | 'Description'
-  >,
+  marcas: Pick<SaveProjectPublicStageRequest, 'AllowsReturn' | 'Description'>,
   colunas: string[] | null,
 ): string {
   const partes: string[] = []
-  if (marcas.IsTerminal) {
-    partes.push('Termina')
-    if (marcas.Outcome) partes.push(publicOutcomeLabel(marcas.Outcome))
-  }
-  if (marcas.AwaitsReporter) partes.push('Espera quem relatou')
   if (marcas.AllowsReturn) partes.push('Pode voltar')
   if (colunas && colunas.length > 0) partes.push(`Colunas: ${colunas.join(', ')}`)
   if (partes.length > 0) return partes.join(', ')

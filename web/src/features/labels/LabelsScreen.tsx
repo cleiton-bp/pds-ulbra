@@ -301,7 +301,7 @@ export function LabelsScreen() {
           labels !== null ? (
             <section
               aria-labelledby={idPrevia}
-              className="rounded-xl border border-border bg-surface-raised p-5"
+              className="rounded-xl border border-border bg-surface-raised p-4"
             >
               <header className="mb-1 flex items-baseline justify-between gap-3">
                 <h2 id={idPrevia} className="font-semibold text-fg text-lead">
@@ -311,7 +311,7 @@ export function LabelsScreen() {
                   {sujo ? 'ainda não salvo' : 'como o time vê'}
                 </span>
               </header>
-              <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+              <p className="mb-3 text-detail text-fg-muted leading-relaxed">
                 {destaque !== null
                   ? 'A etiqueta que você está olhando vem primeiro, realçada, como está escrita agora.'
                   : 'Um card com as etiquetas do projeto, em ordem de nome.'}{' '}

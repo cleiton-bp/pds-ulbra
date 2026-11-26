@@ -1,5 +1,5 @@
-import { type ReactNode, useCallback, useEffect, useId, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import {
   MAX_STATE_NAME_LENGTH,
   type ProjectStateViewModel,
@@ -33,10 +33,19 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useListOrder } from '@/shared/hooks/useListOrder'
 import { useCycleSettingsDraft } from '@/shared/hooks/useSettingsDraft'
 import { CYCLE_DEFAULTS } from '@/shared/lib/factoryDefaults'
+import { semMovimento } from '@/shared/lib/rolagemSuave'
 import { useScreenGuide } from '@/shared/tour/guideStore'
 
 /** O nome do acordeao desta tela: uma coluna aberta de cada vez. Ver `SortableListItem`. */
 const ACORDEAO = 'colunas'
+
+/**
+ * O que um atalho de outra tela manda no estado da navegacao para sugerir a coluna nova:
+ * o campo "Nova coluna" chega com o nome escrito, e a pessoa so confirma.
+ */
+export interface ColunaSugerida {
+  nomeSugerido: string
+}
 
 /**
  * As colunas do quadro. Na API e no codigo elas sao "estados"; na tela, **colunas**,
@@ -119,7 +128,12 @@ export function ProjectStatesScreen() {
   const [states, setStates] = useState<ProjectStateViewModel[] | null>(null)
   useEffect(() => setStates(loaded), [loaded])
 
-  const [name, setName] = useState('')
+  // Quem chega por um atalho que sugere a coluna (o "?" da reabertura, em Encerramento,
+  // sugere "Reaberto") encontra o nome ja escrito: so falta criar.
+  const location = useLocation()
+  const [name, setName] = useState(
+    () => (location.state as Partial<ColunaSugerida> | null)?.nomeSugerido ?? '',
+  )
   const [createError, setCreateError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
@@ -526,6 +540,32 @@ export function ProjectStatesScreen() {
     return null
   }
 
+  // A coluna aberta entra na vista do quadro de exemplo, devagar: aberta a quarta, o
+  // quadro estreito so mostrava as duas primeiras, e a mudanca acontecia fora da vista.
+  const quadroDaPrevia = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!aberto) return
+    const coluna = quadroDaPrevia.current?.querySelector<HTMLElement>(
+      `[data-column-id="${CSS.escape(aberto)}"]`,
+    )
+    const faixa = coluna?.parentElement
+    if (!coluna || !faixa) return
+    const fora = faixa.getBoundingClientRect()
+    const dentro = coluna.getBoundingClientRect()
+    const folga = 8
+    const delta =
+      dentro.left < fora.left + folga
+        ? dentro.left - fora.left - folga
+        : dentro.right > fora.right - folga
+          ? dentro.right - fora.right + folga
+          : 0
+    if (Math.abs(delta) < 1) return
+    const destino = faixa.scrollLeft + delta
+    if (typeof faixa.scrollTo === 'function')
+      faixa.scrollTo({ left: destino, behavior: semMovimento() ? 'auto' : 'smooth' })
+    else faixa.scrollLeft = destino
+  }, [aberto])
+
   // A previa: as colunas ativas na ordem, com a aberta como esta escrita agora.
   const naPrevia: MiniBoardColumn[] = (states ?? [])
     .filter((state) => state.IsActive)
@@ -602,7 +642,7 @@ export function ProjectStatesScreen() {
           states !== null ? (
             <section
               id="previa"
-              className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-5"
+              className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-4"
             >
               <header className="mb-1 flex items-baseline justify-between gap-3">
                 <h2 className="font-semibold text-fg text-lead">Prévia</h2>
@@ -610,21 +650,26 @@ export function ProjectStatesScreen() {
                   {sujo ? 'ainda não salvo' : 'igual ao quadro'}
                 </span>
               </header>
-              <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-                O quadro com as colunas ativas, na ordem, e embaixo de cada uma o que quem relatou
-                vê, com a coluna aberta como está escrita agora. O card é de exemplo.
+              <p className="mb-3 text-detail text-fg-muted leading-relaxed">
+                Embaixo de cada coluna, o que quem relatou vê. O card é de exemplo.
               </p>
               {naPrevia.length > 0 ? (
-                <MiniBoard
-                  columns={naPrevia}
-                  card={{
-                    title: 'Erro ao finalizar a compra',
-                    due: {
-                      day: daquiA(2),
-                      soonDays: regras.draft?.DueSoonDays ?? CYCLE_DEFAULTS.DueSoonDays,
-                    },
-                  }}
-                />
+                // Colunas mais largas que as do quadro de arrastar: o card e o prazo quebravam
+                // em tres linhas cada. A aberta fica realcada e entra na vista (acima).
+                <div ref={quadroDaPrevia}>
+                  <MiniBoard
+                    columns={naPrevia}
+                    columnClassName="w-44"
+                    highlightColumnId={aberto}
+                    card={{
+                      title: 'Erro ao finalizar a compra',
+                      due: {
+                        day: daquiA(2),
+                        soonDays: regras.draft?.DueSoonDays ?? CYCLE_DEFAULTS.DueSoonDays,
+                      },
+                    }}
+                  />
+                </div>
               ) : (
                 <p className="rounded-lg border border-border border-dashed px-3.5 py-5 text-center text-detail text-fg-muted">
                   Sem colunas ativas, o quadro fica vazio.

@@ -301,7 +301,7 @@ function ComoFicaOTrabalho({ draft, dirty }: { draft: CycleSettingsViewModel; di
     <section
       id="como-fica-o-trabalho"
       aria-labelledby="como-fica-o-trabalho-titulo"
-      className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-5"
+      className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-4"
     >
       <header className="mb-1 flex items-baseline justify-between gap-3">
         <h2 id="como-fica-o-trabalho-titulo" className="font-semibold text-fg text-lead">
@@ -311,7 +311,7 @@ function ComoFicaOTrabalho({ draft, dirty }: { draft: CycleSettingsViewModel; di
           {dirty ? 'ainda não salvo' : 'igual ao salvo'}
         </span>
       </header>
-      <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+      <p className="mb-3 text-detail text-fg-muted leading-relaxed">
         A tela de Trabalho com esta escolha. É um exemplo: nada aqui mexe no quadro do time.
       </p>
 
