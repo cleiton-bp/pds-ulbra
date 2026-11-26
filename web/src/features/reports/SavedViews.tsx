@@ -133,12 +133,13 @@ export function SavedViews({
 
   return (
     // No celular, numa linha propria embaixo das abas, as vistas quebram de linha em vez
-    // de rolar escondidas para o lado; na tela larga, uma linha so ao lado das abas.
+    // de rolar escondidas para o lado; na tela larga, uma linha so ao lado das abas, na
+    // altura delas: 1 px a mais, e o "Salvar vista" aparecendo baixava a tela toda.
     // biome-ignore lint/a11y/useSemanticElements: um grupo de botoes, e nao um formulario: `fieldset` diria a quem usa leitor de tela que ha campos ali
     <div
       role="group"
       aria-label="Vistas salvas"
-      className="ml-auto flex min-w-0 flex-wrap items-center gap-1.5 py-1 max-sm:pt-3 sm:flex-nowrap sm:overflow-x-auto"
+      className="ml-auto flex min-w-0 flex-wrap items-center gap-1.5 max-sm:py-1 max-sm:pt-3 sm:h-8.75 sm:flex-nowrap sm:overflow-x-auto"
     >
       {vistas.map((vista) => {
         const ativa = sameWorkView(vistaDe(vista.consulta), atual)

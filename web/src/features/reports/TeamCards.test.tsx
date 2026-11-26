@@ -816,13 +816,17 @@ describe('card do time e arquivar', () => {
     expect(screen.queryByRole('button', { name: 'Arquivar relato' })).toBeNull()
   })
 
-  it('o filtro Arquivados troca a lista pelos arquivados', async () => {
+  it('"Arquivados" abre os arquivados num modal, e a lista do Trabalho fica atras', async () => {
     montar()
     await screen.findByText('Trocar o provedor de e-mail')
 
     fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
 
+    const modal = await screen.findByRole('dialog', { name: 'Arquivados' })
     await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, null, true))
-    expect(screen.getByRole('heading', { name: 'Arquivados', level: 1 })).toBeTruthy()
+    // A tela nao trocou: o titulo continua o do Trabalho, com a lista dele atras do modal
+    // (escondida do leitor de tela enquanto o modal esta aberto).
+    expect(screen.getByRole('heading', { name: 'Trabalho', level: 1, hidden: true })).toBeTruthy()
+    expect(modal).toBeTruthy()
   })
 })

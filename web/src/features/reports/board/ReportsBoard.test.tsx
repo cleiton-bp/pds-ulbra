@@ -1270,7 +1270,7 @@ describe('com filtro (Q-17)', () => {
       lastColumnDays: 14,
       itens: { 's-1': ['c1'], 's-2': ['c2', 'c3', 'c4'], 's-3': ['c5', 'c6'] },
       cards: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'].map((id) => card(id)),
-      filtro: { semFiltro: { 's-1': 8, 's-2': 3, 's-3': 20 }, aoLimpar: vi.fn() },
+      filtro: { semFiltro: { 's-1': 8, 's-2': 3, 's-3': 20 } },
     })
 
     expect(contagemDe('A fazer')).toBe('1 de 8 cards, com os filtros')
@@ -1278,37 +1278,20 @@ describe('com filtro (Q-17)', () => {
     expect(contagemDe('Fazendo')).toBe('3 cards')
     // Na coluna da regra dos dias, a linha dos 14 dias ja diz que a conta e parcial.
     expect(contagemDe('Feito')).toBe('2 cards')
-    expect(screen.queryByText(/Nenhum card passa nos filtros/)).toBeNull()
   })
 
-  it('todas as colunas vazias pelo filtro: o quadro diz que os outros continuam onde estao, e "Limpar filtros" limpa', () => {
-    const aoLimpar = vi.fn()
+  it('todas as colunas vazias pelo filtro: sem aviso nem botao, so as colunas vazias com a contagem', () => {
     montar({
       itens: VAZIO,
       cards: [],
-      filtro: { semFiltro: { 's-1': 2, 's-2': 1, 's-3': 0 }, aoLimpar },
+      filtro: { semFiltro: { 's-1': 2, 's-2': 1, 's-3': 0 } },
     })
 
-    expect(
-      screen.getByText('Nenhum card passa nos filtros. Os outros continuam onde estão.'),
-    ).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }))
-    expect(aoLimpar).toHaveBeenCalledTimes(1)
-  })
-
-  it.each([
-    ['sem filtro, o quadro vazio e so vazio', {}, null],
-    ['com uma coluna ainda lendo', { 's-2': { loading: true } }, {}],
-    ['com uma coluna que nao carregou', { 's-2': { failed: true } }, {}],
-  ])('o bloco do filtro nao aparece %s', (_caso, estados, semFiltro) => {
-    montar({
-      itens: VAZIO,
-      cards: [],
-      estados,
-      filtro: semFiltro === null ? null : { semFiltro, aoLimpar: vi.fn() },
-    })
-
+    // Desfazer e no proprio filtro, la em cima: o quadro nao ganha caixa nem botao.
     expect(screen.queryByText(/Nenhum card passa nos filtros/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Limpar filtros/ })).toBeNull()
+    expect(contagemDe('A fazer')).toBe('0 de 2 cards, com os filtros')
+    expect(contagemDe('Fazendo')).toBe('0 de 1 card, com os filtros')
   })
 })
 

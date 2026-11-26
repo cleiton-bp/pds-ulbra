@@ -189,10 +189,12 @@ export function ReportsBoard({
   /** O time, para as raias de quem esta sem card. */
   pessoas?: TeamMemberViewModel[] | null
   /**
-   * Com filtro ligado: quantos cards cada coluna tem sem ele ("2 de 10") e como limpar.
-   * Nulo sem filtro.
+   * Com filtro ligado: quantos cards cada coluna tem sem ele ("2 de 10"). Nulo sem filtro.
+   *
+   * Sem aviso quando nenhum card passa: as colunas vazias ja dizem isso, e desfazer e no
+   * proprio filtro (o chip, o "Limpar filtros" ao lado das abas).
    */
-  filtro?: { semFiltro: Record<string, number> | null; aoLimpar: () => void } | null
+  filtro?: { semFiltro: Record<string, number> | null } | null
   /** O card que acabou de nascer pelo dialogo: o quadro rola ate ele. */
   revelar?: string | null
 }) {
@@ -966,16 +968,6 @@ export function ReportsBoard({
     )
   }
 
-  const vazioPeloFiltro =
-    filtro !== null &&
-    columns.length > 0 &&
-    columns.every((coluna) => {
-      const estado = board.state[coluna.key]
-      return (
-        estado && !estado.loading && !estado.failed && (board.items[coluna.key]?.length ?? 0) === 0
-      )
-    })
-
   /** Com filtro, o total sem ele — menos na coluna da regra dos dias, que ja diz que e parcial. */
   const semFiltroDa = (coluna: BoardColumn) =>
     filtro?.semFiltro && !(coluna.last && lastColumnDays > 0)
@@ -989,15 +981,6 @@ export function ReportsBoard({
     // 320 a coluna mostrava um card e meio. La ele tem a altura da tela menos a barra de
     // cima: rolando a pagina ate o fim, as colunas ocupam a tela toda.
     <div className="flex min-h-80 flex-1 flex-col max-sm:min-h-[calc(100dvh-4.5rem)]">
-      {vazioPeloFiltro && filtro && (
-        <div className="mb-3 max-w-170 flex-none rounded-xl border border-border border-dashed bg-surface-raised p-5">
-          <p className="mb-3 text-detail text-fg-muted leading-relaxed">
-            Nenhum card passa nos filtros. Os outros continuam onde estão.
-          </p>
-          <Button onClick={filtro.aoLimpar}>Limpar filtros</Button>
-        </div>
-      )}
-
       {/* No celular cabe uma coluna por vez: as colunas em fila, com quantos cards cada
           uma tem, sao as abas do quadro e levam direto a ela. Presas no alto ao rolar a
           coluna (o `-top-7` desconta o respiro de cima da area que rola): no meio de uma

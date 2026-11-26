@@ -106,23 +106,55 @@ const abrirMenu = abrirMenuDaBarra
 describe('a barra de filtros do Trabalho', () => {
   afterEach(cleanup)
 
-  it('o "×" de um filtro ligado tira so ele: os outros continuam', async () => {
+  it('sem a linha de chips: o ligado aparece no proprio controle, e desligar um nao mexe nos outros', async () => {
     const visto = montar({ labels: ['l-1'], overdue: true, assignees: ['me'] })
-    // Cada filtro ligado tem o seu chip na linha "Filtrando por".
-    await screen.findByTitle('Etiqueta: pagamentos')
-    // Desligado, nao ha "×": nada a tirar.
-    expect(screen.queryByRole('button', { name: 'Tirar o filtro Prioridade' })).toBeNull()
+    // O atalho ligado fica marcado, e o "Filtrar" diz quantos tem; nada de "Filtrando por".
+    const meus = await screen.findByRole('button', { name: 'Meus cards' })
+    expect(meus.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Filtrar, 1 ligado' })).toBeTruthy()
+    expect(screen.queryByText('Filtrando por')).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Tirar o filtro/ })).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tirar o filtro Etiqueta' }))
-    expect(visto.filtros.labels).toEqual([])
-    expect(visto.filtros.overdue).toBe(true)
-    expect(visto.filtros.assignees).toEqual(['me'])
-    expect(screen.queryByRole('button', { name: 'Tirar o filtro Etiqueta' })).toBeNull()
-
-    // O do "Meus cards" tambem: e o responsavel "voce".
-    fireEvent.click(screen.getByRole('button', { name: 'Tirar o filtro Meus cards' }))
+    // Desligar o "Meus cards" no proprio atalho: o resto fica.
+    fireEvent.click(meus)
     expect(visto.filtros.assignees).toEqual([])
     expect(visto.filtros.overdue).toBe(true)
+    expect(visto.filtros.labels).toEqual(['l-1'])
+  })
+
+  it('com um lugar dado (o fim da linha das abas), so o "Limpar filtros" mora nele: a barra nao ganha linha', async () => {
+    const lugar = document.createElement('div')
+    document.body.appendChild(lugar)
+    function ComLugar() {
+      const [filtros, setFiltros] = useState<ReportFilters>({
+        ...NO_REPORT_FILTERS,
+        overdue: true,
+      })
+      return (
+        <WorkFilterBar
+          projectPublicId="p-1"
+          filters={filtros}
+          active={filtros.overdue ? 1 : 0}
+          onChange={setFiltros}
+          onClear={() => setFiltros(NO_REPORT_FILTERS)}
+          limparEm={lugar}
+        />
+      )
+    }
+    render(<ComLugar />)
+
+    const limpar = await within(lugar).findByRole('button', { name: /^Limpar filtros/ })
+    const barra = screen.getByRole('searchbox', { name: 'Buscar cards' }).closest('search')
+    expect(barra?.contains(limpar)).toBe(false)
+    // So o limpar: nenhum chip com o nome do filtro.
+    expect(lugar.textContent).toBe('Limpar filtros (1 ligado)')
+
+    // Limpar desliga, e o botao sai.
+    fireEvent.click(limpar)
+    await waitFor(() =>
+      expect(within(lugar).queryByRole('button', { name: /^Limpar filtros/ })).toBeNull(),
+    )
+    lugar.remove()
   })
 
   it('o "Limpar" no pe do menu desmarca tudo dele, e so dele', async () => {
@@ -147,7 +179,7 @@ describe('a barra de filtros do Trabalho', () => {
     expect(within(outro).queryByRole('menuitem', { name: 'Limpar' })).toBeNull()
   })
 
-  it('o "Filtrar" conta os campos ligados (o "voce" e o "Meus cards", e nao conta) e mostra cada um', async () => {
+  it('o "Filtrar" conta os campos ligados (o "voce" e o "Meus cards", e nao conta), e cada campo diz os seus', async () => {
     montar(
       { priorities: ['none'], types: ['team'], labels: ['l-1'], assignees: ['me'] },
       {
@@ -158,9 +190,10 @@ describe('a barra de filtros do Trabalho', () => {
     // Etiqueta, prioridade, tipo e coluna.
     const filtrar = await screen.findByRole('button', { name: 'Filtrar, 4 ligados' })
     expect(filtrar.textContent).toContain('4')
-    // Cada um tambem na linha "Filtrando por", com o seu "x".
-    for (const rotulo of ['Meus cards', 'Etiqueta', 'Prioridade', 'Tipo', 'Coluna'])
-      expect(screen.getByRole('button', { name: `Tirar o filtro ${rotulo}` })).toBeTruthy()
+    // Sem chips ao lado: o "Meus cards" ligado fica marcado no proprio atalho.
+    expect(screen.getByRole('button', { name: 'Meus cards' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    )
     // Dentro do "Filtrar", cada campo diz quantos tem marcados.
     const menu = await abrirMenu('Etiqueta')
     await within(menu).findByRole('menuitemcheckbox', { name: 'pagamentos' })

@@ -42,3 +42,17 @@ export async function fecharMenuDaBarra(): Promise<void> {
   fireEvent.keyDown(abertos[abertos.length - 1] as HTMLElement, { key: 'Escape' })
   await waitFor(() => expect(screen.queryAllByRole('menu')).toHaveLength(0))
 }
+
+/**
+ * O que um campo do "Filtrar" diz que esta marcado (o inteiro, da dica), sem chips na
+ * tela: abre o "Filtrar", le o campo e fecha. Vazio quando o campo nao tem nada marcado.
+ */
+export async function marcadosNoFiltrar(campo: string): Promise<string> {
+  abrirNoPonteiro(await screen.findByRole('button', { name: /^Filtrar/ }))
+  const filtrar = await screen.findByRole('menu')
+  const item = await within(filtrar).findByRole('menuitem', { name: new RegExp(`^${campo}`) })
+  const marcados = item.querySelector<HTMLElement>('[title]')?.title ?? ''
+  fireEvent.keyDown(filtrar, { key: 'Escape' })
+  await waitFor(() => expect(screen.queryAllByRole('menu')).toHaveLength(0))
+  return marcados
+}
