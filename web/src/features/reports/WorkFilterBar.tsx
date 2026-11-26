@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { createPortal } from 'react-dom'
 import {
   type ReportStateCountViewModel,
   type SprintViewModel,
@@ -125,8 +126,8 @@ export interface ListControls {
  * **Na tela larga, a vista tem o que mais se usa**: a busca, os atalhos, o responsavel
  * e a etiqueta. Prioridade, tipo, coluna e sprint esperam no "Mais filtros · n" — o
  * mesmo jeito do "Filtros" do celular —, e o que estiver ligado fica a vista mesmo com
- * ele fechado. A ordem e os arquivados ficam a direita, depois de um traco: mudam o
- * que se ve, mas nao sao filtro.
+ * ele fechado. A ordem e as raias do quadro ficam a direita, depois de um traco: mudam
+ * o que se ve, mas nao sao filtro. Os arquivados abrem pelo alto da tela, num modal.
  *
  * **Cada menu ligado tem o seu "×"** (e o "Limpar" no pe do menu): tirar um filtro nao
  * pede limpar todos.
@@ -143,8 +144,8 @@ export function WorkFilterBar({
   searchInputId,
   origemBloqueada = false,
   children,
-  comoFunciona,
   vista,
+  limparEm = null,
 }: {
   projectPublicId: string
   filters: ReportFilters
@@ -166,18 +167,19 @@ export function WorkFilterBar({
    * filtro nunca sumir da vista enquanto esconde cards.
    */
   origemBloqueada?: boolean
-  /** O que vem no fim da linha, depois da ordem: as raias do quadro e os arquivados. */
+  /** O que vem no fim da linha, depois da ordem e das raias. */
   children?: ReactNode
-  /**
-   * A ajuda recolhida ("Como funciona"), na mesma linha: aberta, desce para baixo da
-   * barra inteira (`HELP_IN_BAR`), e o quadro continua com uma faixa so antes das colunas.
-   */
-  comoFunciona?: ReactNode
   /**
    * O que muda o jeito de ver, no fim da barra (as raias do quadro). No celular entra com os
    * filtros, pelo "Filtros", como a ordem: sozinho numa linha, ele empurrava o quadro.
    */
   vista?: ReactNode
+  /**
+   * Onde fica o "Limpar filtros" na tela larga: um lugar que ja existe na tela (o fim da
+   * linha das abas, ou a linha da contagem no modal dos arquivados), para nada descer
+   * quando um filtro liga. Sem ele, fica no fim da barra.
+   */
+  limparEm?: HTMLElement | null
 }) {
   const [aberta, setAberta] = useState(false)
 
@@ -519,6 +521,8 @@ export function WorkFilterBar({
       chave: 'responsavel',
       rotulo: 'Responsável',
       ligados: filters.assignees.length,
+      // O "voce" sozinho e o "Meus cards", que ja aparece marcado no atalho.
+      marcados: marcadosDe(outrosResponsaveis, todasPessoas),
       aoAbrir: lerPessoas,
       itens: marcar(
         filters.assignees,
@@ -533,6 +537,7 @@ export function WorkFilterBar({
       chave: 'etiqueta',
       rotulo: 'Etiqueta',
       ligados: filters.labels.length,
+      marcados: marcadosDe(filters.labels, comoOpcoes(etiquetas)),
       aoAbrir: lerEtiquetas,
       itens: marcar(
         filters.labels,
@@ -547,6 +552,7 @@ export function WorkFilterBar({
       chave: 'prioridade',
       rotulo: 'Prioridade',
       ligados: filters.priorities.length,
+      marcados: marcadosDe(filters.priorities, todasPrioridades),
       aoAbrir: lerPrioridades,
       itens: marcar(
         filters.priorities,
@@ -561,6 +567,7 @@ export function WorkFilterBar({
       chave: 'tipo',
       rotulo: 'Tipo',
       ligados: filters.types.length,
+      marcados: marcadosDe(filters.types, todosTipos),
       aoAbrir: lerTipos,
       itens: marcar(
         filters.types,
@@ -577,6 +584,7 @@ export function WorkFilterBar({
             chave: 'coluna',
             rotulo: 'Coluna',
             ligados: lista.filters.columns.length,
+            marcados: marcadosDe(lista.filters.columns, comoOpcoes(opcoesDeColuna)),
             aoAbrir: () => {
               if (lista.colunasFalharam) lista.aoRecarregarColunas()
             },
@@ -607,6 +615,12 @@ export function WorkFilterBar({
             chave: 'sprint',
             rotulo: 'Sprint',
             ligados: lista.filters.sprint ? 1 : 0,
+            marcados: lista.filters.sprint
+              ? {
+                  curto: cabe(nomeDaSprint(lista.sprints, lista.filters.sprint)),
+                  inteiro: nomeDaSprint(lista.sprints, lista.filters.sprint),
+                }
+              : null,
             itens: (
               <ItensDeSprint
                 sprints={lista.sprints}
@@ -619,145 +633,47 @@ export function WorkFilterBar({
       : []),
   ]
 
-  // O que esta filtrando agora, um por um, cada um com o seu "x": filtro ligado nao fica
-  // escondido dentro de menu nenhum.
-  const resumo = (
-    rotulo: string,
-    escolhidos: string[],
-    todas: Opcao[],
-    conhecidas: Record<string, string> = {},
-  ) => {
-    const nomes = escolhidos.map((valor) => {
-      const achada = todas.find((opcao) => opcao.value === valor)
-      return achada ? (achada.curto ?? achada.label) : conhecidas[valor]
-    })
-    if (nomes.some((nome) => nome === undefined)) return `${rotulo} (${escolhidos.length})`
-    const inteiro = nomes.join(', ')
-    return {
-      texto: `${rotulo}: ${cabe(nomes[0] ?? '')}${nomes.length > 1 ? ` +${nomes.length - 1}` : ''}`,
-      titulo: `${rotulo}: ${inteiro}`,
-    }
-  }
-  const ligado = (
-    chave: string,
-    rotulo: string,
-    texto: string | { texto: string; titulo: string },
-    aoTirar: () => void,
-  ): FiltroLigado =>
-    typeof texto === 'string'
-      ? { chave, rotulo, texto, titulo: texto, aoTirar }
-      : { chave, rotulo, ...texto, aoTirar }
-  // A busca fica de fora: o texto ja esta a vista no campo, e a linha aparecendo a cada
-  // letra digitada empurraria a lista para baixo.
-  const ligados: FiltroLigado[] = [
-    ...(filters.assignees.includes('me')
-      ? [ligado('meus', 'Meus cards', 'Meus cards', () => alternar('assignees', 'me'))]
-      : []),
-    ...(filters.overdue
-      ? [ligado('vencidos', 'Vencidos', 'Vencidos', () => onChange({ ...filters, overdue: false }))]
-      : []),
-    ...(filters.open
-      ? [ligado('abertos', 'Em aberto', 'Em aberto', () => onChange({ ...filters, open: false }))]
-      : []),
-    ...(filters.blockedOrigin
-      ? [
-          ligado('origem', 'Origem bloqueada', 'Origem bloqueada', () =>
-            onChange({ ...filters, blockedOrigin: false }),
-          ),
-        ]
-      : []),
-    ...(outrosResponsaveis.length > 0
-      ? [
-          ligado(
-            'responsavel',
-            'Responsável',
-            resumo('Responsável', outrosResponsaveis, todasPessoas),
-            () =>
-              onChange({
-                ...filters,
-                assignees: filters.assignees.filter((valor) => valor === 'me'),
-              }),
-          ),
-        ]
-      : []),
-    ...(filters.labels.length > 0
-      ? [
-          ligado(
-            'etiqueta',
-            'Etiqueta',
-            resumo('Etiqueta', filters.labels, comoOpcoes(etiquetas)),
-            () => onChange({ ...filters, labels: [] }),
-          ),
-        ]
-      : []),
-    ...(filters.priorities.length > 0
-      ? [
-          ligado(
-            'prioridade',
-            'Prioridade',
-            resumo('Prioridade', filters.priorities, todasPrioridades),
-            () => onChange({ ...filters, priorities: [] }),
-          ),
-        ]
-      : []),
-    ...(filters.types.length > 0
-      ? [
-          ligado('tipo', 'Tipo', resumo('Tipo', filters.types, todosTipos), () =>
-            onChange({ ...filters, types: [] }),
-          ),
-        ]
-      : []),
-    ...(lista && colunaLigada
-      ? [
-          ligado(
-            'coluna',
-            'Coluna',
-            resumo('Coluna', lista.filters.columns, comoOpcoes(opcoesDeColuna)),
-            () => lista.onChange({ ...lista.filters, columns: [] }),
-          ),
-        ]
-      : []),
-    ...(lista?.sprints && sprintLigada
-      ? [
-          ligado(
-            'sprint',
-            'Sprint',
-            `Sprint: ${cabe(nomeDaSprint(lista.sprints, lista.filters.sprint))}`,
-            () => lista.onChange({ ...lista.filters, sprint: null }),
-          ),
-        ]
-      : []),
-  ]
-
-  // **A linha "Filtrando por" abre e fecha com transicao.** Aparecendo de uma vez, ela
-  // empurrava a lista inteira para baixo num quadro, e sumindo, puxava para cima. Entra
-  // fechada e abre no quadro seguinte; ao sair, fecha e so depois deixa a tela, mostrando
-  // ate o fim os filtros que tinha.
-  const temLigados = ligados.length > 0
-  const [linhaMontada, setLinhaMontada] = useState(temLigados)
-  const [linhaAberta, setLinhaAberta] = useState(temLigados)
-  const ultimosLigados = useRef(ligados)
-  useEffect(() => {
-    if (temLigados) ultimosLigados.current = ligados
-  })
+  // **So o "Limpar filtros", e nao a lista do que esta ligado.** O atalho ligado fica
+  // marcado e o "Filtrar" diz quantos estao ligados nele: a linha de chips repetia isso e
+  // pesava a tela. Para voltar a um recorte, ha as vistas salvas. A busca nao conta: o texto
+  // esta no campo, e o "x" dele limpa.
+  //
+  // Na tela larga ele entra e sai esmaecendo (`limparEm`, o fim da linha das abas). Ao
+  // sair, primeiro esmaece e so depois deixa a tela.
+  const temFiltro = ligadosForaDaBusca > 0
+  const [limparMontado, setLimparMontado] = useState(temFiltro)
+  const [limparVisivel, setLimparVisivel] = useState(temFiltro)
   useLayoutEffect(() => {
-    if (temLigados) {
-      setLinhaMontada(true)
+    if (temFiltro) {
+      setLimparMontado(true)
       if (semMovimento()) {
-        setLinhaAberta(true)
+        setLimparVisivel(true)
         return
       }
-      const quadro = requestAnimationFrame(() => setLinhaAberta(true))
+      const quadro = requestAnimationFrame(() => setLimparVisivel(true))
       return () => cancelAnimationFrame(quadro)
     }
-    setLinhaAberta(false)
+    setLimparVisivel(false)
     if (semMovimento()) {
-      setLinhaMontada(false)
+      setLimparMontado(false)
       return
     }
-    const espera = setTimeout(() => setLinhaMontada(false), LINHA_MS)
+    const espera = setTimeout(() => setLimparMontado(false), LIMPAR_MS)
     return () => clearTimeout(espera)
-  }, [temLigados])
+  }, [temFiltro])
+  const limpar = (
+    <button
+      type="button"
+      onClick={onClear}
+      className={cn(
+        'alvo-de-toque relative h-7 flex-none cursor-pointer whitespace-nowrap rounded-lg px-1.5 text-caption text-fg-muted underline-offset-2 transition-[opacity,translate,color] duration-250 ease-[var(--ease-drawer)] hover:text-fg hover:underline motion-reduce:transition-none',
+        limparVisivel ? 'translate-x-0 opacity-100' : 'translate-x-1.5 opacity-0',
+      )}
+    >
+      Limpar filtros
+      <span className="sr-only"> ({active === 1 ? '1 ligado' : `${active} ligados`})</span>
+    </button>
+  )
 
   return (
     <search className="mt-3 mb-3 flex flex-wrap items-center gap-2" aria-label="Filtrar cards">
@@ -832,8 +748,6 @@ export function WorkFilterBar({
         <MenuDeFiltrar campos={campos} ligados={ligadosNoFiltrar} />
       </div>
 
-      {comoFunciona}
-
       {(lista || vista || children) && (
         <FilterBarEnd>
           {lista && (
@@ -846,25 +760,9 @@ export function WorkFilterBar({
         </FilterBarEnd>
       )}
 
-      {/* Dos proprios filtros, e nao so da contagem: filtro ligado nunca fica sem o seu chip. */}
-      {linhaMontada && (
-        <div
-          className={cn(
-            'grid basis-full transition-[grid-template-rows,opacity,margin] duration-250 ease-[var(--ease-drawer)] motion-reduce:transition-none',
-            // Fechada, a margem negativa devolve o espaco entre as linhas da barra: nada
-            // fica sobrando enquanto ela some.
-            linhaAberta ? 'grid-rows-[1fr] opacity-100' : '-mt-2 grid-rows-[0fr] opacity-0',
-          )}
-        >
-          <div className="min-h-0 overflow-hidden">
-            <FiltrosLigados
-              ligados={temLigados ? ligados : ultimosLigados.current}
-              active={Math.max(active, ligados.length)}
-              aoLimpar={onClear}
-            />
-          </div>
-        </div>
-      )}
+      {/* Na tela larga, no lugar dado (o fim da linha das abas): ali ja ha lugar, e nada
+          desce. Sem lugar, no fim da barra. No celular, o limpar mora na folha dos filtros. */}
+      {limparMontado && !celular && (limparEm ? createPortal(limpar, limparEm) : limpar)}
 
       {/* No celular os filtros sobem numa folha, por cima da lista: abertos na barra, eles
           empurravam a lista para baixo e tomavam metade da tela. */}
@@ -915,9 +813,8 @@ export function WorkFilterBar({
 }
 
 /**
- * O fim da barra, a direita e depois de um traco: o que muda o que se ve sem ser filtro
- * — a ordem, as raias, os arquivados. **O mesmo lugar na lista, no quadro e no
- * backlog**: quem procura os arquivados nao procura em cada vista.
+ * O fim da barra, a direita e depois de um traco: o que muda o que se ve sem ser filtro,
+ * a ordem e as raias do quadro.
  */
 export function FilterBarEnd({ children }: { children: ReactNode }) {
   return (
@@ -926,14 +823,6 @@ export function FilterBarEnd({ children }: { children: ReactNode }) {
     </div>
   )
 }
-
-/**
- * As classes do "Como funciona" dentro da barra: fechado, e mais um item da linha;
- * aberto, desce para uma linha propria embaixo de tudo — a explicacao nao espreme os
- * filtros.
- */
-// No celular, fechado, tambem vai para o fim: no meio da linha ele espremia a busca.
-export const HELP_IN_BAR = 'flex-none max-sm:order-last open:order-last open:basis-full'
 
 /** A dica do atalho "/" mora nos componentes compartilhados: o hub de projetos tambem a usa. */
 export { SearchShortcutHint }
@@ -954,26 +843,23 @@ const PILULA_LIGADA = 'border-accent bg-accent/15 text-fg hover:bg-accent/20'
 const CONTROLE_DESLIGADO =
   'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg'
 
-/** Quanto a linha "Filtrando por" leva para abrir e fechar. */
-const LINHA_MS = 250
+/** Quanto o "Limpar filtros" leva para aparecer e sumir. */
+const LIMPAR_MS = 250
 
 /** Um campo do "Filtrar": o nome, quantos estao marcados e as opcoes, que abrem ao lado. */
 interface CampoDoFiltrar {
   chave: string
   rotulo: string
   ligados: number
+  /**
+   * O que esta marcado, para o "Filtrar" dizer qual sem abrir o campo ("Sprint 2",
+   * "pagamentos +1"), e o inteiro na dica. Nulo sem nada marcado, ou com os nomes ainda
+   * nao lidos: ai fica o numero.
+   */
+  marcados?: { curto: string; inteiro: string } | null
   /** Le as opcoes na primeira vez que o campo abre. */
   aoAbrir?: () => void
   itens: ReactNode
-}
-
-/** Um filtro ligado na linha "Filtrando por": o que diz, o nome dele e como tirar. */
-interface FiltroLigado {
-  chave: string
-  rotulo: string
-  texto: string
-  titulo: string
-  aoTirar: () => void
 }
 
 /**
@@ -984,7 +870,12 @@ interface FiltroLigado {
  */
 function MenuDeFiltrar({ campos, ligados }: { campos: CampoDoFiltrar[]; ligados: number }) {
   return (
-    <Menu.Root>
+    // Ao abrir, le os nomes dos campos com algo marcado: o menu diz qual, e nao so quantos.
+    <Menu.Root
+      onOpenChange={(aberto) => {
+        if (aberto) for (const campo of campos) if (campo.ligados > 0) campo.aoAbrir?.()
+      }}
+    >
       <Menu.Trigger
         aria-label={
           ligados > 0 ? `Filtrar, ${ligados} ${ligados === 1 ? 'ligado' : 'ligados'}` : 'Filtrar'
@@ -1016,7 +907,7 @@ function MenuDeFiltrar({ campos, ligados }: { campos: CampoDoFiltrar[]; ligados:
           align="start"
           sideOffset={6}
           collisionPadding={8}
-          className={cn(MOLDURA, 'w-56')}
+          className={cn(MOLDURA, 'w-64')}
         >
           <Menu.Label className="px-2.5 pt-1 pb-1.5 text-caption text-fg-muted">
             Filtrar por
@@ -1026,12 +917,22 @@ function MenuDeFiltrar({ campos, ligados }: { campos: CampoDoFiltrar[]; ligados:
               <Menu.SubTrigger
                 className={cn(ITEM, 'justify-between data-[state=open]:bg-surface-sunken')}
               >
-                <span className="min-w-0 truncate">{campo.rotulo}</span>
-                <span className="flex flex-none items-center gap-1.5 text-fg-muted">
-                  {campo.ligados > 0 && (
-                    <span className="min-w-4 rounded-full bg-accent/15 px-1 text-center text-caption text-fg tabular-nums">
-                      {campo.ligados}
+                {/* O nome do campo nunca corta: quem encurta e o que esta marcado. */}
+                <span className="flex-none">{campo.rotulo}</span>
+                <span className="flex min-w-0 items-center gap-1.5 text-fg-muted">
+                  {campo.marcados ? (
+                    <span
+                      title={campo.marcados.inteiro}
+                      className="min-w-0 max-w-28 truncate rounded-full bg-accent/15 px-1.5 text-caption text-fg"
+                    >
+                      {campo.marcados.curto}
                     </span>
+                  ) : (
+                    campo.ligados > 0 && (
+                      <span className="min-w-4 rounded-full bg-accent/15 px-1 text-center text-caption text-fg tabular-nums">
+                        {campo.ligados}
+                      </span>
+                    )
                   )}
                   <svg
                     aria-hidden="true"
@@ -1057,62 +958,6 @@ function MenuDeFiltrar({ campos, ligados }: { campos: CampoDoFiltrar[]; ligados:
         </Menu.Content>
       </Menu.Portal>
     </Menu.Root>
-  )
-}
-
-/**
- * A linha "Filtrando por", so com filtro ligado: cada um num chip com o seu "x", e o
- * "Limpar filtros" no fim. E onde se ve, sem abrir menu nenhum, por que a lista mudou.
- */
-function FiltrosLigados({
-  ligados,
-  active,
-  aoLimpar,
-}: {
-  ligados: FiltroLigado[]
-  active: number
-  aoLimpar: () => void
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 py-0.5">
-      <span className="mr-0.5 text-caption text-fg-muted">Filtrando por</span>
-      {ligados.map((filtro) => (
-        <span
-          key={filtro.chave}
-          title={filtro.titulo}
-          className="flex h-7 max-w-full animate-fade-in items-center gap-0.5 rounded-full border border-accent/40 bg-accent/10 pr-0.5 pl-2.5 text-caption text-fg"
-        >
-          <span className="min-w-0 truncate">{filtro.texto}</span>
-          <button
-            type="button"
-            aria-label={`Tirar o filtro ${filtro.rotulo}`}
-            title={`Tirar o filtro ${filtro.rotulo}`}
-            onClick={filtro.aoTirar}
-            className="alvo-de-toque relative flex size-6 flex-none cursor-pointer items-center justify-center rounded-full text-fg-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-accent/15 hover:text-fg active:scale-90"
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 12 12"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              className="size-2.5"
-            >
-              <path d="M3 3l6 6M9 3l-6 6" />
-            </svg>
-          </button>
-        </span>
-      ))}
-      <button
-        type="button"
-        onClick={aoLimpar}
-        className="alvo-de-toque relative ml-1 h-7 cursor-pointer rounded-lg px-1.5 text-caption text-fg-muted underline-offset-2 hover:text-fg hover:underline"
-      >
-        Limpar filtros
-        <span className="sr-only"> ({active === 1 ? '1 ligado' : `${active} ligados`})</span>
-      </button>
-    </div>
   )
 }
 
@@ -1164,6 +1009,25 @@ function Atalho({
 
 /** O valor cortado no que cabe no botao. */
 const cabe = (texto: string) => (texto.length > CABE ? `${texto.slice(0, CABE - 1)}…` : texto)
+
+/**
+ * O que esta marcado num campo do "Filtrar": o primeiro nome e "+n", e o inteiro para a
+ * dica. Nulo sem nada marcado, ou com algum nome ainda nao lido (fica o numero).
+ */
+function marcadosDe(
+  escolhidos: string[],
+  todas: Opcao[],
+): { curto: string; inteiro: string } | null {
+  if (escolhidos.length === 0) return null
+  const nomes: string[] = []
+  for (const valor of escolhidos) {
+    const achada = todas.find((opcao) => opcao.value === valor)
+    if (!achada) return null
+    nomes.push(achada.curto ?? achada.label)
+  }
+  const mais = nomes.length > 1 ? ` +${nomes.length - 1}` : ''
+  return { curto: `${cabe(nomes[0] ?? '')}${mais}`, inteiro: nomes.join(', ') }
+}
 
 /** A seta do botao de menu. */
 function Seta() {

@@ -92,8 +92,9 @@ export const WORK_SECTIONS: ConsoleSection[] = [
   MEMBERS,
   // **Fora do Trabalho, e nao uma aba dele.** As duas leem o mesmo relato e
   // respondem perguntas diferentes: "o que ainda nao tratei" e "o que ja pode ser
-  // lido por estranhos". Aparece **sempre**, inclusive em projeto privado — a tela
-  // diz que ali a fila nao vai a publico.
+  // lido por estranhos". **So com a lista publica ligada** (Privacidade): em projeto
+  // privado nada dali vai a publico, e o item confundia. Quem esconde e a casca
+  // (`moderationInMenu`); o endereco continua abrindo a tela.
   { key: 'moderation', label: 'Moderação', path: 'moderation' },
 ]
 

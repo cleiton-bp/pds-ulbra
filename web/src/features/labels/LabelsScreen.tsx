@@ -579,6 +579,7 @@ export function LabelsScreen() {
                             variant="primary"
                             disabled={!podeSalvar || saving}
                             onClick={saveEdit}
+                            data-salvar-da-tela
                           >
                             Salvar
                           </Button>
@@ -636,7 +637,7 @@ export function LabelsScreen() {
         onConfirm={confirmarTroca}
       />
 
-      <LeaveGuard when={sujo} onSave={podeSalvar ? () => void saveEdit() : undefined} />
+      <LeaveGuard when={sujo} canSave={podeSalvar} />
     </div>
   )
 }

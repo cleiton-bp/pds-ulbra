@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -52,17 +51,16 @@ import {
 } from '@/features/reports/sprints/sprintLook'
 import { useFiltersInAddress } from '@/features/reports/useFiltersInAddress'
 import { useReportInbox } from '@/features/reports/useReportInbox'
-import { useWorkFilters } from '@/features/reports/useWorkFilters'
-import { useWorkRealtime } from '@/features/reports/useWorkRealtime'
 import {
-  ACTIVE_FILTER_CLASS,
-  FilterBarEnd,
-  HELP_IN_BAR,
-  WorkFilterBar,
-} from '@/features/reports/WorkFilterBar'
+  NO_LIST_FILTERS,
+  useArchivedFilters,
+  useWorkFilters,
+} from '@/features/reports/useWorkFilters'
+import { useWorkRealtime } from '@/features/reports/useWorkRealtime'
+import { WorkFilterBar } from '@/features/reports/WorkFilterBar'
 import { AlturaSuave, useTrocaQuandoChegar } from '@/shared/components/AlturaSuave'
 import { Button } from '@/shared/components/Button'
-import { HowItWorks } from '@/shared/components/HowItWorks'
+import { Modal } from '@/shared/components/Modal'
 import { Select } from '@/shared/components/Select'
 import { ShortcutsButton, ShortcutsDialog } from '@/shared/components/ShortcutsDialog'
 import { toast } from '@/shared/components/toastStore'
@@ -97,10 +95,10 @@ const DESTAQUE_DE_FABRICA = 2
  *
  * **Abaixo das abas, a barra de filtros**: a busca, os atalhos e os menus, que valem
  * na lista e no quadro; na lista, tambem a coluna, a sprint e a ordem. **Uma faixa so
- * antes do conteudo**: as raias do quadro e os arquivados moram no fim da barra — os
- * arquivados no mesmo lugar nas tres vistas —, e o como arrastar fica no "Como
- * funciona" dela. Os filtros vao para o endereco, e o link reproduz a vista; ao lado
- * das abas, as vistas salvas de quem olha.
+ * antes do conteudo**: as raias do quadro moram no fim da barra. Os arquivados abrem num
+ * modal, pelo botao do alto, ao lado de Atalhos e do Novo card; o como arrastar fica com o
+ * guia da tela. Os filtros vao para o endereco, e o link reproduz a vista; ao lado das
+ * abas, as vistas salvas de quem olha.
  *
  * **Os atalhos estao a vista**: o "/" dentro da busca, e o "?" abre a lista deles. "/"
  * vai a busca (tambem a do backlog), "c" abre o "Novo card" e Esc desmarca o lote.
@@ -121,39 +119,11 @@ export function ReportsScreen() {
   const project = useCurrentProject()
 
   /**
-   * Os arquivados, no lugar da lista. **Nunca os dois juntos**: misturar faria o
-   * arquivado parecer de volta. O recorte por coluna sai junto — a contagem das
-   * colunas e a da tela de Trabalho, e nao conta arquivado. O quadro tambem nao os
-   * mostra: e a lista deles que aparece.
+   * O modal dos arquivados aberto. **Por cima da tela, e nao no lugar dela**: a lista, o
+   * quadro ou o backlog ficam atras como estavam, e fechar volta exatamente para la. Antes
+   * a tela inteira trocava de pagina. Lista e filtros proprios (`arquivo`, mais abaixo).
    */
   const [arquivados, setArquivados] = useState(false)
-
-  // **A troca para os arquivados e uma ida e uma volta, e se ve assim**: a tela entra
-  // deslizando da direita ao ir e da esquerda ao voltar, e o foco vai para o caminho de
-  // volta ("‹ Trabalho") ou para o botao que leva aos arquivados. Antes a tela trocava de
-  // titulo, de botoes e de linhas de uma vez, e no celular parecia que tinha pulado.
-  const tela = useRef<HTMLDivElement>(null)
-  const voltarDosArquivados = useRef<HTMLButtonElement>(null)
-  const trocouOsArquivados = useRef(false)
-  useLayoutEffect(() => {
-    if (!trocouOsArquivados.current) {
-      trocouOsArquivados.current = true
-      return
-    }
-    if (arquivados) voltarDosArquivados.current?.focus({ preventScroll: true })
-    else
-      document
-        .querySelector<HTMLElement>('[data-guia="arquivados"]')
-        ?.focus({ preventScroll: true })
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
-    tela.current?.animate?.(
-      [
-        { opacity: 0, transform: `translateX(${arquivados ? 24 : -24}px)` },
-        { opacity: 1, transform: 'none' },
-      ],
-      { duration: 240, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
-    )
-  }, [arquivados])
   /** O "Novo card" aberto — com a coluna, quando veio do "Criar" de uma coluna do quadro. */
   const [criando, setCriando] = useState<{ coluna?: string; titulo?: string } | null>(null)
   /** O card que acabou de nascer pelo dialogo, vindo de uma coluna do quadro: o quadro rola ate ele. */
@@ -209,11 +179,16 @@ export function ReportsScreen() {
   const [concluindo, setConcluindo] = useState(false)
   /** A sprint que se inicia daqui — pelo quadro vazio, ou pelo aviso de concluida. */
   const [iniciando, setIniciando] = useState<SprintViewModel | null>(null)
+  /**
+   * Onde a barra poe o "Limpar filtros" na tela larga: o fim da linha das abas, onde ja ha
+   * lugar e nada desce quando um filtro liga.
+   */
+  const [lugarDoLimpar, setLugarDoLimpar] = useState<HTMLDivElement | null>(null)
   /** Sobe a cada mudanca que o backlog precisa reler: um card, uma sprint. */
   const [versaoDoBacklog, setVersaoDoBacklog] = useState(0)
   const mexeuNoBacklog = useCallback(() => setVersaoDoBacklog((n) => n + 1), [])
 
-  const quadro = vistaEfetiva === 'quadro' && !arquivados
+  const quadro = vistaEfetiva === 'quadro'
   // A ordem das raias de prioridade e a do projeto: lida so quando elas estao na tela.
   const { data: prioridades } = useAsyncResource(
     useCallback(
@@ -236,7 +211,7 @@ export function ReportsScreen() {
       [project.PublicId, quadro, agrupar],
     ),
   )
-  const backlog = vistaEfetiva === 'backlog' && !arquivados
+  const backlog = vistaEfetiva === 'backlog'
   const modoSprint = sprintsLigadas && quadro
   const sprintDoQuadro = modoSprint ? 'active' : undefined
   // A contagem do quadro depende de a sprint estar ligada — ele mostra so a sprint em
@@ -265,10 +240,9 @@ export function ReportsScreen() {
   const cardAberto = useOutlet() !== null
   useFiltersInAddress(filtros.view, filtros.applyView, !cardAberto)
   const comFiltro = filtros.key !== ''
-  // O que so a lista recorta — as colunas e a sprint —, lembrado com os filtros. Nos
-  // arquivados nao vale: a contagem das colunas e a da tela de Trabalho.
-  const colunasDaLista = arquivados ? [] : filtros.list.columns
-  const sprintDaLista = sprintsLigadas && !arquivados ? filtros.list.sprint : null
+  // O que so a lista recorta — as colunas e a sprint —, lembrado com os filtros.
+  const colunasDaLista = filtros.list.columns
+  const sprintDaLista = sprintsLigadas ? filtros.list.sprint : null
   const comFiltroNaLista = comFiltro || colunasDaLista.length > 0 || sprintDaLista !== null
   // A chave do que vale para a lista: os filtros, as colunas, a sprint e a ordem. Vazia
   // quando e a lista de sempre — e so ai o card novo entra no topo sem reler.
@@ -283,7 +257,7 @@ export function ReportsScreen() {
   // Os marcados para o lote, so na lista dos que estao em trabalho. Trocar o que a
   // lista mostra desmarca tudo: ninguem muda em lote o que nao esta vendo.
   const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set())
-  const recorteDaLista = `${project.PublicId}|${chaveDaLista}|${arquivados}|${vistaEfetiva}`
+  const recorteDaLista = `${project.PublicId}|${chaveDaLista}|${vistaEfetiva}`
   /** A carga sozinha do fim da lista falhou: so o botao continua, ate o recorte mudar. */
   const [semCargaSozinha, setSemCargaSozinha] = useState(false)
   const [recorteMarcado, setRecorteMarcado] = useState(recorteDaLista)
@@ -333,7 +307,7 @@ export function ReportsScreen() {
   } = useReportInbox(
     project.PublicId,
     null,
-    arquivados,
+    false,
     !quadro && !backlog,
     filtros.applied,
     chaveDaLista,
@@ -347,12 +321,25 @@ export function ReportsScreen() {
   // a tabela esmaece, o campo diz "Buscando…" e o lote espera.
   const buscando = !quadro && !backlog && (relendoALista || filtros.typing)
 
-  // O recorte da lista (filtro, ordem, coluna, sprint, arquivados). **So vale na tela quando
+  // Os arquivados, no modal: lista e filtros so deles, lidos so com ele aberto. A lista de
+  // tras e os filtros da tela nao mudam com o que se procura la.
+  const filtrosDoArquivo = useArchivedFilters()
+  const arquivo = useReportInbox(
+    project.PublicId,
+    null,
+    true,
+    arquivados,
+    filtrosDoArquivo.applied,
+    filtrosDoArquivo.key,
+    { sort: filtrosDoArquivo.sort ?? undefined },
+  )
+
+  // O recorte da lista (filtro, ordem, coluna, sprint). **So vale na tela quando
   // a lista dele chega**: ate la a antiga fica parada, esmaecida se demorar, e nao renasce
   // com os dados de antes. Ao chegar, as linhas entram juntas e a area muda de altura com
   // transicao (ver `AlturaSuave`), em vez de saltar.
   const trocaNaTela = useTrocaQuandoChegar(
-    JSON.stringify([filtros.applied, filtros.sort, colunasDaLista, sprintDaLista, arquivados]),
+    JSON.stringify([filtros.applied, filtros.sort, colunasDaLista, sprintDaLista]),
     reports,
     buscando,
   )
@@ -528,6 +515,12 @@ export function ReportsScreen() {
     })
   })
 
+  // Com o modal aberto, os arquivados tambem: o card que outra pessoa arquivou aparece la,
+  // e o desarquivado sai.
+  const juntarArquivo = useJuntar(() => {
+    void arquivo.refresh()
+  })
+
   const aoVivo = useWorkRealtime(project.PublicId, (evento) => {
     switch (evento.kind) {
       case 'card': {
@@ -541,6 +534,7 @@ export function ReportsScreen() {
         )
         if (!quadro) acenderNaLista.current.add(ReportPublicId)
         juntarLista()
+        if (arquivados) juntarArquivo()
         juntarContagens()
         if (sprintsLigadas) juntarSprints()
         break
@@ -554,6 +548,7 @@ export function ReportsScreen() {
         mexeuNoBacklog()
         board.reloadAll()
         juntarLista()
+        if (arquivados) juntarArquivo()
         anunciar(
           evento.kind === 'project'
             ? 'A configuração do projeto mudou, e a tela foi relida.'
@@ -625,6 +620,27 @@ export function ReportsScreen() {
     // filtro de coluna e do quadro passariam a discordar da lista na frente de quem
     // esta olhando.
     renovarContagens()
+  }
+
+  /**
+   * O card aberto pelos arquivados mudou: a lista deles troca a linha, ou tira o
+   * desarquivado. O que volta para o Trabalho entra na lista, no quadro e nas contagens
+   * de tras. A subtarefa nao tem linha la: a lista e relida.
+   */
+  const aoMudarNoArquivo = (mudou: ReportSummaryViewModel | ReportDetailViewModel) => {
+    if (mudou.Parent) {
+      void arquivo.refresh()
+      return
+    }
+    if (arquivo.reports?.some((item) => item.PublicId === mudou.PublicId)) arquivo.apply(mudou)
+    if (mudou.ArchivedAt !== null) return
+    juntarLista()
+    board.reloadAll()
+    renovarContagens()
+    if (sprintsLigadas) {
+      sprints.revalidate()
+      mexeuNoBacklog()
+    }
   }
 
   /**
@@ -815,24 +831,6 @@ export function ReportsScreen() {
           sprintWeeks={ciclo?.SprintLengthWeeks}
           searchInputId={`${painel}-busca`}
           aoContarBacklog={(total) => setContagemDoBacklog({ projeto: project.PublicId, total })}
-          // O fim da linha da busca do backlog: o como arrastar e os arquivados, no
-          // mesmo lugar da barra da lista e do quadro.
-          barra={
-            <>
-              <HowItWorks className={HELP_IN_BAR}>
-                <p>
-                  Arraste os cards entre o backlog e as sprints, ou use o menu de cada card. No
-                  teclado, espaço pega, as setas escolhem o lugar e espaço solta.
-                </p>
-              </HowItWorks>
-              <FilterBarEnd>
-                <BotaoArquivados
-                  arquivados={arquivados}
-                  aoAlternar={() => setArquivados((valor) => !valor)}
-                />
-              </FilterBarEnd>
-            </>
-          }
         />
       ) : quadro && modoSprint && sprints.sprints !== null && sprints.ativa === null ? (
         <NoActiveSprint
@@ -893,7 +891,7 @@ export function ReportsScreen() {
               agrupar={agrupar}
               prioridades={prioridades}
               pessoas={pessoasDasRaias}
-              filtro={comFiltro ? { semFiltro: semFiltroDoQuadro, aoLimpar: filtros.clear } : null}
+              filtro={comFiltro ? { semFiltro: semFiltroDoQuadro } : null}
               revelar={revelarNoQuadro}
             />
           </>
@@ -912,7 +910,7 @@ export function ReportsScreen() {
                 />
               ) : comFiltroNaLista ? (
                 <SemCardNoFiltro
-                  arquivados={arquivados}
+                  arquivados={false}
                   busca={filtros.applied.search.trim()}
                   outros={
                     filtros.activeShared -
@@ -922,12 +920,6 @@ export function ReportsScreen() {
                   }
                   aoLimpar={filtros.clear}
                 />
-              ) : arquivados ? (
-                <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
-                  <p className="text-detail text-fg-muted leading-relaxed">
-                    Nenhum card arquivado. O que sai da tela de Trabalho aparece aqui.
-                  </p>
-                </div>
               ) : (
                 <EmptyState installs={canConfigure(project)} aoCriar={() => setCriando({})} />
               )}
@@ -941,7 +933,7 @@ export function ReportsScreen() {
                 colunas={contagens}
                 soonDays={destaque}
                 destacados={destacados}
-                selecao={arquivados ? undefined : selecao}
+                selecao={selecao}
                 ordem={filtros.sort}
                 aoOrdenar={filtros.sortBy}
                 comSprint={sprintsLigadas}
@@ -952,7 +944,7 @@ export function ReportsScreen() {
               />
 
               {/* Depois da tabela, presa embaixo da tela: marcar nao empurra as linhas. */}
-              {!arquivados && reports.some((report) => marcados.has(report.PublicId)) && (
+              {reports.some((report) => marcados.has(report.PublicId)) && (
                 <BulkActions
                   projectPublicId={project.PublicId}
                   cards={reports.filter((report) => marcados.has(report.PublicId))}
@@ -1033,7 +1025,7 @@ export function ReportsScreen() {
   )
 
   // O guia desta tela: so o que a vista da vez mostra. O backlog nao tem a barra de
-  // filtros nem as vistas salvas; o quadro sem sprint em andamento, so os arquivados.
+  // filtros nem as vistas salvas; o quadro sem sprint em andamento, nem a barra.
   useScreenGuide(
     'trabalho',
     arquivados
@@ -1073,16 +1065,11 @@ export function ReportsScreen() {
                 ? 'Arraste um card entre as colunas, e quem relatou vê o andamento mudar.'
                 : 'Cada relato e cada tarefa do time, e um clique abre o card.',
           },
-          ...(!backlog
-            ? [
-                {
-                  alvo: 'arquivados',
-                  titulo: 'Os arquivados',
-                  texto:
-                    'Os cards que saíram do Trabalho ficam aqui, e podem voltar quando quiser.',
-                },
-              ]
-            : []),
+          {
+            alvo: 'arquivados',
+            titulo: 'Os arquivados',
+            texto: 'Os cards que saíram do Trabalho ficam aqui, e podem voltar quando quiser.',
+          },
           {
             alvo: 'atalhos',
             titulo: 'Atalhos',
@@ -1106,101 +1093,71 @@ export function ReportsScreen() {
     // barra de rolar para os lados fica no pe da tela (ver `ReportsBoard`).
     // Na lista, a folga do pe fica aqui: a casca da altura fixa ao Trabalho por causa do
     // quadro, e a lista longa passaria por cima do espaco de baixo dela.
-    <div ref={tela} className={cn(quadro ? 'flex h-full flex-col' : 'pb-24 lg:pb-28')}>
-      {/* O caminho de volta dos arquivados, acima do titulo: onde o olho ja esta, como nas
-          outras telas de dentro (Chaves volta para a Instalacao). */}
-      {arquivados && (
-        <button
-          ref={voltarDosArquivados}
-          type="button"
-          onClick={() => setArquivados(false)}
-          className="alvo-de-toque relative -mt-1 mb-2 inline-flex items-center gap-1.5 text-detail text-fg-muted transition-colors hover:text-fg"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            aria-hidden
-            className="size-3"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M10 3.5 5.5 8l4.5 4.5" />
-          </svg>
-          Trabalho
-        </button>
-      )}
+    <div className={cn(quadro ? 'flex h-full flex-col' : 'pb-24 lg:pb-28')}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h1 id={`${painel}-titulo`} className="font-semibold text-screen tracking-tight">
-          {arquivados ? 'Arquivados' : 'Trabalho'}
+          Trabalho
         </h1>
         <div className="flex items-center gap-2">
+          {/* Os arquivados no alto, com Atalhos e o Novo card: na barra de filtros eles
+              dividiam a linha com a busca, e trocavam a pagina inteira. */}
+          <BotaoArquivados aoAbrir={() => setArquivados(true)} />
           {/* Os atalhos a vista: quem nao sabe que existem nao aperta o "?". */}
           <span className="flex" {...guideTarget('atalhos')}>
             <ShortcutsButton onClick={() => setVendoAtalhos(true)} />
           </span>
-          {/* Nos arquivados nao: o card novo vai para o Trabalho, e nao apareceria aqui. */}
-          {!arquivados && (
-            <Button
-              variant="primary"
-              onClick={() => setCriando({})}
-              title="Atalho: c"
-              aria-keyshortcuts="c"
-              {...guideTarget('novo-card')}
-            >
-              Novo card
-            </Button>
-          )}
+          {/* A letra e o respiro dos vizinhos (Arquivados e Atalhos): com os do tamanho
+              padrao, o fundo cheio o fazia parecer bem maior que os botoes ao lado. */}
+          <Button
+            variant="primary"
+            className="px-3 text-detail"
+            onClick={() => setCriando({})}
+            title="Atalho: c"
+            aria-keyshortcuts="c"
+            {...guideTarget('novo-card')}
+          >
+            Novo card
+          </Button>
         </div>
       </div>
 
       {/* So da tela pequena para cima: no celular, numa tela aberta todo dia, a frase
           empurrava a lista para baixo, e o titulo e o Novo card ja dizem onde se esta. */}
-      {!arquivados && (
-        <p className="-mt-1 mb-4 max-w-[68ch] text-detail text-fg-muted max-sm:hidden">
-          Os relatos de quem usa o seu sistema e os cards que o time cria, num lugar só.
-        </p>
-      )}
+      <p className="-mt-1 mb-4 max-w-[68ch] text-detail text-fg-muted max-sm:hidden">
+        Os relatos de quem usa o seu sistema e os cards que o time cria, num lugar só.
+      </p>
 
-      {!arquivados && <SistemaAindaSemRelato project={project} />}
+      <SistemaAindaSemRelato project={project} />
 
-      {arquivados ? (
-        // No celular sai, como a frase do Trabalho: o "‹ Trabalho" e o titulo ja dizem onde
-        // se esta, e a lista sobe.
-        <p className="mb-4 text-detail text-fg-muted max-sm:hidden">
-          Os cards que saíram da tela de Trabalho. Abra um para ler, comentar ou desarquivar.
-        </p>
-      ) : (
-        // As abas e, ao lado, as vistas salvas: a escolha de como ver, e a de o que ver.
-        // No celular as vistas descem para a linha de baixo: ao lado das abas sobravam
-        // 70 px, e o campo do nome empurrava a tela para o lado. O traco vai com as abas.
-        <div className="flex min-w-0 flex-wrap items-end gap-x-4 sm:flex-nowrap sm:border-border sm:border-b">
-          <div
-            className="max-sm:w-full max-sm:border-border max-sm:border-b"
-            {...guideTarget('vistas')}
-          >
-            <Abas
-              vista={vistaEfetiva}
-              painel={painel}
-              aoEscolher={setVista}
-              // Tambem enquanto o ciclo chega, com o backlog lembrado: a aba ja aparece marcada.
-              comBacklog={sprintsLigadas || vistaEfetiva === 'backlog'}
-              contagens={contagemNasAbas}
+      {/* As abas e, ao lado, as vistas salvas: a escolha de como ver, e a de o que ver.
+          No celular as vistas descem para a linha de baixo: ao lado das abas sobravam
+          70 px, e o campo do nome empurrava a tela para o lado. O traco vai com as abas. */}
+      <div className="flex min-w-0 flex-wrap items-end gap-x-4 sm:flex-nowrap sm:border-border sm:border-b">
+        <div
+          className="max-sm:w-full max-sm:border-border max-sm:border-b"
+          {...guideTarget('vistas')}
+        >
+          <Abas
+            vista={vistaEfetiva}
+            painel={painel}
+            aoEscolher={setVista}
+            // Tambem enquanto o ciclo chega, com o backlog lembrado: a aba ja aparece marcada.
+            comBacklog={sprintsLigadas || vistaEfetiva === 'backlog'}
+            contagens={contagemNasAbas}
+          />
+        </div>
+        {!backlog && (
+          <div className="min-w-0 max-sm:w-full" {...guideTarget('vistas-salvas')}>
+            <SavedViews
+              projectPublicId={project.PublicId}
+              pessoa={pessoa}
+              atual={filtros.view}
+              aoAplicar={filtros.applyView}
             />
           </div>
-          {!backlog && (
-            <div className="min-w-0 max-sm:w-full" {...guideTarget('vistas-salvas')}>
-              <SavedViews
-                projectPublicId={project.PublicId}
-                pessoa={pessoa}
-                atual={filtros.view}
-                aoAplicar={filtros.applyView}
-              />
-            </div>
-          )}
-        </div>
-      )}
+        )}
+        {!backlog && <div ref={setLugarDoLimpar} className="ml-auto flex min-w-0 max-sm:hidden" />}
+      </div>
 
       {/* O backlog tem a ordem do time, e nao recorte: os filtros sao da lista e do quadro.
           O backlog tem a busca dele, que esconde sem mudar a ordem. */}
@@ -1210,15 +1167,15 @@ export function ReportsScreen() {
             projectPublicId={project.PublicId}
             filters={filtros.filters}
             // So contam os que valem aqui: no quadro, as colunas e a sprint da lista nao
-            // valem; nos arquivados, tambem nao — nem a sprint com as sprints desligadas.
+            // valem, nem a sprint com as sprints desligadas.
             active={
               filtros.activeShared +
               (quadro ? 0 : (colunasDaLista.length > 0 ? 1 : 0) + (sprintDaLista !== null ? 1 : 0))
             }
             onChange={filtros.setFilters}
             onClear={filtros.clear}
-            // Na lista, a coluna, a sprint e a ordem moram na mesma barra — e os
-            // arquivados no fim dela: uma linha a menos antes do primeiro card.
+            // Na lista, a coluna, a sprint e a ordem moram na mesma barra: uma linha a
+            // menos antes do primeiro card.
             lista={
               quadro
                 ? undefined
@@ -1233,26 +1190,12 @@ export function ReportsScreen() {
                     aoOrdenar: filtros.setSort,
                   }
             }
-            arquivados={arquivados}
             buscando={buscando}
             searchInputId={`${painel}-busca`}
             origemBloqueada={(quadro ? Object.values(board.cards) : (reports ?? [])).some(
               (card) => card.BlockedOrigin,
             )}
-            // O como arrastar do quadro, recolhido na propria barra: no primeiro dia ele
-            // ajuda, e depois so ocupava a altura que mais falta no quadro.
-            comoFunciona={
-              quadro ? (
-                <HowItWorks className={HELP_IN_BAR}>
-                  <p>
-                    {agrupar === 'none'
-                      ? 'Arraste para mover'
-                      : `Arraste para mover; outra raia troca ${agrupar === 'assignee' ? 'o responsável' : 'a prioridade'}`}
-                    {', no celular segure, e no teclado as setas andam e o espaço pega'}
-                  </p>
-                </HowItWorks>
-              ) : undefined
-            }
+            limparEm={lugarDoLimpar}
             vista={
               quadro ? (
                 <Select
@@ -1268,53 +1211,24 @@ export function ReportsScreen() {
                 />
               ) : undefined
             }
-          >
-            <BotaoArquivados
-              arquivados={arquivados}
-              aoAlternar={() => setArquivados((valor) => !valor)}
-            />
-          </WorkFilterBar>
+          />
         </div>
       )}
 
-      {/* O quadro sem sprint em andamento nao tem barra de filtros: os arquivados ficam
-          no mesmo lugar, numa faixa so com eles. O backlog os poe no fim da busca dele. */}
-      {(quadroSemSprint || (backlog && sprintsFalharam)) && (
-        <div className="my-3 flex">
-          <FilterBarEnd>
-            <BotaoArquivados
-              arquivados={arquivados}
-              aoAlternar={() => setArquivados((valor) => !valor)}
-            />
-          </FilterBarEnd>
-        </div>
-      )}
-
-      {/* Nos arquivados nao ha abas: o conteudo e uma regiao com o nome do titulo. */}
-      {arquivados ? (
-        <section
-          aria-labelledby={`${painel}-titulo`}
-          data-work-area
-          onClickCapture={guardaDoClique}
-        >
-          {conteudo}
-        </section>
-      ) : (
-        // A chave troca com a vista: o painel novo entra esmaecendo, em vez de a lista
-        // virar quadro de uma vez.
-        <div
-          key={vistaEfetiva}
-          id={painel}
-          role="tabpanel"
-          aria-labelledby={`${painel}-${vistaEfetiva}`}
-          data-work-area
-          {...guideTarget('cards')}
-          onClickCapture={guardaDoClique}
-          className={cn('animate-panel-in', quadro && 'flex min-h-0 flex-1 flex-col')}
-        >
-          {conteudo}
-        </div>
-      )}
+      {/* A chave troca com a vista: o painel novo entra esmaecendo, em vez de a lista
+          virar quadro de uma vez. */}
+      <div
+        key={vistaEfetiva}
+        id={painel}
+        role="tabpanel"
+        aria-labelledby={`${painel}-${vistaEfetiva}`}
+        data-work-area
+        {...guideTarget('cards')}
+        onClickCapture={guardaDoClique}
+        className={cn('animate-panel-in', quadro && 'flex min-h-0 flex-1 flex-col')}
+      >
+        {conteudo}
+      </div>
 
       {/* O relato aberto e uma rota filha, e nao um estado desta tela: assim ele
           tem endereco proprio, o botao voltar do navegador fecha o dialogo em vez
@@ -1323,22 +1237,42 @@ export function ReportsScreen() {
       <Outlet
         context={{
           projectPublicId: project.PublicId,
-          reports: quadro ? Object.values(board.cards) : reports,
+          // Aberto pelos arquivados, o card conversa com a lista deles: o anterior e o
+          // proximo andam entre os arquivados, e o que muda troca a linha de la.
+          reports: arquivados ? arquivo.reports : quadro ? Object.values(board.cards) : reports,
           // As colunas saem da contagem que esta tela ja carregou: mesma ordem, e
           // sem uma segunda requisicao para perguntar o que ja esta na mao.
           colunas: contagens,
-          aoMudar,
+          aoMudar: arquivados ? aoMudarNoArquivo : aoMudar,
           assinarAvisos: aoVivo.assinar,
           semAoVivo: aoVivo.semAoVivo,
           // O anterior e o proximo do card aberto seguem o que esta na tela: a lista
           // como esta, ou o quadro coluna por coluna.
-          ordem: quadro
-            ? (colunasDoQuadro ?? []).flatMap((coluna) => board.items[coluna.key] ?? [])
-            : reports?.map((report) => report.PublicId),
+          ordem: arquivados
+            ? arquivo.reports?.map((report) => report.PublicId)
+            : quadro
+              ? (colunasDoQuadro ?? []).flatMap((coluna) => board.items[coluna.key] ?? [])
+              : reports?.map((report) => report.PublicId),
           podeConfigurar: canConfigure(project),
           soonDays: destaque,
           sprints: sprintsLigadas ? (sprints.sprints ?? []) : null,
         }}
+      />
+
+      <ModalDosArquivados
+        aberto={arquivados}
+        aoFechar={() => {
+          setArquivados(false)
+          filtrosDoArquivo.reset()
+        }}
+        projectPublicId={project.PublicId}
+        filtros={filtrosDoArquivo}
+        lista={arquivo}
+        colunas={contagens}
+        colunasFalharam={contagensFalharam}
+        aoRecarregarColunas={recarregarContagens}
+        soonDays={destaque}
+        comSprint={sprintsLigadas}
       />
 
       {falhasDoLote && (
@@ -1639,58 +1573,230 @@ const ATALHOS: { teclas: string[]; oQue: string }[] = [
  * tambem — quem nao sabe que ha atalhos nao aperta o "?".
  */
 /**
- * A chave dos arquivados: "Arquivados" fora deles, e "Sair dos arquivados" dentro — o
- * botao pressionado sozinho nao dizia como voltar.
+ * "Arquivados", no alto, ao lado de Atalhos e do Novo card: abre o modal dos arquivados
+ * por cima da tela. Na barra de filtros ele dividia a linha com a busca e os filtros, e
+ * trocava a pagina inteira. No celular, so o desenho da caixa, como era.
  */
-function BotaoArquivados({
-  arquivados,
-  aoAlternar,
-}: {
-  arquivados: boolean
-  aoAlternar: () => void
-}) {
-  // No celular, fora dos arquivados, so o desenho da caixa: com o nome, o botao descia
-  // sozinho para uma linha propria embaixo da busca. Dentro deles o nome fica, porque
-  // "Sair dos arquivados" diz como voltar.
+function BotaoArquivados({ aoAbrir }: { aoAbrir: () => void }) {
   return (
     <button
       type="button"
-      aria-pressed={arquivados}
-      onClick={aoAlternar}
-      title={arquivados ? undefined : 'Arquivados'}
+      onClick={aoAbrir}
+      aria-haspopup="dialog"
+      aria-label="Arquivados"
+      title="Os cards que saíram do Trabalho"
       {...guideTarget('arquivados')}
-      className={cn(
-        'alvo-de-toque relative flex h-8 flex-none items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors pointer-coarse:h-9',
-        !arquivados && 'max-sm:w-9 max-sm:justify-center max-sm:px-0',
-        // Nos arquivados, no celular, a volta e o "‹ Trabalho" no alto: o botao grande aqui
-        // ocupava uma linha so para ele.
-        arquivados && 'max-sm:hidden',
-        arquivados
-          ? ACTIVE_FILTER_CLASS
-          : 'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg',
-      )}
+      className="flex h-9 flex-none items-center justify-center gap-1.5 rounded-lg border border-border px-3 text-detail text-fg-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-surface-sunken hover:text-fg active:scale-[0.97] motion-reduce:transition-none max-sm:w-9 max-sm:px-0"
     >
-      {!arquivados && (
-        <svg
-          viewBox="0 0 16 16"
-          className="size-4 flex-none sm:hidden"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <rect x="2" y="3" width="12" height="3" rx="1" />
-          <path d="M3 6v6.5a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6M6.5 9h3" />
-        </svg>
-      )}
-      <span className={cn(!arquivados && 'max-sm:sr-only')}>
-        {arquivados ? 'Sair dos arquivados' : 'Arquivados'}
-      </span>
+      <svg
+        viewBox="0 0 16 16"
+        className="size-4 flex-none sm:hidden"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <rect x="2" y="3" width="12" height="3" rx="1" />
+        <path d="M3 6v6.5a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6M6.5 9h3" />
+      </svg>
+      <span className="max-sm:sr-only">Arquivados</span>
     </button>
   )
 }
+
+/** Nenhum card aceso: os avisos ao vivo acendem a lista de tras, e nao a dos arquivados. */
+const NENHUM_ACESO: ReadonlySet<string> = new Set()
+
+/**
+ * Os arquivados num modal grande, por cima da tela de Trabalho: a lista, o quadro ou o
+ * backlog continuam atras, como estavam. A busca e os filtros sao so daqui
+ * (`useArchivedFilters`) e ficam presos no alto do modal enquanto a lista rola.
+ *
+ * Abrir um card abre o card por cima; o anterior e o proximo dele andam entre os
+ * arquivados, e fechar o card volta para ca. O "/" vai para a busca daqui.
+ */
+function ModalDosArquivados({
+  aberto,
+  aoFechar,
+  projectPublicId,
+  filtros,
+  lista,
+  colunas,
+  colunasFalharam,
+  aoRecarregarColunas,
+  soonDays,
+  comSprint,
+}: {
+  aberto: boolean
+  aoFechar: () => void
+  projectPublicId: string
+  filtros: ReturnType<typeof useArchivedFilters>
+  lista: ReturnType<typeof useReportInbox>
+  colunas: ReportStateCountViewModel[] | null
+  colunasFalharam: boolean
+  aoRecarregarColunas: () => void
+  soonDays: number
+  comSprint: boolean
+}) {
+  const [lugarDoLimpar, setLugarDoLimpar] = useState<HTMLDivElement | null>(null)
+  const [semCargaSozinha, setSemCargaSozinha] = useState(false)
+  const buscando = lista.refreshing || filtros.typing
+  const troca = useTrocaQuandoChegar(filtros.key, lista.reports, buscando)
+  const busca = filtros.applied.search.trim()
+  const { reports, total } = lista
+
+  // O "/" leva a busca daqui, como na tela; com o card aberto por cima, a tecla e dele.
+  useEffect(() => {
+    if (!aberto) return
+    const aoTeclar = (evento: globalThis.KeyboardEvent) => {
+      if (evento.key !== '/' || evento.defaultPrevented) return
+      if (evento.ctrlKey || evento.metaKey || evento.altKey) return
+      const campo = document.getElementById(BUSCA_DOS_ARQUIVADOS)
+      const alvo = evento.target as HTMLElement | null
+      if (!campo || !alvo || !campo.closest('[role="dialog"]')?.contains(alvo)) return
+      if (alvo.closest('input, textarea, select, [contenteditable="true"]')) return
+      evento.preventDefault()
+      campo.focus()
+    }
+    document.addEventListener('keydown', aoTeclar)
+    return () => document.removeEventListener('keydown', aoTeclar)
+  }, [aberto])
+
+  return (
+    <Modal
+      open={aberto}
+      onOpenChange={(abrir) => {
+        if (!abrir) aoFechar()
+      }}
+      title="Arquivados"
+      description="Os cards que saíram da tela de Trabalho. Abra um para ler, comentar ou desarquivar."
+      closeButton
+      width="w-[min(76rem,calc(100vw-2rem))]"
+      // A altura e a mesma do comeco ao fim: filtrar nao encolhe nem estica a caixa.
+      className="h-[min(56rem,calc(100dvh-2rem))]"
+      // Com mouse, ja na busca; no toque, nao: o teclado subiria cobrindo a lista.
+      initialFocus={() =>
+        window.matchMedia?.('(pointer: fine)').matches
+          ? document.getElementById(BUSCA_DOS_ARQUIVADOS)
+          : null
+      }
+    >
+      <div className="sticky top-0 z-sticky bg-surface-raised">
+        {/* Quantos sao e, a direita, o "Limpar filtros": linha de altura fixa, para nada
+            descer quando um filtro liga. */}
+        <div className="flex h-8.75 min-w-0 items-center gap-4">
+          {/* Vazia, quem fala e o aviso de baixo; com filtro, conta os que passam. */}
+          <p className="flex-none text-detail text-fg-muted tabular-nums">
+            {!reports || reports.length === 0
+              ? ''
+              : filtros.active > 0
+                ? `${total} ${total === 1 ? 'encontrado' : 'encontrados'}`
+                : `${total} ${total === 1 ? 'card arquivado' : 'cards arquivados'}`}
+          </p>
+          <div ref={setLugarDoLimpar} className="ml-auto flex min-w-0" />
+        </div>
+        <WorkFilterBar
+          projectPublicId={projectPublicId}
+          filters={filtros.filters}
+          active={filtros.active}
+          onChange={filtros.setFilters}
+          onClear={filtros.clear}
+          lista={{
+            filters: NO_LIST_FILTERS,
+            onChange: () => {},
+            colunas,
+            colunasFalharam,
+            aoRecarregarColunas,
+            sprints: null,
+            ordem: filtros.sort,
+            aoOrdenar: filtros.setSort,
+          }}
+          arquivados
+          buscando={buscando}
+          searchInputId={BUSCA_DOS_ARQUIVADOS}
+          origemBloqueada={(reports ?? []).some((card) => card.BlockedOrigin)}
+          limparEm={lugarDoLimpar}
+        />
+      </div>
+
+      {lista.failed && (
+        <div className="max-w-170 rounded-xl border border-border bg-surface-raised p-5">
+          <p className="mb-3.5 text-fg-muted text-body leading-relaxed">
+            Não deu para carregar os arquivados agora. Nada se perdeu: a falha foi ao consultar.
+          </p>
+          <Button onClick={lista.reload}>Tentar de novo</Button>
+        </div>
+      )}
+
+      <AlturaSuave chave={troca}>
+        {lista.loading && <ReportsTableSkeleton />}
+
+        {reports?.length === 0 &&
+          (filtros.active > 0 ? (
+            <SemCardNoFiltro
+              arquivados
+              busca={busca}
+              outros={filtros.active - (busca ? 1 : 0)}
+              aoLimpar={filtros.clear}
+            />
+          ) : (
+            <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
+              <p className="text-detail text-fg-muted leading-relaxed">
+                Nenhum card arquivado. O que sai da tela de Trabalho aparece aqui.
+              </p>
+            </div>
+          ))}
+
+        {reports && reports.length > 0 && (
+          <>
+            <ReportsTable
+              reports={reports}
+              colunas={colunas}
+              soonDays={soonDays}
+              destacados={NENHUM_ACESO}
+              ordem={filtros.sort}
+              aoOrdenar={filtros.sortBy}
+              comSprint={comSprint}
+              buscando={buscando}
+              troca={troca}
+              cabecalhoPreso={false}
+            />
+
+            {/* So com mais para carregar: o total ja esta na linha do alto. */}
+            {lista.hasMore && (
+              <footer className="mt-3 flex flex-wrap items-center gap-3 pb-1">
+                <Button
+                  disabled={lista.loadingMore}
+                  onClick={() => {
+                    lista.loadMore().catch((error) => toast.error(describeError(error)))
+                  }}
+                >
+                  {lista.loadingMore ? 'Carregando…' : 'Carregar mais'}
+                </Button>
+                <span className="text-detail text-fg-muted tabular-nums">
+                  {reports.length} de {total} {total === 1 ? 'card' : 'cards'}
+                </span>
+              </footer>
+            )}
+
+            {lista.hasMore && !lista.loadingMore && !semCargaSozinha && (
+              <CarregarSozinho
+                aoChegar={() => {
+                  lista.loadMore().catch(() => setSemCargaSozinha(true))
+                }}
+              />
+            )}
+          </>
+        )}
+      </AlturaSuave>
+    </Modal>
+  )
+}
+
+/** O id da busca do modal dos arquivados: o "/" e o foco ao abrir a alcancam por ele. */
+const BUSCA_DOS_ARQUIVADOS = 'arquivados-busca'
 
 /**
  * A proxima pagina sem clique: quando o fim da lista chega a uma tela de distancia, ela

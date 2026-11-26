@@ -578,7 +578,7 @@ export function ReportTypesScreen() {
         onConfirm={confirmarTroca}
       />
 
-      <LeaveGuard when={sujo} onSave={podeSalvar ? () => void salvar() : undefined} />
+      <LeaveGuard when={sujo} canSave={podeSalvar} />
     </div>
   )
 }

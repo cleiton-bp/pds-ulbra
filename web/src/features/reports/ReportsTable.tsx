@@ -136,6 +136,7 @@ export function ReportsTable({
   comSprint = false,
   buscando = false,
   troca,
+  cabecalhoPreso = true,
 }: {
   reports: ReportSummaryViewModel[]
   /** As colunas do projeto, para o tom da coluna de cada card. */
@@ -161,6 +162,11 @@ export function ReportsTable({
    * ocupada — sem isso, a lista velha parecia o resultado.
    */
   buscando?: boolean
+  /**
+   * O cabecalho preso no alto ao rolar, na area larga. Falso dentro de um modal (os
+   * arquivados): o recuo do "grudar" e o da pagina, e la ele sumia acima do corpo.
+   */
+  cabecalhoPreso?: boolean
 }) {
   const area = useRef<HTMLDivElement>(null)
   useKeepFocus(area)
@@ -228,6 +234,7 @@ export function ReportsTable({
             aoOrdenar={aoOrdenar}
             comSprint={comSprint}
             fixa={fixa}
+            preso={cabecalhoPreso}
             selecao={
               selecao
                 ? {
@@ -582,6 +589,7 @@ function Cabecalho({
   aoOrdenar,
   comSprint,
   fixa,
+  preso,
 }: {
   selecao?: { todas: boolean; algumas: boolean; aoMarcar: (marcar: boolean) => void }
   ordem: ReportSort
@@ -589,6 +597,8 @@ function Cabecalho({
   comSprint: boolean
   /** O dado da ordem escolhida: a coluna dele nao sai pela largura. */
   fixa: ReportSortField | null
+  /** Preso no alto ao rolar (ver `cabecalhoPreso` da tabela). */
+  preso: boolean
 }) {
   const th = 'px-2 py-2 font-medium'
   // O "algumas" nao tem atributo no HTML: e uma propriedade da caixa.
@@ -616,7 +626,12 @@ function Cabecalho({
     // grudava 40 px abaixo do topo, com as linhas passando no vao acima dele. A area
     // larga (64rem de tabela) so existe com a janela `lg`, que e quando o respiro e 40.
     // `z-sticky` mantem o cabecalho por cima das linhas que passam por baixo.
-    <thead className="@min-[64rem]:sticky @min-[64rem]:-top-10 @min-[64rem]:z-sticky bg-surface-raised text-caption text-fg-muted">
+    <thead
+      className={cn(
+        preso && '@min-[64rem]:sticky @min-[64rem]:-top-10 @min-[64rem]:z-sticky',
+        'bg-surface-raised text-caption text-fg-muted',
+      )}
+    >
       <tr className="border-border border-b">
         {selecao && (
           // Como na linha: o `label` da a caixa a area da celula, que cresce no dedo.

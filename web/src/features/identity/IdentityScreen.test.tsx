@@ -12,6 +12,7 @@ import type {
 } from '@/contracts'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 import { IdentityScreen } from '@/features/identity/IdentityScreen'
+import { useModerationInMenu } from '@/shared/tour/moderationInMenu'
 
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
@@ -563,6 +564,30 @@ describe('IdentityScreen', () => {
       screen.getByText('Escolha uma visibilidade que combine com o protocolo para salvar.'),
     ).toBeTruthy()
     expect(dublê.salvar).not.toHaveBeenCalled()
+  })
+
+  it('salvar de privado para público põe a Moderação no menu e pede o guia da novidade; de volta ao privado, ela sai', async () => {
+    useModerationInMenu.setState({ publicos: {}, chegada: null, entrouAgora: null, novidade: null })
+    dublê.salvar.mockResolvedValue({ ...padrao, Visibility: 'PublicAnonymous' })
+    montar()
+
+    fireEvent.click(await screen.findByRole('radio', { name: /Público anônimo/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(useModerationInMenu.getState().publicos['p-1']).toBe(true))
+    // A casca sobe o menu e poe o item; o guia vem um instante depois.
+    expect(useModerationInMenu.getState().chegada).toBe('p-1')
+    cleanup()
+
+    // Voltar ao privado tira o item, sem guia nenhum.
+    dublê.ler.mockResolvedValue({ ...padrao, Visibility: 'PublicAnonymous' })
+    dublê.salvar.mockResolvedValue({ ...padrao, Visibility: 'Private' })
+    useModerationInMenu.setState({ chegada: null, entrouAgora: null })
+    montar()
+    fireEvent.click(await screen.findByRole('radio', { name: /Privado/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => expect(useModerationInMenu.getState().publicos['p-1']).toBe(false))
+    expect(useModerationInMenu.getState().chegada).toBeNull()
   })
 
   it('público diz que nada sai sem passar pela Moderação', async () => {

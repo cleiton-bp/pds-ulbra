@@ -224,6 +224,26 @@ describe('o prazo e a barra da sprint', () => {
     expect(aoConcluir).toHaveBeenCalled()
   })
 
+  it('a barra do quadro cabe numa linha: o objetivo corta e mostra o inteiro na dica, e o Backlog fica a um clique', () => {
+    const aoIrAoBacklog = vi.fn()
+    render(
+      <SprintBar
+        sprint={sprint({ Goal: 'Fechar o checkout e o frete antes da campanha' })}
+        aoConcluir={() => {}}
+        aoIrAoBacklog={aoIrAoBacklog}
+      />,
+    )
+    const barra = screen.getByRole('region', { name: 'Sprint em andamento: Sprint 1' })
+    // Sem a frase de duas linhas embaixo: so uma linha, com o objetivo cortavel.
+    expect(barra.querySelectorAll('p')).toHaveLength(2)
+    expect(
+      within(barra).getByTitle('Fechar o checkout e o frete antes da campanha').className,
+    ).toContain('truncate')
+    expect(barra.textContent).toContain('Os outros cards estão no Backlog')
+    fireEvent.click(within(barra).getByRole('button', { name: 'Backlog' }))
+    expect(aoIrAoBacklog).toHaveBeenCalledTimes(1)
+  })
+
   it('concluir manda o destino escolhido, uma planejada que nao e a de padrao, e o dia de quem conclui', async () => {
     // 23h30 do dia 10 no relogio de quem usa: em UTC ja e o dia 11 (S-15).
     hojeE(new Date(2026, 9, 10, 23, 30))

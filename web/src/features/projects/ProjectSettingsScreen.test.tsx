@@ -333,8 +333,8 @@ describe('ProjectSettingsScreen', () => {
     expect(within(ancora).getByRole('button', { name: 'Arquivar projeto' })).toBeTruthy()
   })
 
-  // Sair com o nome mudado pergunta antes, e voltar tambem salva.
-  it('sair com o nome mudado pergunta antes, e "Voltar e salvar" salva o nome', async () => {
+  // Sair com o nome mudado pergunta antes, e voltar leva ao Salvar, sem salvar sozinho.
+  it('sair com o nome mudado pergunta antes, e "Voltar e salvar" leva ao Salvar com o nome ainda em rascunho', async () => {
     const router = montar('p-1')
     await screen.findByDisplayValue('Loja Antiga')
 
@@ -348,11 +348,15 @@ describe('ProjectSettingsScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Voltar e salvar' }))
 
-    await waitFor(() =>
-      expect(
-        useProjectsStore.getState().projects.find((item) => item.PublicId === 'p-1')?.Name,
-      ).toBe('Loja Renomeada'),
-    )
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
     expect(router.state.location.pathname).toBe('/p/p-1')
+    // O nome continua no campo, sem salvar, e o Salvar recebe o foco e chama atencao.
+    expect(screen.getByDisplayValue('Loja Renomeada')).toBeTruthy()
+    expect(useProjectsStore.getState().projects.find((item) => item.PublicId === 'p-1')?.Name).toBe(
+      'Loja Antiga',
+    )
+    const salvar = screen.getByRole('button', { name: 'Salvar' })
+    await waitFor(() => expect(document.activeElement).toBe(salvar))
+    expect(salvar.hasAttribute('data-chamando')).toBe(true)
   })
 })

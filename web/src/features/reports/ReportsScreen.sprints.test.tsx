@@ -18,7 +18,7 @@ import { ReportsScreen } from '@/features/reports/ReportsScreen'
 import { Toaster } from '@/shared/components/Toaster'
 import { TooltipProvider } from '@/shared/components/Tooltip'
 import { useToastStore } from '@/shared/components/toastStore'
-import { abrirMenuDaBarra, fecharMenuDaBarra } from '@/test/barraDeFiltros'
+import { abrirMenuDaBarra, fecharMenuDaBarra, marcadosNoFiltrar } from '@/test/barraDeFiltros'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
@@ -616,7 +616,7 @@ describe('o filtro "Sprint" da Lista', () => {
 
     fireEvent.click(within(concluidas).getByRole('menuitemradio', { name: 'Sprint 1' }))
     await waitFor(() => expect(sprintDaUltimaLeitura()).toBe('sp-1'))
-    expect(screen.getByText('Sprint: Sprint 1').textContent).toBe('Sprint: Sprint 1')
+    expect(await marcadosNoFiltrar('Sprint')).toBe('Sprint 1')
   })
 
   it('sem sprint concluida, o menu nao tem o grupo nem a linha', async () => {
@@ -684,12 +684,12 @@ describe('o filtro "Sprint" da Lista', () => {
     await listaPronta()
     await abrirMenu('Sprint')
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sprint 1' }))
-    expect(await screen.findByText('Sprint: Sprint 1')).toBeTruthy()
+    expect(await marcadosNoFiltrar('Sprint')).toBe('Sprint 1')
     cleanup()
 
     montar()
-    expect(await screen.findByText('Sprint: Sprint 1')).toBeTruthy()
     await waitFor(() => expect(sprintDaUltimaLeitura()).toBe('sp-1'))
+    expect(await marcadosNoFiltrar('Sprint')).toBe('Sprint 1')
   })
 
   it('concluir pela barra do quadro a sprint que esta no filtro nao a tira do filtro: ela passa ao grupo das concluidas', async () => {
@@ -701,7 +701,7 @@ describe('o filtro "Sprint" da Lista', () => {
     await listaPronta()
     await abrirMenu('Sprint')
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sprint 2 (em andamento)' }))
-    expect(await screen.findByText('Sprint: Sprint 2')).toBeTruthy()
+    expect(await marcadosNoFiltrar('Sprint')).toBe('Sprint 2')
 
     fireEvent.click(screen.getByRole('tab', { name: /^Quadro/ }))
     const barra = await screen.findByRole('region', { name: 'Sprint em andamento: Sprint 2' })
@@ -711,7 +711,8 @@ describe('o filtro "Sprint" da Lista', () => {
     await semDialogo()
 
     fireEvent.click(screen.getByRole('tab', { name: /^Lista/ }))
-    expect(await screen.findByText('Sprint: Sprint 2')).toBeTruthy()
+    await listaPronta()
+    expect(await marcadosNoFiltrar('Sprint')).toBe('Sprint 2')
     const menu = await abrirMenu('Sprint: Sprint 2')
     const concluidas = within(menu).getByRole('group', { name: 'Concluídas' })
     expect(
@@ -750,7 +751,7 @@ describe('o filtro "Sprint" da Lista', () => {
       ).toEqual(['Sprint 2', 'Sprint 1']),
     )
     await fecharMenu()
-    expect(screen.getByText('Sprint: Sprint 2')).toBeTruthy()
+    expect(await marcadosNoFiltrar('Sprint')).toBe('Sprint 2')
     expect(sprintDaUltimaLeitura()).toBe('sp-2')
   })
 
@@ -775,7 +776,7 @@ describe('o filtro "Sprint" da Lista', () => {
     await listaPronta()
     await abrirMenu('Sprint')
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sprint 1' }))
-    expect(await screen.findByText('Sprint: Sprint 1')).toBeTruthy()
+    expect(await marcadosNoFiltrar('Sprint')).toBe('Sprint 1')
     cleanup()
 
     dublê.listarSprints.mockImplementation(async (_projeto, opcoes) => {
@@ -882,7 +883,7 @@ describe('as sprints no quadro e no Backlog', () => {
     expect(window.localStorage.getItem('pds.web.trabalho.vista.p-1')).toBe('backlog')
   })
 
-  it('no Backlog, o "/" vai a busca dele, a aba diz quantos cards ele tem, e os arquivados ficam no fim da linha da busca', async () => {
+  it('no Backlog, o "/" vai a busca dele, a aba diz quantos cards ele tem, e os arquivados ficam no alto da tela', async () => {
     dublê.listar.mockImplementation(async (_projeto, _pagina, _estado, _arquivados, opcoes) => {
       if (opcoes?.order === 'backlog')
         return opcoes.sprint === 'backlog'
@@ -903,11 +904,13 @@ describe('as sprints no quadro e no Backlog', () => {
     fireEvent.keyDown(document.body, { key: '/' })
     expect(document.activeElement).toBe(busca)
 
-    // Os arquivados no mesmo lugar da lista e do quadro: o fim da linha da busca, e o
-    // como arrastar no "Como funciona" dela.
+    // Os arquivados no mesmo lugar da lista e do quadro: o alto da tela, com o Novo card. A
+    // linha da busca fica so com ela (o como arrastar e do guia da tela).
     const linha = busca.closest('search') as HTMLElement
-    expect(within(linha).getByRole('button', { name: 'Arquivados' })).toBeTruthy()
-    expect(within(linha).getByText('Como funciona')).toBeTruthy()
+    expect(within(linha).queryByRole('button', { name: 'Arquivados' })).toBeNull()
+    expect(within(linha).queryByText('Como funciona')).toBeNull()
+    const alto = screen.getByRole('button', { name: 'Novo card' }).parentElement as HTMLElement
+    expect(within(alto).getByRole('button', { name: 'Arquivados' })).toBeTruthy()
   })
 
   it('aberta no Backlog, a tela espera o ciclo: nao le a Lista, e le cada lista do Backlog uma vez so', async () => {

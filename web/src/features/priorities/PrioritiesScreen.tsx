@@ -559,7 +559,7 @@ export function PrioritiesScreen() {
         onConfirm={confirmarTroca}
       />
 
-      <LeaveGuard when={sujo} onSave={podeSalvar ? () => void salvar() : undefined} />
+      <LeaveGuard when={sujo} canSave={podeSalvar} />
     </div>
   )
 }
@@ -611,6 +611,7 @@ function EditorDaPrioridade({
           variant="primary"
           disabled={rascunho.name.trim().length === 0 || salvando}
           onClick={onSalvar}
+          data-salvar-da-tela
         >
           {isNew ? 'Criar prioridade' : 'Salvar'}
         </Button>

@@ -466,3 +466,80 @@ export function useWorkFilters(projectPublicId: string, endereco?: string) {
     applyView,
   }
 }
+
+/**
+ * Os filtros do modal dos arquivados: **so dele**. A tela de Trabalho continua atras com
+ * os filtros dela, e procurar um arquivado nao mexe neles. Nao ficam guardados: fechar o
+ * modal (`reset`) e abrir de novo comeca sem filtro e na ordem de sempre.
+ *
+ * Mesmo jeito do `useWorkFilters`: `filters` e o que esta na tela, `applied` o que vale para
+ * a leitura (a busca espera a pessoa parar de digitar), e `key` muda com o que muda a
+ * leitura, a ordem junto.
+ */
+export function useArchivedFilters() {
+  const [filters, setFilters] = useState<ReportFilters>(NO_REPORT_FILTERS)
+  const [busca, setBusca] = useState('')
+  const [sort, setSort] = useState<ReportSort | null>(null)
+
+  useEffect(() => {
+    if (filters.search === busca) return
+    if (!filters.search.trim()) {
+      setBusca(filters.search)
+      return
+    }
+    const espera = setTimeout(() => setBusca(filters.search), SEARCH_DELAY_MS)
+    return () => clearTimeout(espera)
+  }, [filters.search, busca])
+
+  /** O primeiro clique na direcao que responde a pergunta, o segundo inverte. */
+  const sortBy = useCallback((campo: ReportSortField) => {
+    setSort((antes) => {
+      const vigente: ReportSort = antes ?? { field: 'created', dir: 'desc' }
+      const dir: ReportSort['dir'] =
+        vigente.field === campo ? (vigente.dir === 'asc' ? 'desc' : 'asc') : FIRST_SORT_DIR[campo]
+      return campo === 'created' && dir === 'desc' ? null : { field: campo, dir }
+    })
+  }, [])
+
+  const clear = useCallback(() => {
+    setFilters(NO_REPORT_FILTERS)
+    setBusca('')
+  }, [])
+
+  const reset = useCallback(() => {
+    setFilters(NO_REPORT_FILTERS)
+    setBusca('')
+    setSort(null)
+  }, [])
+
+  const applied = useMemo<ReportFilters>(() => ({ ...filters, search: busca }), [filters, busca])
+  const key = useMemo(
+    () =>
+      countActiveFilters(applied) === 0 && sort === null
+        ? ''
+        : JSON.stringify({
+            ...applied,
+            assignees: [...applied.assignees].sort(),
+            labels: [...applied.labels].sort(),
+            priorities: [...applied.priorities].sort(),
+            types: [...applied.types].sort(),
+            search: applied.search.trim(),
+            sort,
+          }),
+    [applied, sort],
+  )
+
+  return {
+    filters,
+    applied,
+    key,
+    sort,
+    sortBy,
+    setSort,
+    active: countActiveFilters(filters),
+    typing: filters.search.trim() !== busca.trim(),
+    setFilters,
+    clear,
+    reset,
+  }
+}

@@ -91,7 +91,7 @@ export function SettingsHeader({
         <p className="mb-6 max-w-170 text-body text-fg-muted leading-relaxed">{description}</p>
       )}
 
-      {ready && <LeaveGuard when={dirty && !saving} onSave={canSave ? onSave : undefined} />}
+      {ready && <LeaveGuard when={dirty && !saving} canSave={canSave} />}
     </>
   )
 }
@@ -160,6 +160,8 @@ function SaveActions({
           className={compacto}
           disabled={!dirty || saving || !canSave}
           onClick={onSave}
+          // O "Voltar e salvar" da pergunta de sair traz a pessoa ate aqui.
+          data-salvar-da-tela
         >
           {saving ? (publishes ? 'Publicando…' : 'Salvando…') : publishes ? 'Publicar' : 'Salvar'}
         </Button>

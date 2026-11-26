@@ -48,5 +48,6 @@ export function useScrollEdges() {
     }
   }, [caixa, medir])
 
-  return { ref, ...bordas }
+  // A caixa tambem sai: quem precisa rolar a lista (a casca, ao apresentar um item novo).
+  return { ref, element: caixa, ...bordas }
 }

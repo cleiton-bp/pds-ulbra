@@ -23,7 +23,7 @@ import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
 import { TooltipProvider } from '@/shared/components/Tooltip'
 import { useToastStore } from '@/shared/components/toastStore'
-import { abrirMenuDaBarra, fecharMenuDaBarra } from '@/test/barraDeFiltros'
+import { abrirMenuDaBarra, fecharMenuDaBarra, marcadosNoFiltrar } from '@/test/barraDeFiltros'
 import { fraseDoHistorico } from '@/test/historicoEmPedacos'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
@@ -867,9 +867,8 @@ describe('abrir um relato', () => {
       ),
     )
     await fecharMenu()
-    // O botao diz quais, e nao so quantas.
-    // O filtro ligado aparece na linha "Filtrando por", com os nomes inteiros no title.
-    expect(screen.getByTitle('Coluna: Análise, Pronto')).toBeTruthy()
+    // O "Filtrar" diz quais, e nao so quantas: o campo traz os nomes, inteiros na dica.
+    expect(await marcadosNoFiltrar('Coluna')).toBe('Análise, Pronto')
   })
 
   it('a coluna sem relato aparece, mas a desativada vazia não', async () => {
@@ -1949,8 +1948,7 @@ describe('o quadro', () => {
     ).toBeTruthy()
 
     fireEvent.click(within(pronto).getByRole('button', { name: 'Ver na lista' }))
-    // A lista abre so com essa coluna marcada — e o menu "Coluna" diz qual.
-    expect(await screen.findByTitle('Coluna: Pronto')).toBeTruthy()
+    // A lista abre so com essa coluna marcada.
     await waitFor(() =>
       expect(dublê.listar).toHaveBeenLastCalledWith(
         'p-1',
@@ -1963,6 +1961,8 @@ describe('o quadro', () => {
     // O botao que levou ate la sumiu com o quadro: o foco vai para a aba da lista.
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: /^Lista/ }))
     expect(screen.getByRole('tab', { name: /^Lista/ }).getAttribute('aria-selected')).toBe('true')
+    // E o "Filtrar" diz qual coluna.
+    expect(await marcadosNoFiltrar('Coluna')).toBe('Pronto')
   })
 
   it('a coluna que nao carregou diz, e tenta de novo; a coluna cheia mostra mais', async () => {
@@ -2106,7 +2106,7 @@ describe('o quadro', () => {
     expect(await screen.findByText(entreAspas('o botao some'))).toBeTruthy()
   })
 
-  it('uma faixa so antes das colunas: as raias e os arquivados na barra de filtros, e o como arrastar no "Como funciona" dela', async () => {
+  it('uma faixa so antes das colunas: as raias no fim da barra, sem "Como funciona", e os arquivados no alto', async () => {
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1)])
     porColuna({ 's-1': [relato('r-1', 'o botao some')] })
     dublê.time.mockResolvedValue([])
@@ -2117,22 +2117,14 @@ describe('o quadro', () => {
     const barra = screen
       .getByRole('searchbox', { name: 'Buscar cards' })
       .closest('search') as HTMLElement
-    // As raias e os arquivados moram no fim da barra — o mesmo lugar da lista.
+    // As raias moram no fim da barra, o mesmo lugar da ordem na lista.
     expect(within(barra).getByRole('combobox', { name: 'Raias do quadro' })).toBeTruthy()
-    expect(within(barra).getByRole('button', { name: 'Arquivados' })).toBeTruthy()
-    // O como arrastar e curto (Q-19) e mora recolhido no "Como funciona" da barra.
-    const ajuda = within(barra).getByText('Como funciona').closest('details') as HTMLDetailsElement
-    expect(ajuda.open).toBe(false)
-    expect(
-      within(ajuda).getByText(
-        'Arraste para mover, no celular segure, e no teclado as setas andam e o espaço pega',
-      ),
-    ).toBeTruthy()
-    // Com raias, diz o que a raia troca.
-    await escolherNoSelect(screen, fireEvent, 'Raias do quadro', 'Raias por responsável')
-    expect(
-      await within(ajuda).findByText(/^Arraste para mover; outra raia troca o responsável, /),
-    ).toBeTruthy()
+    // O como arrastar e do guia da tela: a barra nao tem mais "Como funciona".
+    expect(within(barra).queryByText('Como funciona')).toBeNull()
+    // Os arquivados sairam da barra e foram para o alto, com Atalhos e o Novo card.
+    expect(within(barra).queryByRole('button', { name: 'Arquivados' })).toBeNull()
+    const alto = screen.getByRole('button', { name: 'Novo card' }).parentElement as HTMLElement
+    expect(within(alto).getByRole('button', { name: 'Arquivados' })).toBeTruthy()
     // Nao ha mais a segunda faixa com o ✕ da dica.
     expect(screen.queryByRole('button', { name: 'Esconder a dica de como arrastar' })).toBeNull()
   })
@@ -2855,63 +2847,114 @@ describe('a lista', () => {
       await waitFor(() => expect(ultimaContagem()?.[1]).toBeUndefined())
     })
 
-    it('nos arquivados, "Vencidos" e "Em aberto" saem, a menos que estejam ligados, para dar para desligar', async () => {
+    it('nos arquivados, a busca e os filtros sao so do modal: "Vencidos" e "Em aberto" nao aparecem, e os da tela nao entram nem mudam', async () => {
       montar()
       await listaNaTela()
+      // Na tela, "Vencidos" ligado.
+      fireEvent.click(screen.getByRole('button', { name: 'Vencidos' }))
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters).toMatchObject({ overdue: true }))
+
       fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
+      const modal = await screen.findByRole('dialog', { name: 'Arquivados' })
+      // Os arquivados sao lidos sem os filtros da tela.
       await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, true]))
       // O que ja saiu da tela de Trabalho nao vence nem esta "em aberto" ali.
-      expect(screen.queryByRole('button', { name: 'Vencidos' })).toBeNull()
-      expect(screen.queryByRole('button', { name: 'Em aberto' })).toBeNull()
+      expect(within(modal).queryByRole('button', { name: 'Vencidos' })).toBeNull()
+      expect(within(modal).queryByRole('button', { name: 'Em aberto' })).toBeNull()
 
-      // Ligados antes de entrar, ficam: sem eles na barra, nao haveria como desliga-los.
-      fireEvent.click(screen.getByRole('button', { name: 'Sair dos arquivados' }))
-      fireEvent.click(await screen.findByRole('button', { name: 'Vencidos' }))
-      fireEvent.click(screen.getByRole('button', { name: 'Em aberto' }))
-      fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
-      await waitFor(() => expect(ultimaLista()?.[3]).toBe(true))
-      expect(ultimaLista()?.[4]?.filters).toMatchObject({ overdue: true, open: true })
+      // Procurar la le so os arquivados: a lista de tras nao e relida com a busca.
+      fireEvent.change(within(modal).getByRole('searchbox', { name: 'Buscar cards' }), {
+        target: { value: 'botao' },
+      })
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.search).toBe('botao'))
+      expect(ultimaLista()?.[3]).toBe(true)
+      expect(
+        dublê.listar.mock.calls.some(
+          (chamada) => chamada[3] === false && chamada[4]?.filters?.search === 'botao',
+        ),
+      ).toBe(false)
+
+      // Fechar volta para a tela como estava, com o "Vencidos" ainda ligado.
+      fireEvent.keyDown(modal, { key: 'Escape' })
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Arquivados' })).toBeNull())
       expect(screen.getByRole('button', { name: 'Vencidos' }).getAttribute('aria-pressed')).toBe(
         'true',
       )
-
-      // Desligado ali, sai.
-      fireEvent.click(screen.getByRole('button', { name: 'Em aberto' }))
-      await waitFor(() => expect(screen.queryByRole('button', { name: 'Em aberto' })).toBeNull())
-      expect(screen.getByRole('button', { name: 'Vencidos' })).toBeTruthy()
     })
 
-    it('nos arquivados, o botao diz como sair, e nao ha "Novo card" nem o menu "Coluna"; a coluna marcada volta ao sair', async () => {
+    it('o card aberto pelos arquivados anda entre os arquivados, e fechar o card volta ao modal', async () => {
+      const arquivado = (id: string, texto: string) =>
+        relato(id, texto, { ArchivedAt: '2026-11-01T12:00:00Z' })
+      dublê.listar.mockImplementation(async (_projeto, _pagina, _estado, arquivados) =>
+        arquivados
+          ? {
+              reports: [arquivado('a-1', 'o cupom antigo'), arquivado('a-2', 'o frete antigo')],
+              total: 2,
+            }
+          : { reports: [relato('r-1', 'o botao some')], total: 1 },
+      )
+      dublê.abrir.mockImplementation(async (_projeto, id: string) => ({
+        ...arquivado(id, id === 'a-1' ? 'o cupom antigo' : 'o frete antigo'),
+        Closure: null,
+        InfoRequest: null,
+        CanAskInfo: false,
+        Contexts: [],
+      }))
+      montar()
+      await screen.findByRole('link', { name: entreAspas('o botao some') })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
+      const modal = await screen.findByRole('dialog', { name: 'Arquivados' })
+      fireEvent.click(
+        await within(modal).findByRole('link', { name: entreAspas('o cupom antigo') }),
+      )
+      await waitFor(() => expect(dublê.abrir).toHaveBeenLastCalledWith('p-1', 'a-1'))
+
+      // O proximo e o outro arquivado, e nao um card do Trabalho.
+      fireEvent.click(await screen.findByRole('button', { name: 'Próximo card' }))
+      await waitFor(() => expect(dublê.abrir).toHaveBeenLastCalledWith('p-1', 'a-2'))
+
+      // Fechar o card volta para o modal, que continua aberto.
+      const card = screen.getAllByRole('dialog').at(-1) as HTMLElement
+      fireEvent.click(within(card).getByRole('button', { name: 'Fechar' }))
+      await waitFor(() => expect(screen.getByRole('dialog', { name: 'Arquivados' })).toBeTruthy())
+      expect(
+        within(screen.getByRole('dialog', { name: 'Arquivados' })).getByText('2 cards arquivados'),
+      ).toBeTruthy()
+    })
+
+    it('os arquivados abrem num modal por cima: sem o menu "Coluna", e a tela de tras fica com a coluna marcada', async () => {
       montar()
       await listaNaTela()
       await abrirMenu('Coluna')
       fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise (2)' }))
       await fecharMenu()
       await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
+      const leiturasDaTela = dublê.listar.mock.calls.filter(
+        (chamada) => chamada[3] === false,
+      ).length
 
       fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
+      const modal = await screen.findByRole('dialog', { name: 'Arquivados' })
       // A lista dos arquivados, sem a coluna: a contagem das colunas e a da tela de
       // Trabalho, e nao conta arquivado.
       await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, true]))
-      expect(screen.getByRole('heading', { level: 1, name: 'Arquivados' })).toBeTruthy()
-      // O botao pressionado sozinho nao dizia como voltar.
-      const sair = screen.getByRole('button', { name: 'Sair dos arquivados' })
-      expect(sair.getAttribute('aria-pressed')).toBe('true')
-      // O card novo vai para o Trabalho, e nao apareceria aqui.
-      expect(screen.queryByRole('button', { name: 'Novo card' })).toBeNull()
-      // O menu "Coluna" sai (o cabecalho que ordena pela coluna fica: "Coluna, ordenar…").
-      expect(screen.queryByRole('button', { name: /^Coluna(:|$)/ })).toBeNull()
-      // A coluna nao vale ali, e nao conta como filtro ligado.
-      expect(screen.queryByRole('button', { name: /Limpar filtros/ })).toBeNull()
-
-      fireEvent.click(sair)
-      await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
-      expect(screen.getByRole('heading', { level: 1, name: 'Trabalho' })).toBeTruthy()
-      expect(screen.getByRole('button', { name: 'Novo card' })).toBeTruthy()
-      expect(screen.getByTitle('Coluna: Análise')).toBeTruthy()
-      expect(screen.getByRole('button', { name: 'Arquivados' }).getAttribute('aria-pressed')).toBe(
-        'false',
+      // A tela nao trocou: o titulo e o Novo card continuam atras do modal.
+      expect(screen.getByRole('heading', { level: 1, name: 'Trabalho', hidden: true })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Novo card', hidden: true })).toBeTruthy()
+      // O menu "Coluna" nao existe no modal (o cabecalho que ordena pela coluna fica).
+      expect(within(modal).queryByRole('button', { name: /^Coluna(:|$)/ })).toBeNull()
+      expect(within(modal).queryByRole('button', { name: /Limpar filtros/ })).toBeNull()
+      // A lista de tras nao foi relida.
+      expect(dublê.listar.mock.calls.filter((chamada) => chamada[3] === false).length).toBe(
+        leiturasDaTela,
       )
+
+      // O X fecha e volta para a tela como estava.
+      fireEvent.click(within(modal).getByRole('button', { name: 'Fechar' }))
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Arquivados' })).toBeNull())
+      expect(screen.getByRole('button', { name: 'Novo card' })).toBeTruthy()
+      expect(await marcadosNoFiltrar('Coluna')).toBe('Análise')
     })
   })
 
@@ -2934,12 +2977,12 @@ describe('a lista', () => {
       montar()
       await listaNaTela()
       expect(dublê.listar.mock.calls[0]?.[4]?.columns).toEqual(['s-1'])
-      expect(await screen.findByTitle('Coluna: Análise')).toBeTruthy()
+      expect(await marcadosNoFiltrar('Coluna')).toBe('Análise')
 
       // "Limpar filtros" limpa a coluna tambem — e o que ficou guardado na aba.
       fireEvent.click(screen.getByRole('button', { name: /Limpar filtros/ }))
       await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, false]))
-      expect(screen.queryByTitle(/^Coluna:/)).toBeNull()
+      expect(await marcadosNoFiltrar('Coluna')).toBe('')
       expect(window.sessionStorage.getItem('pds.web.trabalho.filtros.p-1')).toBeNull()
     })
 
@@ -2957,7 +3000,7 @@ describe('a lista', () => {
       avisar({ kind: 'project' })
 
       await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
-      expect(await screen.findByTitle('Coluna: Análise')).toBeTruthy()
+      expect(await marcadosNoFiltrar('Coluna')).toBe('Análise')
       // O guardado na aba tambem: voltar a tela nao a traz de volta.
       expect(
         JSON.parse(window.sessionStorage.getItem('pds.web.trabalho.filtros.p-1') ?? '{}').columns,
@@ -3272,17 +3315,19 @@ describe('a lista', () => {
       expect(document.activeElement).not.toBe(busca())
     })
 
-    it('nos arquivados, o "c" nao cria; o "/" continua levando a busca', async () => {
+    it('nos arquivados, o "c" nao cria; o "/" leva a busca do modal', async () => {
       montar()
       await listaNaTela()
       fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
-      await screen.findByRole('button', { name: 'Sair dos arquivados' })
+      const modal = await screen.findByRole('dialog', { name: 'Arquivados' })
 
-      fireEvent.keyDown(document.body, { key: 'c' })
-      expect(screen.queryByRole('dialog')).toBeNull()
+      fireEvent.keyDown(modal, { key: 'c' })
+      expect(screen.queryByRole('dialog', { name: 'Novo card' })).toBeNull()
 
-      fireEvent.keyDown(document.body, { key: '/' })
-      expect(document.activeElement).toBe(busca())
+      fireEvent.keyDown(modal, { key: '/' })
+      expect(document.activeElement).toBe(
+        within(modal).getByRole('searchbox', { name: 'Buscar cards' }),
+      )
     })
 
     it('com o foco numa caixa de marcar da tabela, os atalhos valem: caixa nao e campo de texto', async () => {
@@ -3412,8 +3457,8 @@ describe('a lista', () => {
       )
       expect(router.state.historyAction).toBe('REPLACE')
 
-      // O "×" do "Meus cards" tira so o responsavel, do filtro e do endereco.
-      fireEvent.click(screen.getByRole('button', { name: 'Tirar o filtro Meus cards' }))
+      // Desligar o "Meus cards" no proprio atalho tira so o responsavel, do filtro e do endereco.
+      fireEvent.click(screen.getByRole('button', { name: 'Meus cards' }))
       await waitFor(() => expect(router.state.location.search).toBe('?vencidos=1&em-aberto=1'))
       await waitFor(() => expect(ultimaLista()?.[4]?.filters?.assignees).toEqual([]))
 
