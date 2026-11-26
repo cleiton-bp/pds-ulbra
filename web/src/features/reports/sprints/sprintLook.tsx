@@ -194,37 +194,40 @@ export function SprintBar({
 }) {
   const passou = daysLeft(sprint.EndsOn) < 0
   return (
+    // **Uma linha so, sem caixa**: o quadro tem a altura que sobra da tela, e a caixa de
+    // duas linhas (com a frase do Backlog embaixo) tirava dele uns 40 px a toa. O objetivo
+    // corta com reticencias e aparece inteiro no `title`; a frase do Backlog sai quando
+    // falta largura (no celular a aba Backlog esta logo acima).
     <section
       aria-label={`Sprint em andamento: ${sprint.Name}`}
-      className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-raised px-4 py-3"
+      className="@container mb-3 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1"
     >
-      <div className="min-w-0">
-        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="font-semibold text-body text-fg">{sprint.Name}</span>
-          <span className="text-detail text-fg-muted">
-            {sprintDates(sprint)},{' '}
-            <span className={passou ? 'text-chip-red-fg' : undefined}>
-              {timeLeftText(sprint.EndsOn)}
-            </span>
+      <p className="flex min-w-0 flex-1 items-baseline gap-x-2">
+        <span className="flex-none font-semibold text-body text-fg">{sprint.Name}</span>
+        <span className="flex-none whitespace-nowrap text-detail text-fg-muted">
+          {sprintDates(sprint)},{' '}
+          <span className={passou ? 'text-chip-red-fg' : undefined}>
+            {timeLeftText(sprint.EndsOn)}
           </span>
-        </p>
-        {sprint.Goal && <p className="mt-0.5 text-detail text-fg-muted">{sprint.Goal}</p>}
-        {/* No celular a aba Backlog esta logo acima, e a frase tomava duas linhas antes do
-            quadro. */}
-        {aoIrAoBacklog && (
-          <p className="mt-0.5 text-detail text-fg-muted max-sm:hidden">
-            O quadro mostra só esta sprint, e os outros cards estão no{' '}
-            <button
-              type="button"
-              onClick={aoIrAoBacklog}
-              className="text-fg underline underline-offset-4 transition-colors hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3"
-            >
-              Backlog
-            </button>
-            .
-          </p>
+        </span>
+        {sprint.Goal && (
+          <span className="min-w-0 truncate text-detail text-fg-muted" title={sprint.Goal}>
+            {sprint.Goal}
+          </span>
         )}
-      </div>
+      </p>
+      {aoIrAoBacklog && (
+        <p className="flex-none whitespace-nowrap text-detail text-fg-muted max-sm:hidden @max-[56rem]:hidden">
+          Os outros cards estão no{' '}
+          <button
+            type="button"
+            onClick={aoIrAoBacklog}
+            className="cursor-pointer text-fg underline underline-offset-4 transition-colors hover:text-fg-muted"
+          >
+            Backlog
+          </button>
+        </p>
+      )}
       <div className="flex flex-none items-center gap-3">
         <span className="text-detail text-fg-muted tabular-nums">
           {sprint.DoneCards} de {sprint.Cards} {sprint.Cards === 1 ? 'card' : 'cards'}
