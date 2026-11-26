@@ -9,7 +9,11 @@ import {
 import { describeError, projectMediaSettingsService, projectWidgetSettingsService } from '@/data'
 import { Button } from '@/shared/components/Button'
 import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
-import { PreviewSection, PreviewUnavailable } from '@/shared/components/PreviewSection'
+import {
+  LARGURA_DA_PREVIA_DO_FORMULARIO,
+  PreviewSection,
+  PreviewUnavailable,
+} from '@/shared/components/PreviewSection'
 import { Hint } from '@/shared/components/SettingsControls'
 import { SettingsGroup } from '@/shared/components/SettingsGroup'
 import { SettingsHeader } from '@/shared/components/SettingsHeader'
@@ -450,6 +454,7 @@ export function MediaScreen() {
           <EditorWithPreview
             previewEmFolha
             folhaAlta
+            larguraDaPrevia={LARGURA_DA_PREVIA_DO_FORMULARIO}
             acaoNoCelular={
               dirty ? (
                 <Button
@@ -469,7 +474,7 @@ export function MediaScreen() {
                   dirty={dirty}
                   startOpen
                   highlight={realce}
-                  hint="O formulário com a área de anexar como está aqui. A parte que você está mudando aparece contornada."
+                  hint="A parte que você está mudando aparece contornada."
                 />
               ) : ferramentaFalhou ? (
                 <PreviewUnavailable onRetry={lerFerramenta} />

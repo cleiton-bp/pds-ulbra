@@ -414,6 +414,13 @@ export interface FrameViewport {
   ruleWidth?: number
   /** Quanto do pe da janela o teclado do celular cobre, em pixels. */
   keyboard?: number
+  /**
+   * So a previa do painel: o formulario aberto toma a altura que a pagina de mentira deixa,
+   * ate o maximo dele (`FORM_FRAME.maxHeight`). A pagina de mentira e mais baixa que a
+   * janela que ela representa, e a parte da altura que o formulario toma no site o deixava
+   * no minimo, com um vao em cima e metade do formulario escondida.
+   */
+  fillHeight?: boolean
 }
 
 /**
@@ -496,11 +503,13 @@ export function placeFrame(
           FORM_FRAME.minWidth,
           FORM_FRAME.maxWidth,
         ),
-        height: clamp(
-          Math.round(viewport.height * FORM_FRAME.heightShare),
-          FORM_FRAME.minHeight,
-          FORM_FRAME.maxHeight,
-        ),
+        height: viewport.fillHeight
+          ? FORM_FRAME.maxHeight
+          : clamp(
+              Math.round(viewport.height * FORM_FRAME.heightShare),
+              FORM_FRAME.minHeight,
+              FORM_FRAME.maxHeight,
+            ),
       }
     : { width: message.width, height: message.height }
 

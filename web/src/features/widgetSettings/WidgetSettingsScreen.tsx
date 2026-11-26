@@ -22,7 +22,7 @@ import { ColorSwatch } from '@/features/widgetSettings/ColorChoice'
 import { Button } from '@/shared/components/Button'
 import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
 import { MovedAnchors } from '@/shared/components/MovedAnchors'
-import { PreviewSection } from '@/shared/components/PreviewSection'
+import { LARGURA_DA_PREVIA_DO_FORMULARIO, PreviewSection } from '@/shared/components/PreviewSection'
 import { SettingsGroup } from '@/shared/components/SettingsGroup'
 import { SettingsHeader } from '@/shared/components/SettingsHeader'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -219,13 +219,14 @@ export function WidgetSettingsScreen() {
                 device={aparelho}
                 onDeviceChange={setAparelho}
                 highlight={realce}
-                hint="Como fica no seu sistema. Clique no botão para abrir o formulário."
+                hint="Clique no botão para abrir o formulário."
               />
             }
             // No celular, a previa abre numa folha pelo "Ver prévia", e o Publicar fica ao
             // lado dele quando ha mudanca (no titulo, ele saia da vista ao rolar).
             previewEmFolha
             folhaAlta
+            larguraDaPrevia={LARGURA_DA_PREVIA_DO_FORMULARIO}
             acaoNoCelular={
               dirty ? (
                 <Button variant="primary" disabled={saving} onClick={() => void save()}>

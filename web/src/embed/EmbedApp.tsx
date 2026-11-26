@@ -725,18 +725,24 @@ export function EmbedApp({
   /** O contorno, so na parte contornada. Ver `PREVIEW_OUTLINE`. */
   const contorno = (parte: PreviewFormPart) => (realce === parte ? PREVIEW_OUTLINE : undefined)
 
-  // A parte contornada fora da vista entra nela, rolando **so o formulario**: o
-  // `scrollIntoView` rolaria tambem a tela do painel, que e a janela de cima.
+  // A parte contornada fora da vista entra nela, rolando **so o formulario**, e devagar,
+  // para a pessoa ver o caminho: o `scrollIntoView` rolaria tambem a tela do painel, que e
+  // a janela de cima.
   //
-  // **E de novo quando o quadro muda de tamanho.** Na folha do celular a previa cresce
-  // depois de abrir (a folha sobe e o palco preenche a altura), e o Enviar contornado, que
-  // estava a vista no tamanho de antes, ficava 42px abaixo do fim.
+  // **Confere de novo a cada mudanca, e so rola se precisar.** A configuracao nova (cada
+  // opcao clicada na tela), o quadro que muda de tamanho (a previa que se ajusta a altura
+  // da tela, a folha do celular, que cresce depois de abrir) e o conteudo que cresce (os
+  // tipos que chegam, a area de anexar que aparece): a parte contornada que ja esta inteira
+  // a vista fica onde esta.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a configuracao nao e lida aqui; ela so marca o momento de conferir de novo.
   useEffect(() => {
-    if (!realce) return
+    const form = formulario.current
+    if (!realce || !form) return
+    const devagar = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     function trazerAVista() {
-      const form = formulario.current
-      const parte = form?.querySelector<HTMLElement>('[data-preview-highlight]')
-      if (!form || !parte) return
+      if (!form) return
+      const parte = form.querySelector<HTMLElement>('[data-preview-highlight]')
+      if (!parte) return
       // O topo preso (o primeiro filho) cobre o alto do formulario: a parte que sobe para a
       // vista para abaixo dele, e nao escondida atras. A nao ser que seja o proprio topo.
       const topo = form.firstElementChild
@@ -744,21 +750,32 @@ export function EmbedApp({
       const fora = form.getBoundingClientRect()
       const dentro = parte.getBoundingClientRect()
       const folga = 12
-      if (dentro.top < fora.top + coberto) form.scrollTop -= fora.top + coberto - dentro.top + folga
-      else if (dentro.bottom > fora.bottom) form.scrollTop += dentro.bottom - fora.bottom + folga
+      const acima = dentro.top - (fora.top + coberto + folga)
+      const abaixo = dentro.bottom - (fora.bottom - folga)
+      // Maior que a area, ou acima dela: o comeco da parte, logo abaixo do topo preso.
+      const cabe = dentro.height <= fora.height - coberto - 2 * folga
+      const delta = acima < 0 || !cabe ? acima : abaixo > 0 ? abaixo : 0
+      if (Math.abs(delta) < 1) return
+      const destino = form.scrollTop + delta
+      if (typeof form.scrollTo === 'function')
+        form.scrollTo({ top: destino, behavior: devagar ? 'smooth' : 'auto' })
+      else form.scrollTop = destino
     }
-    trazerAVista()
     let quadro = 0
     const aoMudar = () => {
       cancelAnimationFrame(quadro)
       quadro = requestAnimationFrame(trazerAVista)
     }
+    aoMudar()
     window.addEventListener('resize', aoMudar)
+    const observador = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(aoMudar)
+    for (const filho of Array.from(form.children)) observador?.observe(filho)
     return () => {
       window.removeEventListener('resize', aoMudar)
+      observador?.disconnect()
       cancelAnimationFrame(quadro)
     }
-  }, [realce])
+  }, [realce, settings, config])
   const aoAbrir = useRef((_opcoes?: OpenOptions) => {})
   aoAbrir.current = (opcoes) => {
     if (abriuAntes.current) {

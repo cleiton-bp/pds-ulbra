@@ -216,6 +216,33 @@ describe('placeFrame', () => {
     expect(frameRadius(previa)).toBe('14px')
   })
 
+  // A pagina de mentira da previa e mais baixa que a janela que ela representa: pela parte
+  // da altura do site, o formulario ficava no piso, com um vao em cima e metade dele fora.
+  it('na previa, o formulario toma a altura que a pagina de mentira deixa, ate o teto', () => {
+    const altura = (height: number, fillHeight?: boolean) =>
+      placeFrame(pedido({ ...FRAME_SIZE.expanded }), {
+        width: 404,
+        height,
+        ruleWidth: 1280,
+        fillHeight,
+      }).height
+    // Sem pedir, a conta do site: 78% de 640 fica abaixo do piso, e o piso vale.
+    expect(altura(640)).toBe(FORM_FRAME.minHeight)
+    // Pedindo, tudo menos a margem de 20 em cima e embaixo, ate o teto.
+    expect(altura(640, true)).toBe(600)
+    expect(altura(1200, true)).toBe(FORM_FRAME.maxHeight)
+    // Numa pagina de mentira baixa, cabe nela do mesmo jeito.
+    expect(altura(400, true)).toBe(360)
+    // So a altura muda: o celular continua sendo a folha que sobe do pe.
+    const folha = placeFrame(pedido({ ...FRAME_SIZE.expanded }), {
+      width: 375,
+      height: 640,
+      fillHeight: true,
+    })
+    expect(folha.sheet).toBe(true)
+    expect(folha.height).toBe(Math.round(640 * FORM_FRAME.sheetShare))
+  })
+
   it('numa janela de computador menor que o pedido, o quadro cabe nela e a distancia vale ate onde da', () => {
     const lugar = placeFrame(pedido({ ...FRAME_SIZE.expanded, offsetX: 100, offsetY: 100 }), {
       width: 375,

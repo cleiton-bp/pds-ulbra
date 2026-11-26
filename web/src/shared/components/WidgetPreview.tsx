@@ -102,6 +102,9 @@ export function WidgetPreview({
   highlight = null,
   startOpen = false,
   preencher = false,
+  ajustada = false,
+  cabecalho,
+  dica,
 }: {
   settings: WidgetSettingsViewModel
   /** Os anexos do rascunho, na tela de Anexos. Sem eles, o formulario sai sem a area de anexar. */
@@ -128,6 +131,19 @@ export function WidgetPreview({
    * vezes.
    */
   preencher?: boolean
+  /**
+   * Na coluna do computador ajustada a altura da tela (`PreviaNaAltura`): o palco ocupa o
+   * que sobra, em vez dos 480 fixos (nunca menos de 16rem). O formulario de exemplo se
+   * ajusta ao palco e rola por dentro ate a parte contornada.
+   */
+  ajustada?: boolean
+  /**
+   * O titulo e o estado da previa, na mesma linha das abas do aparelho (`PreviewSection`, no
+   * computador). Numa linha so, e nao em tres, sobra altura para o formulario de exemplo.
+   */
+  cabecalho?: ReactNode
+  /** A frase do que olhar, numa linha curta entre as abas e a pagina de mentira. */
+  dica?: ReactNode
 }) {
   const origemDaFerramenta = new URL(environment.embedUrl).origin
   const aquiMesmo = typeof window !== 'undefined' ? window.location.origin : null
@@ -356,7 +372,11 @@ export function WidgetPreview({
   const escondido = launcherMode(settings, null, largura) === 'hidden'
   // A largura da regra, e nao a medida: a pagina de mentira do computador tem menos de
   // 640 px aqui no painel, e sem isto a previa mostraria a folha do celular.
-  const lugar = pedido ? placeFrame(pedido, { ...tamanho, ruleWidth: largura }) : null
+  // E o formulario aberto toma a altura que a pagina de mentira deixa (`fillHeight`): ela e
+  // mais baixa que uma janela de computador, e a conta do site o deixava no minimo.
+  const lugar = pedido
+    ? placeFrame(pedido, { ...tamanho, ruleWidth: largura, fillHeight: true })
+    : null
   const px = (valor: number | null) => (valor === null ? undefined : `${valor}px`)
 
   // A abertura escolhida, com a conta do carregador: abrir e fechar como no site. Fechado,
@@ -406,10 +426,12 @@ export function WidgetPreview({
   }
 
   return (
-    <div className={cn(preencher && 'flex flex-1 flex-col')}>
+    <div className={cn((preencher || ajustada) && 'flex min-h-0 flex-1 flex-col')}>
       {/* Abas, e nao escolhas de configuracao: trocar o aparelho so muda o que se ve
-          aqui, e nao grava nada. */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          aqui, e nao grava nada. Com o cabecalho, ele fica a esquerda e as abas a direita;
+          sem espaco, as abas descem para a linha de baixo. */}
+      <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2', dica ? 'mb-2' : 'mb-3')}>
+        {cabecalho && <div className="mr-auto min-w-0">{cabecalho}</div>}
         <div
           role="tablist"
           aria-label="Aparelho da prévia"
@@ -442,11 +464,17 @@ export function WidgetPreview({
           })}
         </div>
         {note && (
-          <span className="rounded-full border border-border bg-surface-sunken px-2 py-0.5 text-caption text-fg-muted">
+          <span
+            className={cn(
+              'rounded-full border border-border bg-surface-sunken px-2 py-0.5 text-caption text-fg-muted',
+              !cabecalho && 'ml-auto',
+            )}
+          >
             {note}
           </span>
         )}
       </div>
+      {dica && <p className="mb-3 text-detail text-fg-muted leading-relaxed">{dica}</p>}
 
       {escondido && (
         <p className="mb-3 text-detail text-fg-muted">
@@ -467,7 +495,7 @@ export function WidgetPreview({
         aria-labelledby={`${ids}-${aparelho}`}
         className={cn(
           'relative overflow-hidden rounded-lg border border-border bg-surface',
-          preencher ? 'min-h-[26rem] flex-1' : 'h-[30rem]',
+          preencher ? 'min-h-[26rem] flex-1' : ajustada ? 'min-h-64 flex-1' : 'h-[30rem]',
           aparelho === 'phone' ? 'mx-auto w-full max-w-[23.4375rem]' : 'w-full',
         )}
       >
