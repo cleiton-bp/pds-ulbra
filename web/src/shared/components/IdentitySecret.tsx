@@ -8,6 +8,7 @@ import { Modal } from '@/shared/components/Modal'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { formatDateTime } from '@/shared/lib/datetime'
+import { EM_BREVE } from '@/shared/lib/emBreve'
 import { guideTarget } from '@/shared/tour/guideStore'
 
 /**
@@ -79,12 +80,15 @@ export function IdentitySecretDialog({
       width="w-[min(34rem,calc(100vw-2rem))]"
       footer={
         <>
-          <Link
-            to="../keys#chave-da-identidade"
-            className="mr-auto inline-flex h-9 items-center font-medium text-detail text-fg underline-offset-4 hover:underline pointer-coarse:h-11"
-          >
-            Abrir a tela de Chaves
-          </Link>
+          {/* Enquanto a identidade do sistema esta em breve, a chave nao aparece em Chaves. */}
+          {!EM_BREVE.identidadeDoSistema && (
+            <Link
+              to="../keys#chave-da-identidade"
+              className="mr-auto inline-flex h-9 items-center font-medium text-detail text-fg underline-offset-4 hover:underline pointer-coarse:h-11"
+            >
+              Abrir a tela de Chaves
+            </Link>
+          )}
           <Button onClick={() => onOpenChange(false)}>Fechar</Button>
         </>
       }

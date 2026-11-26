@@ -116,90 +116,16 @@ describe('ProjectKeysScreen', () => {
     dublê.historico.mockResolvedValue([])
   })
 
-  // A chave da assinatura simples da identidade e uma chave: mora aqui, escondida ate a
-  // pessoa pedir, e trocar pede confirmacao porque os crachas antigos param na hora.
-  describe('a chave da identidade', () => {
-    it('fica escondida até pedir, e só então a tela a busca', async () => {
-      dublê.chaves.mockResolvedValue([])
-      dublê.verSegredo.mockResolvedValue({ Secret: 'rfs_segredo-do-projeto' })
-      montar()
+  // A chave da assinatura simples da identidade fica fora enquanto a identidade do sistema
+  // esta em breve (`EM_BREVE`): o atalho dela levava a uma escolha que ainda nao da para
+  // fazer. O cartao e os testes dele moram em `IdentitySecret.test.tsx`.
+  it('enquanto a identidade do sistema está em breve, a chave da identidade não aparece', async () => {
+    dublê.chaves.mockResolvedValue([])
+    montar()
 
-      const cartao = await screen.findByRole('heading', { name: 'Chave da identidade' })
-      expect(screen.queryByText('rfs_segredo-do-projeto')).toBeNull()
-      expect(dublê.verSegredo).not.toHaveBeenCalled()
-
-      fireEvent.click(screen.getByRole('button', { name: 'Mostrar a chave' }))
-      expect(await screen.findByText('rfs_segredo-do-projeto')).toBeTruthy()
-      expect(dublê.verSegredo).toHaveBeenCalledWith('p-1')
-      expect(cartao.closest('article')?.id).toBe('chave-da-identidade')
-    })
-
-    it('trocar pede confirmação antes', async () => {
-      dublê.chaves.mockResolvedValue([])
-      dublê.trocarSegredo.mockResolvedValue({ Secret: 'rfs_chave-nova' })
-      montar()
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Trocar a chave' }))
-      expect(dublê.trocarSegredo).not.toHaveBeenCalled()
-      fireEvent.click(screen.getByRole('button', { name: 'Trocar agora' }))
-
-      expect(await screen.findByText('rfs_chave-nova')).toBeTruthy()
-      expect(dublê.trocarSegredo).toHaveBeenCalledWith('p-1')
-    })
-
-    it('as chaves anteriores mostram só o começo e quando foram trocadas', async () => {
-      dublê.chaves.mockResolvedValue([])
-      dublê.historico.mockResolvedValue([
-        { Prefix: 'rfs_Fco6rKDZ', ReplacedAt: '2026-11-03T23:01:00Z' },
-        { Prefix: 'rfs_duGfNVUm', ReplacedAt: '2026-11-02T10:00:00Z' },
-      ])
-      montar()
-
-      expect(await screen.findByText('Chaves anteriores')).toBeTruthy()
-      expect(screen.getByText('rfs_Fco6rKDZ•••')).toBeTruthy()
-      expect(screen.getByText('rfs_duGfNVUm•••')).toBeTruthy()
-      // So o comeco: o valor inteiro de uma chave antiga nunca aparece.
-      expect(dublê.verSegredo).not.toHaveBeenCalled()
-    })
-
-    it('sem troca nenhuma, o histórico diz que ainda não há', async () => {
-      dublê.chaves.mockResolvedValue([])
-      montar()
-
-      expect(await screen.findByText(/Nenhuma troca ainda/)).toBeTruthy()
-    })
-
-    // Escondida pelo olho, os pontos da chave nova eram iguais aos da anterior, e a troca
-    // parecia nao ter feito nada.
-    it('trocar com a chave escondida mostra a nova, revelada e marcada como nova', async () => {
-      dublê.chaves.mockResolvedValue([])
-      dublê.verSegredo.mockResolvedValue({ Secret: 'rfs_chave-antiga' })
-      dublê.trocarSegredo.mockResolvedValue({ Secret: 'rfs_chave-nova' })
-      montar()
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Mostrar a chave' }))
-      await screen.findByText('rfs_chave-antiga')
-      fireEvent.click(screen.getByRole('button', { name: 'Esconder a chave' }))
-      expect(screen.queryByText('rfs_chave-antiga')).toBeNull()
-
-      fireEvent.click(screen.getByRole('button', { name: 'Trocar a chave' }))
-      fireEvent.click(screen.getByRole('button', { name: 'Trocar agora' }))
-
-      expect(await screen.findByText('rfs_chave-nova')).toBeTruthy()
-      expect(screen.getByText('Chave nova')).toBeTruthy()
-      // A anterior entra no historico: a tela le de novo.
-      await waitFor(() => expect(dublê.historico).toHaveBeenCalledTimes(2))
-    })
-
-    it('sem a chave mestra na instalação, diz por que não há chave', async () => {
-      dublê.chaves.mockResolvedValue([])
-      dublê.identidade.mockResolvedValue({ IsHmacAvailable: false })
-      montar()
-
-      expect(await screen.findByText(/não tem a chave mestra/)).toBeTruthy()
-      expect(screen.queryByRole('button', { name: 'Mostrar a chave' })).toBeNull()
-      expect(screen.queryByRole('button', { name: 'Trocar a chave' })).toBeNull()
-    })
+    expect(await screen.findByRole('button', { name: /Integração avançada/ })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Chave da identidade' })).toBeNull()
+    expect(dublê.identidade).not.toHaveBeenCalled()
   })
 
   it('projeto sem secreta diz que ainda não tem, e oferece gerar a primeira', async () => {

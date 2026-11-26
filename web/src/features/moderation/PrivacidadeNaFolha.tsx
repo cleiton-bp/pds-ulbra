@@ -7,7 +7,12 @@ import { Button } from '@/shared/components/Button'
 import { RadioGroup } from '@/shared/components/SettingsControls'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
-import { DesenhoDoNivel, NIVEIS, nivelDe } from '@/shared/components/VisibilityLevels'
+import {
+  DesenhoDoNivel,
+  NIVEIS,
+  NIVEL_TRAVADO,
+  nivelDe,
+} from '@/shared/components/VisibilityLevels'
 import type { EstadoDaVolta } from '@/shared/components/VoltarDeOndeVeio'
 
 /**
@@ -136,7 +141,7 @@ export function PrivacidadeNaFolha({
                 value: nivel.valor,
                 label: nivel.titulo,
                 drawing: <DesenhoDoNivel nivel={nivel.valor} />,
-                note: travado ? 'Depende de um modo que identifique' : undefined,
+                note: travado ? NIVEL_TRAVADO : undefined,
                 disabled: travado,
                 className: 'min-w-0 flex-1 basis-0 text-center',
               }

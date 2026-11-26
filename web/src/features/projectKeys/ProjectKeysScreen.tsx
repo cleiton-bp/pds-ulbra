@@ -14,6 +14,7 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 import { formatDateTime } from '@/shared/lib/datetime'
+import { EM_BREVE } from '@/shared/lib/emBreve'
 import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
@@ -170,8 +171,13 @@ export function ProjectKeysScreen() {
             </Link>
           </article>
 
-          {/* A chave da assinatura simples da identidade: uma chave, e por isso aqui. */}
-          <IdentitySecretCard projectPublicId={project.PublicId} />
+          {/* A chave da assinatura simples da identidade: uma chave, e por isso aqui. Fora
+              enquanto a identidade do sistema esta em breve (`EM_BREVE`): o atalho dela levava
+              a uma escolha que ainda nao da para fazer. Quem ja usa o modo pega a chave no
+              passo a passo, em Privacidade. */}
+          {!EM_BREVE.identidadeDoSistema && (
+            <IdentitySecretCard projectPublicId={project.PublicId} />
+          )}
 
           <AdvancedSection
             open={advancedOpen}

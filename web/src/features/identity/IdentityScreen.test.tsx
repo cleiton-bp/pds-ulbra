@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -110,7 +110,7 @@ function etapa(PublicId: string, Label: string, Position: number): ProjectPublic
   }
 }
 
-// Fora de ordem de proposito: a previa segue a posicao, e nao a ordem da resposta.
+// Fora de ordem de proposito: o exemplo segue a posicao, e nao a ordem da resposta.
 const etapas = [
   etapa('e-3', 'Resolvido', 2),
   etapa('e-1', 'Recebido', 0),
@@ -159,18 +159,16 @@ function montar(entrada = '/p/p-1/identity') {
 const salvarLigado = () =>
   !(screen.getByRole('button', { name: 'Salvar' }) as HTMLButtonElement).disabled
 
-const abaEscolhida = () =>
-  screen.getAllByRole('tab').find((aba) => aba.getAttribute('aria-selected') === 'true')
-    ?.textContent
-
 /** Escreve no campo de texto com variaveis (um editor, e nao um textarea), como o teclado faria. */
 function escrever(campo: HTMLElement, texto: string) {
   campo.textContent = texto
   fireEvent.input(campo)
 }
 
-/** As abas do exemplo do servidor (o modelo da pagina tem as dele, com as mesmas linguagens). */
-const servidor = () => within(screen.getByRole('tablist', { name: 'Linguagem do seu servidor' }))
+/** A linguagem do servidor: uma escolha so, que vale para todos os trechos de codigo. */
+const servidor = () => within(screen.getByRole('radiogroup', { name: 'Linguagem do seu servidor' }))
+const escolhida = (nome: string) =>
+  (servidor().getByRole('radio', { name: nome }) as HTMLInputElement).checked
 
 describe('IdentityScreen', () => {
   afterEach(cleanup)
@@ -206,29 +204,29 @@ describe('IdentityScreen', () => {
     expect(escolhas(MODO).getAllByRole('radio')).toHaveLength(3)
   })
 
-  it('só o modo escolhido diz o que destrava e o que custa, e trocar troca o texto', async () => {
+  it('só o modo escolhido diz o que muda para quem relata e o que pede de você, e trocar troca o texto', async () => {
     montar()
 
     await screen.findByRole('radio', { name: /Protocolo/ })
-    const reconhecimento = regiao('Reconhecimento')
+    const reconhecimento = regiao('Como a pessoa é reconhecida')
 
     // Um de cada: as tres explicacoes de uma vez eram a parede de texto antes do clique.
-    expect(reconhecimento.getAllByText('Destrava:')).toHaveLength(1)
-    expect(reconhecimento.getAllByText('Custo:')).toHaveLength(1)
+    expect(reconhecimento.getAllByText('Para quem relata:')).toHaveLength(1)
+    expect(reconhecimento.getAllByText('Para você:')).toHaveLength(1)
     // A regra que atravessa a tela fica legivel junto da escolha.
-    expect(reconhecimento.getByText(/não há lista pessoal/i)).toBeTruthy()
+    expect(reconhecimento.getByText(/sem uma lista dos relatos dela/i)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('radio', { name: /Código pessoal/ }))
-    expect(reconhecimento.queryByText(/não há lista pessoal/i)).toBeNull()
-    expect(reconhecimento.getByText(/sem o cliente precisar ter login/i)).toBeTruthy()
-    expect(reconhecimento.getAllByText('Destrava:')).toHaveLength(1)
+    expect(reconhecimento.queryByText(/sem uma lista dos relatos dela/i)).toBeNull()
+    expect(reconhecimento.getByText(/até em outro aparelho/i)).toBeTruthy()
+    expect(reconhecimento.getAllByText('Para quem relata:')).toHaveLength(1)
   })
 
   it('avisa que trocar de modo não mexe no passado', async () => {
     montar()
 
     await screen.findByRole('radio', { name: /Protocolo/ })
-    expect(screen.getByText(/Trocar de modo não mexe no passado/i)).toBeTruthy()
+    expect(screen.getByText(/Trocar o modo só vale para os próximos relatos/i)).toBeTruthy()
   })
 
   it('não salva enquanto nada mudou', async () => {
@@ -273,13 +271,13 @@ describe('IdentityScreen', () => {
 
   // A assinatura simples e a de fabrica: a chave abre num dialogo, sem sair da tela (e sem
   // a pergunta de salvar ou descartar), e as linguagens sao as abas do editor, lembradas.
-  it('na assinatura simples, a chave abre num diálogo e as linguagens são abas do editor', async () => {
+  it('na assinatura simples, a chave abre num diálogo e a linguagem escolhida vale para os códigos', async () => {
     window.localStorage.removeItem('pds.web.linguagem-do-servidor.v1')
     dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Hmac' })
     dublê.verSegredo.mockResolvedValue({ Secret: 'rfs_segredo-do-projeto' })
     montar()
 
-    expect(await screen.findByText('Pegue a chave da identidade')).toBeTruthy()
+    expect(await screen.findByText('Copie a chave secreta')).toBeTruthy()
     // Nada de chave publica neste formato, e a chave nao e buscada sozinha.
     expect(screen.queryByLabelText('Chave pública do seu sistema')).toBeNull()
     expect(dublê.verSegredo).not.toHaveBeenCalled()
@@ -290,29 +288,31 @@ describe('IdentityScreen', () => {
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Mostrar a chave' }))
     expect(await within(dialogo).findByText('rfs_segredo-do-projeto')).toBeTruthy()
     expect(dublê.verSegredo).toHaveBeenCalledWith('p-1')
-    expect(
-      within(dialogo).getByRole('link', { name: 'Abrir a tela de Chaves' }).getAttribute('href'),
-    ).toBe('/p/p-1/keys#chave-da-identidade')
+    // Enquanto a identidade do sistema esta em breve, a chave nao aparece em Chaves, e o
+    // dialogo nao leva para la.
+    expect(within(dialogo).queryByRole('link', { name: 'Abrir a tela de Chaves' })).toBeNull()
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Fechar' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 
-    // O editor abre em Node; a aba do PHP troca o exemplo e fica lembrada.
-    const node = servidor().getByRole('tab', { name: 'Node' })
-    expect(node.getAttribute('aria-selected')).toBe('true')
-    expect(screen.getAllByText(/createHmac/).length).toBeGreaterThan(0)
-    fireEvent.click(servidor().getByRole('tab', { name: 'PHP' }))
-    expect(servidor().getByRole('tab', { name: 'PHP' }).getAttribute('aria-selected')).toBe('true')
-    expect(screen.getAllByText(/hash_hmac/).length).toBeGreaterThan(0)
+    // A linguagem e escolhida uma vez, la em cima: abre em Node, e o PHP troca os dois
+    // trechos de uma vez e fica lembrado.
+    expect(escolhida('Node')).toBe(true)
+    expect(screen.getByRole('region', { name: 'cracha.js' }).textContent).toContain('createHmac')
+    fireEvent.click(servidor().getByRole('radio', { name: 'PHP' }))
+    expect(escolhida('PHP')).toBe(true)
+    expect(screen.getByRole('region', { name: 'cracha.php' }).textContent).toContain('hash_hmac')
     expect(window.localStorage.getItem('pds.web.linguagem-do-servidor.v1')).toBe('php')
-    // O script ganha as linhas da assinatura no modelo de pagina da mesma linguagem (o
-    // PHP, que ficou escolhido), chamando a funcao do passo 2, e o aviso de nao colar outro.
-    expect(screen.getByText('Coloque a assinatura no script que já está na página')).toBeTruthy()
-    expect(screen.getByRole('tabpanel', { name: 'pagina.php' }).textContent).toContain(
+    // O script ganha as linhas da assinatura no modelo de pagina da mesma linguagem, e so
+    // ela aparece: nada de abas repetidas em cada trecho.
+    expect(screen.getByText('Coloque o crachá no script da página')).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'pagina.php' }).textContent).toContain(
       'crachaDeRelato($usuario)',
     )
+    expect(screen.queryByRole('tablist')).toBeNull()
     expect(screen.getAllByText('Linha nova:')).toHaveLength(6)
-    expect(screen.getByText(/só o primeiro vale e a assinatura ficaria de fora/)).toBeTruthy()
     expect(screen.getByRole('button', { name: /Copiar as linhas novas/ })).toBeTruthy()
+    // O que conferir quando nao aparece, inclusive o script colado duas vezes.
+    expect(screen.getByText(/porque só o primeiro vale/)).toBeTruthy()
   })
 
   it('no JWT, o crachá entra no script que já está na página, escrito pelo servidor', async () => {
@@ -320,59 +320,69 @@ describe('IdentityScreen', () => {
     dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Jwt' })
     montar()
 
-    expect(await screen.findByText('Coloque o crachá no script que já está na página')).toBeTruthy()
-    // As abas do modelo da pagina sao as mesmas do exemplo: trocar uma troca as duas.
-    expect(screen.getAllByRole('tab', { name: 'Node' })).toHaveLength(2)
-    expect(screen.getByRole('tablist', { name: 'Linguagem do modelo da página' })).toBeTruthy()
-    expect(screen.getByRole('tabpanel', { name: 'pagina.ejs' }).textContent).toContain(
+    expect(await screen.findByText('Coloque o crachá no script da página')).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'pagina.ejs' }).textContent).toContain(
       'data-identity="<%= cracha %>"',
     )
-    fireEvent.click(screen.getAllByRole('tab', { name: 'Python' })[1] as HTMLElement)
-    expect(screen.getByRole('tabpanel', { name: 'pagina.html' }).textContent).toContain(
+    // Trocar a linguagem troca a funcao e o modelo da pagina juntos.
+    fireEvent.click(servidor().getByRole('radio', { name: 'Python' }))
+    expect(screen.getByRole('region', { name: 'pagina.html' }).textContent).toContain(
       'data-identity="{{ cracha }}"',
     )
-    expect(screen.getByRole('tabpanel', { name: 'cracha.py' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'cracha.py' })).toBeTruthy()
     expect(screen.getAllByText('Linha nova:')).toHaveLength(3)
-    expect(
-      screen.getByText(/fica sem o crachá, e a chave privada nunca aparece na página/),
-    ).toBeTruthy()
-    expect(screen.getByText(/só o primeiro vale e o crachá ficaria de fora/)).toBeTruthy()
+    expect(screen.getByText(/a chave privada nunca aparece na página/)).toBeTruthy()
     expect(screen.getByText(/montada no navegador/)).toBeTruthy()
+    // O teste diz o que se ve quando da certo, e o que procurar quando nao da.
+    expect(screen.getByText(/se aparecer “Ver os meus relatos”, está funcionando/)).toBeTruthy()
+    expect(screen.getByText('eyJ')).toBeTruthy()
   })
 
-  it('a caixa "Como usar" acompanha a linguagem escolhida, com o que trocar e o que instalar', async () => {
+  it('o passo da função acompanha a linguagem, com o que instalar e o que trocar', async () => {
     window.localStorage.removeItem('pds.web.linguagem-do-servidor.v1')
     dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Jwt' })
     montar()
 
     // Node no JWT: instalar o jose, com o comando pronto para copiar.
-    const node = await screen.findByRole('region', { name: 'Como usar em Node' })
-    expect(within(node).getByText('npm install jose')).toBeTruthy()
-    expect(within(node).getByRole('button', { name: 'Copiar o comando' })).toBeTruthy()
+    expect(await screen.findByText('npm install jose')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Copiar o comando' })).toBeTruthy()
 
     // Java: o arquivo completo pede so trocar o pacote, e as dependencias vem para copiar.
-    await screen.findByRole('tablist', { name: 'Linguagem do seu servidor' })
-    fireEvent.click(servidor().getByRole('tab', { name: 'Java' }))
-    const java = screen.getByRole('region', { name: 'Como usar em Java' })
-    expect(within(java).getByText('package com.seusistema;')).toBeTruthy()
-    expect(within(java).getByRole('button', { name: 'Copiar as dependências' })).toBeTruthy()
-    expect(within(java).getByText('Relato.java')).toBeTruthy()
-    expect(screen.getByRole('tabpanel', { name: 'Relato.java' }).textContent).toContain(
+    fireEvent.click(servidor().getByRole('radio', { name: 'Java' }))
+    expect(screen.getByText('package com.seusistema;')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Copiar as dependências' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'Relato.java' }).textContent).toContain(
       'public class Relato',
     )
   })
 
-  it('as setas andam entre as abas das linguagens, como abas', async () => {
-    window.localStorage.removeItem('pds.web.linguagem-do-servidor.v1')
+  // Quatro passos, os mesmos nos dois formatos, cada um com o lugar onde acontece; e as
+  // regras do cracha depois deles, porque sao escolhas com padrao, e nao instalacao.
+  it('os passos dizem onde cada coisa acontece, e as regras ficam depois deles', async () => {
     dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Hmac' })
     montar()
 
-    await screen.findByRole('tablist', { name: 'Linguagem do seu servidor' })
-    const node = servidor().getByRole('tab', { name: 'Node' })
-    fireEvent.keyDown(node, { key: 'ArrowRight' })
-    expect(servidor().getByRole('tab', { name: 'PHP' }).getAttribute('aria-selected')).toBe('true')
-    fireEvent.keyDown(servidor().getByRole('tab', { name: 'PHP' }), { key: 'End' })
-    expect(servidor().getByRole('tab', { name: 'Go' }).getAttribute('aria-selected')).toBe('true')
+    const passos = within(await screen.findByRole('list', { name: 'Passos' }))
+    const titulos = passos.getAllByRole('heading', { level: 4 }).map((titulo) => titulo.textContent)
+    expect(titulos).toEqual([
+      'Passo 1: Copie a chave secretaNo painel',
+      'Passo 2: Faça o servidor gerar o cracháNo seu servidor',
+      'Passo 3: Coloque o crachá no script da páginaNo seu servidor',
+      'Passo 4: Salve e testeNo seu sistema',
+    ])
+    // As regras nao sao um passo: moram numa parte propria, embaixo.
+    const regras = screen.getByRole('region', { name: 'Regras do crachá' })
+    expect(within(regras).getByLabelText('Validade máxima do crachá, em minutos')).toBeTruthy()
+    expect(
+      within(regras).getByRole('checkbox', { name: /Só aceitar relato de quem está na conta/ }),
+    ).toBeTruthy()
+
+    // No JWT, o primeiro passo e o par de chaves, e os outros tres sao os mesmos.
+    fireEvent.click(screen.getByRole('radio', { name: /JWT/ }))
+    const jwt = within(screen.getByRole('list', { name: 'Passos' }))
+    expect(jwt.getAllByRole('heading', { level: 4 })[0]?.textContent).toBe(
+      'Passo 1: Crie o par de chavesNo painel',
+    )
   })
 
   it('sem a chave mestra na instalação, a assinatura simples não salva e a tela diz por que', async () => {
@@ -416,7 +426,8 @@ describe('IdentityScreen', () => {
     })
     montar()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Gerar o par de chaves' }))
+    // Com chave guardada, o botao ja diz que gera outro, e pede confirmacao antes.
+    fireEvent.click(await screen.findByRole('button', { name: 'Gerar outro par' }))
     expect(screen.getByText(/Gerar outro par troca a chave pública/)).toBeTruthy()
     const campo = screen.getByLabelText('Chave pública do seu sistema') as HTMLTextAreaElement
     expect(campo.value).toBe('MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE')
@@ -425,18 +436,36 @@ describe('IdentityScreen', () => {
     await waitFor(() => expect(campo.value).toContain('-----BEGIN PUBLIC KEY-----'))
   })
 
-  it('deixa escolher a identidade do sistema, e só salva com a chave pública dele', async () => {
+  // Ainda nao liberada: aparece como "Em breve", e nao da para escolher.
+  it('a identidade do sistema aparece como em breve, e não dá para escolher', async () => {
+    montar()
+
+    const herdada = await screen.findByRole('radio', { name: /Identidade do seu sistema/ })
+    expect((herdada as HTMLInputElement).disabled).toBe(true)
+    expect(herdada.closest('label')?.textContent).toContain('Em breve')
+    expect(screen.getByText(/Identidade do seu sistema, em breve\./)).toBeTruthy()
+    expect(screen.queryByText('Formato do crachá')).toBeNull()
+  })
+
+  // O que ja esta salvo nao muda sozinho: o projeto que ja usa o modo continua com ele, e
+  // com o passo a passo, e pode ate sair e voltar antes de salvar.
+  it('o projeto que já salvou a identidade do sistema continua com ela, e só salva com a chave pública', async () => {
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Jwt' })
     montar()
 
     const herdada = await screen.findByRole('radio', { name: /Identidade do seu sistema/ })
     expect((herdada as HTMLInputElement).disabled).toBe(false)
-    fireEvent.click(herdada)
+    expect((herdada as HTMLInputElement).checked).toBe(true)
+
+    fireEvent.click(screen.getByRole('radio', { name: /Protocolo/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /Identidade do seu sistema/ }))
+    expect(
+      (screen.getByRole('radio', { name: /Identidade do seu sistema/ }) as HTMLInputElement)
+        .checked,
+    ).toBe(true)
 
     // Sem a chave a API nao conferiria cracha nenhum: o modo gravado nao faria nada.
-    const chave = screen.getByLabelText('Chave pública do seu sistema')
-    expect(salvarLigado()).toBe(false)
-
-    fireEvent.change(chave, {
+    fireEvent.change(screen.getByLabelText('Chave pública do seu sistema'), {
       target: { value: '-----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----' },
     })
     expect(salvarLigado()).toBe(true)
@@ -494,20 +523,23 @@ describe('IdentityScreen', () => {
     expect((privado as HTMLInputElement).checked).toBe(true)
   })
 
-  it('o nível escolhido diz quem vê e o que custa', async () => {
+  it('o nível escolhido diz quem lê e o que o time passa a fazer', async () => {
     montar()
 
     await screen.findByRole('radio', { name: /Protocolo/ })
-    const visibilidade = regiao('Visibilidade')
+    const visibilidade = regiao('Quem pode ver os relatos')
 
     // "Público" é palavra que cada um entende de um jeito. O que trava a tela é
     // dizer **quem vê**, e não repetir o nome do nível com outras palavras.
-    expect(visibilidade.getAllByText('Quem vê:')).toHaveLength(1)
-    expect(visibilidade.getAllByText('Custo:')).toHaveLength(1)
-    expect(visibilidade.getByText(/Quem relatou, pelo link dele/)).toBeTruthy()
+    expect(visibilidade.getAllByText('Quem lê:')).toHaveLength(1)
+    expect(visibilidade.getAllByText('Para o time:')).toHaveLength(1)
+    expect(visibilidade.getByText(/mais ninguém encontra o relato/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('radio', { name: /Público anônimo/ }))
-    expect(visibilidade.getByText(/inclusive quem nunca relatou nada/)).toBeTruthy()
+    expect(
+      visibilidade.getByText(/Qualquer pessoa que abrir o formulário no seu sistema/),
+    ).toBeTruthy()
+    expect(visibilidade.getByText(/Liberar cada relato em Moderação/)).toBeTruthy()
   })
 
   it('no modo protocolo, público identificado não dá para escolher, e a peça diz por quê', async () => {
@@ -519,7 +551,7 @@ describe('IdentityScreen', () => {
     // A trava depende da outra pergunta da tela, então o motivo tem de estar
     // junto: cinza sem explicação faz quem configura concluir que está quebrado.
     expect(identificado.closest('label')?.textContent).toMatch(
-      /Depende de um modo que identifique/i,
+      /Precisa de um modo que reconheça quem relata/i,
     )
   })
 
@@ -557,11 +589,13 @@ describe('IdentityScreen', () => {
       true,
     )
     // O aviso mora no grupo da visibilidade, e o titulo dele, fechado, ja diz o conflito.
-    expect(regiao('Visibilidade').getByText(/o protocolo não identifica ninguém/i)).toBeTruthy()
-    expect(resumoDo('visibilidade')).toContain('não combina com o protocolo')
+    expect(
+      regiao('Quem pode ver os relatos').getByText(/o Protocolo não reconhece ninguém/i),
+    ).toBeTruthy()
+    expect(resumoDo('visibilidade')).toContain('não combina com o Protocolo')
     // O titulo diz por que o Salvar esta desligado, no lugar da conta.
     expect(
-      screen.getByText('Escolha uma visibilidade que combine com o protocolo para salvar.'),
+      screen.getByText('Para salvar, escolha um nível que combine com o Protocolo.'),
     ).toBeTruthy()
     expect(dublê.salvar).not.toHaveBeenCalled()
   })
@@ -595,7 +629,7 @@ describe('IdentityScreen', () => {
 
     fireEvent.click(await screen.findByRole('radio', { name: /Público anônimo/ }))
 
-    expect(screen.getByText(/depois que alguém do time o libera em Moderação/i)).toBeTruthy()
+    expect(screen.getByText(/cada relato espera alguém do time liberar em Moderação/i)).toBeTruthy()
   })
 
   it('a confirmação mora aqui, e grava na ferramenta com o resto como está agora', async () => {
@@ -604,7 +638,7 @@ describe('IdentityScreen', () => {
     montar()
 
     const confirmacao = await screen.findByRole('textbox', {
-      name: /Confirmação, acima do protocolo/,
+      name: /Texto da confirmação/,
     })
     escrever(confirmacao, 'Obrigado, {{primeiroNome}}!')
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
@@ -624,8 +658,8 @@ describe('IdentityScreen', () => {
     montar()
     await screen.findByRole('radio', { name: /Protocolo/ })
 
-    expect(resumoDo('reconhecimento')).toContain('Código pessoal (a pessoa guarda um código)')
-    expect(resumoDo('visibilidade')).toContain('Privado (só quem relatou e o time)')
+    expect(resumoDo('reconhecimento')).toContain('Código pessoal, a pessoa guarda um código')
+    expect(resumoDo('visibilidade')).toContain('Privado, só quem relatou e o time')
     // Os textos, com as variaveis trocadas pelos valores de exemplo.
     expect(resumoDo('depois-de-enviar')).toContain('Recebemos o seu relato')
     expect(resumoDo('texto-do-acompanhamento')).toContain('Este é o registro do que você enviou.')
@@ -633,16 +667,59 @@ describe('IdentityScreen', () => {
     expect(resumoDo('reconhecimento')).not.toContain('Mudou')
   })
 
-  it('o aviso público diz que não tem efeito com o projeto privado', async () => {
+  // O aviso so existe com um nivel publico: num grupo proprio, ele dizia "Sem efeito" no
+  // projeto privado. Agora mora junto da escolha que o liga.
+  it('o aviso do formulário mora na Visibilidade, e só aparece com um nível público', async () => {
+    montar()
+    await screen.findByRole('radio', { name: /Protocolo/ })
+    const visibilidade = regiao('Quem pode ver os relatos')
+    const campoDoAviso = () =>
+      visibilidade.queryByRole('textbox', { name: /Aviso de que o relato pode virar público/ })
+
+    expect(campoDoAviso()).toBeNull()
+    expect(visibilidade.getByText(/Num nível público, o formulário mostra um aviso/)).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Aviso público' })).toBeNull()
+
+    // Publico, o campo aparece ali mesmo, com a frase do nome que vem depois dele.
+    fireEvent.click(screen.getByRole('radio', { name: /Público anônimo/ }))
+    expect(campoDoAviso()?.textContent).toContain('Este relato pode virar público.')
+    expect(visibilidade.getByText(/O seu nome nunca aparece/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('radio', { name: /Público identificado/ }))
+    expect(visibilidade.getByText(/O seu nome só aparece se você marcar abaixo/)).toBeTruthy()
+  })
+
+  it('mudar o aviso conta na Visibilidade, e o voltar dela volta o nível e o aviso', async () => {
     montar()
     await screen.findByRole('radio', { name: /Protocolo/ })
 
-    expect(resumoDo('aviso-de-relato-publico')).toContain('Sem efeito: projeto privado')
-
-    // Publico, o titulo passa a mostrar o aviso: agora ele aparece no formulario.
     fireEvent.click(screen.getByRole('radio', { name: /Público anônimo/ }))
-    expect(resumoDo('aviso-de-relato-publico')).not.toContain('Sem efeito')
-    expect(resumoDo('aviso-de-relato-publico')).toContain('Este relato pode virar público.')
+    escrever(
+      screen.getByRole('textbox', { name: /Aviso de que o relato pode virar público/ }),
+      'Pode virar público.',
+    )
+    expect(resumoDo('visibilidade')).toContain('Mudou: Nível, Texto do aviso')
+
+    fireEvent.click(
+      regiao('Quem pode ver os relatos').getByRole('button', { name: 'Voltar ao padrão' }),
+    )
+    expect((screen.getByRole('radio', { name: /Privado/ }) as HTMLInputElement).checked).toBe(true)
+    expect(salvarLigado()).toBe(false)
+  })
+
+  it('os textos de depois de enviar têm título próprio, e a prévia não aparece de cara', async () => {
+    montar()
+    await screen.findByRole('radio', { name: /Protocolo/ })
+
+    const textos = regiao('O que quem relatou lê')
+    expect(textos.getByRole('region', { name: 'Mensagem de confirmação' })).toBeTruthy()
+    expect(textos.getByRole('region', { name: 'Topo da página de acompanhamento' })).toBeTruthy()
+    // A privacidade fica fora dela.
+    expect(textos.queryByRole('region', { name: 'Quem pode ver os relatos' })).toBeNull()
+    // As abas da previa sairam, e a coluna dela so entra com um texto de depois de enviar
+    // aberto.
+    expect(screen.queryByRole('tablist', { name: 'O que a prévia mostra' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Prévia' })).toBeNull()
   })
 
   it('cada grupo volta ao padrão só no rascunho dele', async () => {
@@ -652,30 +729,33 @@ describe('IdentityScreen', () => {
     await screen.findByRole('radio', { name: /Protocolo/ })
 
     fireEvent.click(screen.getByRole('radio', { name: /Protocolo/ }))
-    escrever(screen.getByRole('textbox', { name: /Confirmação, acima do protocolo/ }), 'Valeu!')
-    escrever(
-      screen.getByRole('textbox', { name: /Topo da página de acompanhamento/ }),
-      'O seu relato',
-    )
+    escrever(screen.getByRole('textbox', { name: /Texto da confirmação/ }), 'Valeu!')
+    escrever(screen.getByRole('textbox', { name: /Texto do topo/ }), 'O seu relato')
 
     expect(resumoDo('reconhecimento')).toContain('Mudou: Modo')
     expect(resumoDo('depois-de-enviar')).toContain('Mudou: Texto da confirmação')
     expect(resumoDo('texto-do-acompanhamento')).toContain('Mudou: Texto do topo')
     // Grupo sem mudanca nao oferece voltar.
-    expect(regiao('Aviso público').queryByRole('button', { name: 'Voltar ao padrão' })).toBeNull()
+    expect(
+      regiao('Quem pode ver os relatos').queryByRole('button', { name: 'Voltar ao padrão' }),
+    ).toBeNull()
 
     // A confirmacao volta, e so ela: o modo e o topo continuam mudados.
-    fireEvent.click(regiao('Confirmação').getByRole('button', { name: 'Voltar ao padrão' }))
-    expect(
-      screen.getByRole('textbox', { name: /Confirmação, acima do protocolo/ }).textContent,
-    ).toBe(DEFAULT_WIDGET_SETTINGS.SuccessMessage)
+    fireEvent.click(
+      regiao('Mensagem de confirmação').getByRole('button', { name: 'Voltar ao padrão' }),
+    )
+    expect(screen.getByRole('textbox', { name: /Texto da confirmação/ }).textContent).toBe(
+      DEFAULT_WIDGET_SETTINGS.SuccessMessage,
+    )
     expect((screen.getByRole('radio', { name: /Protocolo/ }) as HTMLInputElement).checked).toBe(
       true,
     )
     expect(resumoDo('texto-do-acompanhamento')).toContain('Mudou: Texto do topo')
 
     // O modo volta ao de fabrica no rascunho de Quem relata, e o texto do topo fica.
-    fireEvent.click(regiao('Reconhecimento').getByRole('button', { name: 'Voltar ao padrão' }))
+    fireEvent.click(
+      regiao('Como a pessoa é reconhecida').getByRole('button', { name: 'Voltar ao padrão' }),
+    )
     expect(
       (screen.getByRole('radio', { name: /Código pessoal/ }) as HTMLInputElement).checked,
     ).toBe(true)
@@ -683,53 +763,100 @@ describe('IdentityScreen', () => {
     expect(salvarLigado()).toBe(true)
 
     fireEvent.click(
-      regiao('Topo do acompanhamento').getByRole('button', { name: 'Voltar ao padrão' }),
+      regiao('Topo da página de acompanhamento').getByRole('button', { name: 'Voltar ao padrão' }),
     )
     expect(salvarLigado()).toBe(false)
   })
 
-  it('a prévia segue o grupo aberto, até a pessoa escolher uma aba', async () => {
+  // Sem a pergunta do nome, a caixa de mostrar o nome nem aparece no formulario: o
+  // identificado ficaria igual ao anonimo, sem ninguem saber por que.
+  it('no público identificado sem a pergunta do nome, avisa e leva a Textos e tema', async () => {
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'PersonalCode', IdentityFormat: 'Hmac' })
     montar()
     await screen.findByRole('radio', { name: /Protocolo/ })
 
-    // A Visibilidade vem primeiro e aberta: a previa abre no formulario, onde ela aparece.
-    expect(abaEscolhida()).toBe('Formulário')
+    fireEvent.click(screen.getByRole('radio', { name: /Público identificado/ }))
+    const visibilidade = regiao('Quem pode ver os relatos')
+    expect(visibilidade.getByText(/O formulário não pergunta o nome/)).toBeTruthy()
+    expect(visibilidade.getByRole('link', { name: 'Textos e tema' }).getAttribute('href')).toBe(
+      '/projects/p-1/form-texts#nome-de-quem-relata',
+    )
+    cleanup()
 
-    detalhesDo('texto-do-acompanhamento').open = true
-    await waitFor(() => expect(abaEscolhida()).toBe('Acompanhamento'))
-    // A jornada de verdade, na ordem do projeto, com o relato parado na segunda etapa.
-    const painel = within(screen.getByRole('tabpanel'))
-    expect(await painel.findByText('Recebido')).toBeTruthy()
-    expect(painel.getByText('Resolvido')).toBeTruthy()
-
-    detalhesDo('aviso-de-relato-publico').open = true
-    await waitFor(() => expect(abaEscolhida()).toBe('Formulário'))
-    expect(within(screen.getByRole('tabpanel')).getByText(/Sem aviso/)).toBeTruthy()
-
-    // Escolhida a aba, o foco em outro grupo nao a troca.
-    fireEvent.click(screen.getByRole('tab', { name: 'No sistema' }))
-    expect(abaEscolhida()).toBe('No sistema')
-    act(() => screen.getByRole('textbox', { name: /Topo da página de acompanhamento/ }).focus())
-    expect(abaEscolhida()).toBe('No sistema')
-    act(() => (document.activeElement as HTMLElement).blur())
-
-    // Abrir outro grupo devolve a conducao a ele.
-    detalhesDo('depois-de-enviar').open = true
-    detalhesDo('texto-do-acompanhamento').open = false
-    detalhesDo('texto-do-acompanhamento').open = true
-    await waitFor(() => expect(abaEscolhida()).toBe('Acompanhamento'))
+    // Perguntando o nome, nada a avisar.
+    dublê.ler.mockResolvedValue({
+      ...padrao,
+      Mode: 'PersonalCode',
+      IdentityFormat: 'Hmac',
+      AsksForName: true,
+    })
+    montar()
+    await screen.findByRole('radio', { name: /Protocolo/ })
+    fireEvent.click(screen.getByRole('radio', { name: /Público identificado/ }))
+    expect(screen.queryByText(/O formulário não pergunta o nome/)).toBeNull()
   })
 
-  it('o formulário da prévia mostra o aviso com a frase do nome do nível escolhido', async () => {
+  // So os dois textos de depois de enviar tem previa, e so com o grupo aberto: nas escolhas
+  // de cima ela nao mostrava nada que o cartao nao diga.
+  it('a prévia aparece só com a mensagem de confirmação ou o topo do acompanhamento abertos', async () => {
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'PersonalCode', IdentityFormat: 'Hmac' })
     montar()
     await screen.findByRole('radio', { name: /Protocolo/ })
 
-    fireEvent.click(screen.getByRole('radio', { name: /Público anônimo/ }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Formulário' }))
+    // A Visibilidade vem aberta, e sem previa nenhuma.
+    expect(screen.queryByRole('region', { name: 'Prévia' })).toBeNull()
 
-    const aviso = screen.getByTestId('aviso-no-formulario')
-    expect(aviso.textContent).toContain(DEFAULT_WIDGET_SETTINGS.PublicNotice)
-    expect(aviso.textContent).toContain('O seu nome nunca aparece.')
+    // Aberta a mensagem, a previa entra na coluna de sempre, com o desenho das outras.
+    detalhesDo('depois-de-enviar').open = true
+    const previa = within(await screen.findByRole('region', { name: 'Prévia' }))
+    expect(previa.getByText('Relato enviado')).toBeTruthy()
+    // O que o modo acrescenta, como no formulario: o codigo pessoal para guardar.
+    expect(previa.getByText('Seu código pessoal')).toBeTruthy()
+
+    // Escrever muda a previa na hora.
+    escrever(screen.getByRole('textbox', { name: /Texto da confirmação/ }), 'Valeu, {{tipo}}!')
+    await waitFor(() => expect(previa.getByText('Valeu, Defeito!')).toBeTruthy())
+
+    detalhesDo('texto-do-acompanhamento').open = true
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('region', { name: 'Prévia' })).getByText('Seu relato'),
+      ).toBeTruthy(),
+    )
+
+    // Fechado o texto, a previa sai: fica fora do leitor de tela e do Tab.
+    detalhesDo('texto-do-acompanhamento').open = false
+    detalhesDo('depois-de-enviar').open = false
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Prévia' })).toBeNull())
+  })
+
+  // A instrucao e em palavras, e vale para qualquer linguagem: o que o servidor monta e onde
+  // escreve. O codigo pronto fica num exemplo recolhido, para quem quer.
+  it('os passos dizem o que fazer em palavras, e o código fica no exemplo recolhido', async () => {
+    // A linguagem fica lembrada entre os testes: este parte do Node, como quem chega.
+    window.localStorage.removeItem('pds.web.linguagem-do-servidor.v1')
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Hmac' })
+    montar()
+
+    expect(await screen.findByText('Faça o servidor gerar o crachá')).toBeTruthy()
+    expect(screen.getByText('Validade')).toBeTruthy()
+    expect(screen.getByText('id.validade')).toBeTruthy()
+    expect(screen.getByText(/não há nada para instalar/)).toBeTruthy()
+    // Os atributos do passo 3, um por linha, com o que vai em cada um.
+    const nomes = screen.getAllByRole('term').map((termo) => termo.textContent)
+    expect(nomes).toEqual(
+      expect.arrayContaining(['data-user-id', 'data-user-expires', 'data-user-signature']),
+    )
+
+    // O codigo e a escolha da linguagem moram no exemplo, fechado.
+    const exemplo = screen
+      .getByText('Ver um exemplo em código')
+      .closest('details') as HTMLDetailsElement
+    expect(exemplo.open).toBe(false)
+    expect(
+      within(exemplo).getByRole('radiogroup', { name: 'Linguagem do seu servidor' }),
+    ).toBeTruthy()
+    expect(within(exemplo).getByRole('region', { name: 'cracha.js' })).toBeTruthy()
   })
 
   it('as âncoras de sempre continuam existindo', async () => {
@@ -743,6 +870,7 @@ describe('IdentityScreen', () => {
       'confirmacao',
       'mais-opcoes',
       'topo-do-acompanhamento',
+      'aviso-de-relato-publico',
       'aviso-publico',
     ]) {
       expect(document.getElementById(id), id).not.toBeNull()
