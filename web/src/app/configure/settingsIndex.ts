@@ -5,6 +5,7 @@ import {
   type SectionKey,
   sectionByKey,
 } from '@/app/navigation'
+import { EM_BREVE } from '@/shared/lib/emBreve'
 
 /**
  * O indice da busca da configuracao: **toda opcao das telas de configuracao, num lugar
@@ -512,36 +513,60 @@ export const SETTINGS_INDEX: SettingEntry[] = [
 
   // O acompanhamento — Ciclo
   {
-    label: 'Quando o relato encerra',
-    synonyms: ['encerrar', 'fechar', 'concluir', 'resolver', 'última coluna', 'botão de concluir'],
+    label: 'Como o time encerra um relato',
+    synonyms: [
+      'encerrar',
+      'fechar',
+      'concluir',
+      'resolver',
+      'última coluna',
+      'botão encerrar relato',
+      'botão de concluir',
+    ],
     section: 'cycle',
     anchor: 'encerramento',
     level: 'basic',
   },
   {
-    label: 'Esperar antes de quem relatou ver',
-    synonyms: ['atraso', 'demora', 'janela', 'desfazer', 'minutos', 'arrastei errado'],
+    label: 'Tempo para desfazer antes de quem relatou ver',
+    synonyms: ['espera', 'atraso', 'demora', 'janela', 'desfazer', 'minutos', 'arrastei errado'],
     section: 'cycle',
     anchor: 'espera',
     level: 'advanced',
   },
   {
-    label: 'Deixar quem relatou reabrir',
-    synonyms: ['reabrir', 'reabertura', 'não resolveu', 'voltou', 'coluna do reaberto'],
+    label: 'Quem relatou pode reabrir',
+    synonyms: [
+      'reabrir',
+      'reabertura',
+      'reaberto',
+      'não resolveu',
+      'voltou',
+      'coluna do reaberto',
+      'para onde volta',
+    ],
     section: 'cycle',
     anchor: 'reabrir',
     level: 'basic',
   },
   {
-    label: 'Pedir uma nota ao confirmar',
-    synonyms: ['satisfação', 'avaliação', 'nota', 'estrelas', 'nps', 'exigir nota'],
+    label: 'Nota de satisfação',
+    synonyms: ['satisfação', 'avaliação', 'nota', 'estrelas', 'nps', 'exigir nota', 'pedir nota'],
     section: 'cycle',
     anchor: 'nota',
     level: 'advanced',
   },
   {
-    label: 'Devolver o relato pedindo informação',
-    synonyms: ['pedir informação', 'falta informação', 'prazo', 'lembrete', 'encerrar sozinho'],
+    label: 'Pedir informação a quem relatou',
+    synonyms: [
+      'pedir informação',
+      'devolver relato',
+      'falta informação',
+      'prazo',
+      'lembrete',
+      'encerrar sozinho',
+      'sem retorno',
+    ],
     section: 'cycle',
     anchor: 'pedir-informacao',
     level: 'basic',
@@ -591,28 +616,32 @@ export const SETTINGS_INDEX: SettingEntry[] = [
     level: 'basic',
   },
   // So aparecem com a identidade do sistema escolhida: a busca leva ao grupo, e o grupo
-  // mostra o modo que destrava cada uma.
-  {
-    label: 'Chave pública do seu sistema',
-    synonyms: ['chave', 'identidade', 'sso', 'login', 'crachá', 'token', 'assinatura', 'jwt'],
-    section: 'identity',
-    anchor: 'chave-publica',
-    level: 'advanced',
-  },
-  {
-    label: 'Validade máxima do crachá',
-    synonyms: ['validade', 'minutos', 'expira', 'token', 'crachá', 'identidade'],
-    section: 'identity',
-    anchor: 'validade-do-cracha',
-    level: 'advanced',
-  },
-  {
-    label: 'Exigir o crachá para relatar',
-    synonyms: ['sem crachá', 'sem login', 'recusar', 'obrigatório', 'entrar na conta'],
-    section: 'identity',
-    anchor: 'sem-cracha',
-    level: 'advanced',
-  },
+  // mostra o modo que destrava cada uma. Fora enquanto ela esta em breve (`EM_BREVE`).
+  ...(EM_BREVE.identidadeDoSistema
+    ? []
+    : ([
+        {
+          label: 'Chave pública do seu sistema',
+          synonyms: ['chave', 'identidade', 'sso', 'login', 'crachá', 'token', 'assinatura', 'jwt'],
+          section: 'identity',
+          anchor: 'chave-publica',
+          level: 'advanced',
+        },
+        {
+          label: 'Validade máxima do crachá',
+          synonyms: ['validade', 'minutos', 'expira', 'token', 'crachá', 'identidade'],
+          section: 'identity',
+          anchor: 'validade-do-cracha',
+          level: 'advanced',
+        },
+        {
+          label: 'Exigir o crachá para relatar',
+          synonyms: ['sem crachá', 'sem login', 'recusar', 'obrigatório', 'entrar na conta'],
+          section: 'identity',
+          anchor: 'sem-cracha',
+          level: 'advanced',
+        },
+      ] satisfies SettingEntry[])),
 
   // O quadro — Colunas
   {

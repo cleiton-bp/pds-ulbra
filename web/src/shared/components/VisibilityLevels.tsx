@@ -9,47 +9,63 @@ import type { ReportVisibility } from '@/contracts'
 export interface Nivel {
   valor: ReportVisibility
   titulo: string
+  /** O que esta escolhido, em palavras, no titulo do grupo fechado. */
   emPalavras: string
+  /** Uma frase: no cartao da escolha e na folha da Moderação. */
   resumo: string
+  /** O texto longo, no "Como funciona". */
   explicacao: string
+  /** Quem consegue ler o relato, com o lugar onde le. */
   quemVe: string
+  /** O que o time passa a fazer com esta escolha. */
   custo: string
 }
 
+/**
+ * Os textos dizem o que acontece de verdade, com as palavras que cada um ve: o time, em
+ * Moderação e no Trabalho; quem relata, no formulario ("Ver o que já foi relatado", a caixa
+ * de mostrar o nome). A lista publica traz o tipo, o texto e a etapa de cada relato
+ * liberado, e nunca o protocolo (ver `ListPublishedAsync`, na API).
+ */
 export const NIVEIS: readonly Nivel[] = [
   {
     valor: 'Private',
     titulo: 'Privado',
-    emPalavras: 'Privado (só quem relatou e o time)',
+    emPalavras: 'Privado, só quem relatou e o time',
     resumo: 'Só quem relatou e o time.',
     explicacao:
-      'Cada relato é alcançável por quem tem o link dele, e por mais ninguém. Não existe página que liste relato de terceiro, e o protocolo de uma pessoa não abre o relato de outra.',
-    quemVe: 'Quem relatou, pelo link dele. E o time, no quadro.',
-    custo: 'Nada. É o que o projeto já faz hoje.',
+      'Cada relato só abre para quem o enviou, pelo link, pelo código pessoal ou pela conta, e para o time, no Trabalho. Não existe lista com relatos de outras pessoas, e o protocolo de uma pessoa não abre o relato de outra.',
+    quemVe: 'Só quem relatou e o time, no Trabalho, e mais ninguém encontra o relato.',
+    custo: 'Nada a fazer, porque nada fica à vista de quem é de fora.',
   },
   {
     valor: 'PublicAnonymous',
     titulo: 'Público anônimo',
-    emPalavras: 'Público anônimo (qualquer pessoa lê, sem o autor)',
+    emPalavras: 'Público anônimo, qualquer pessoa lê sem saber quem escreveu',
     resumo: 'Qualquer pessoa lê, e ninguém sabe quem escreveu.',
     explicacao:
-      'O relato fica visível para quem entrar, sem nada que aponte para o autor. Serve para mostrar o que está sendo corrigido sem cada um ter de perguntar.',
-    quemVe: 'Qualquer pessoa, inclusive quem nunca relatou nada.',
+      'O formulário ganha “Ver o que já foi relatado”, com o tipo, o texto e a etapa de cada relato liberado, para a pessoa conferir se alguém já contou o mesmo antes de escrever. O nome e o protocolo nunca aparecem.',
+    quemVe:
+      'Qualquer pessoa que abrir o formulário no seu sistema, em “Ver o que já foi relatado”, sem saber quem escreveu.',
     custo:
-      'Alguém do time libera cada relato antes de ele aparecer. O texto livre é onde vem documento, número de pedido e print com dado de outra pessoa.',
+      'Liberar cada relato em Moderação antes de ele aparecer, conferindo se o texto não traz documento, número de pedido ou dado de outra pessoa.',
   },
   {
     valor: 'PublicIdentified',
     titulo: 'Público identificado',
-    emPalavras: 'Público identificado (o autor aparece se quiser)',
+    emPalavras: 'Público identificado, o nome aparece se quem relatou quiser',
     resumo: 'Qualquer pessoa lê, e quem relatou aparece se quiser.',
     explicacao:
-      'O mesmo do anônimo, com uma diferença: quem escreveu pode escolher assinar o relato. Aparecer continua sendo decisão dela, e não do projeto.',
-    quemVe: 'Qualquer pessoa. O nome só aparece no relato em que o próprio autor marcou.',
+      'Igual ao anônimo, e quem relatou pode marcar “Quero que o meu nome apareça junto deste relato” para o nome sair na lista. Mostrar o nome é sempre escolha da pessoa, e nunca do projeto.',
+    quemVe:
+      'Qualquer pessoa, como no anônimo, e o nome de quem relatou aparece quando ela marca “Quero que o meu nome apareça junto deste relato”.',
     custo:
-      'A mesma liberação do anônimo, e um modo que identifique, porque no protocolo não há identidade para mostrar.',
+      'A mesma liberação em Moderação, e o formulário precisa perguntar o nome, em Textos e tema.',
   },
 ]
+
+/** Por que o publico identificado nao da para escolher no protocolo: o mesmo nas duas telas. */
+export const NIVEL_TRAVADO = 'Precisa de um modo que reconheça quem relata'
 
 export function nivelDe(valor: ReportVisibility): Nivel {
   return NIVEIS.find((nivel) => nivel.valor === valor) ?? (NIVEIS[0] as Nivel)

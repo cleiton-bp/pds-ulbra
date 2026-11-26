@@ -351,7 +351,7 @@ export function PrioritiesScreen() {
           priorities !== null ? (
             <section
               aria-labelledby={idPrevia}
-              className="rounded-xl border border-border bg-surface-raised p-5"
+              className="rounded-xl border border-border bg-surface-raised p-4"
             >
               <header className="mb-1 flex items-baseline justify-between gap-3">
                 <h2 id={idPrevia} className="font-semibold text-fg text-lead">
@@ -361,7 +361,7 @@ export function PrioritiesScreen() {
                   {sujo ? 'ainda não salvo' : 'como o time vê'}
                 </span>
               </header>
-              <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+              <p className="mb-3 text-detail text-fg-muted leading-relaxed">
                 {aberta !== null
                   ? 'A prioridade aberta, como está escrita agora.'
                   : 'A primeira da lista. Abra outra para ver a dela.'}

@@ -19,11 +19,10 @@ import { instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  * quebrar sem perceber: uma lista parcial faz a API recusar por incompleta, ou
  * pior, deixa a posicao de quem ficou de fora virar sorteio.
  *
- * **Etapa terminal nao sai sem desfecho, e desmarcar leva o desfecho junto.** Sao
- * os dois lados da mesma regra, e o segundo e o esquecido: quem marca "termina
- * aqui", escolhe um desfecho e depois desmarca deixaria um final no meio da
- * jornada — que a linha do tempo nao teria como desenhar. A API recusa os dois
- * casos; a tela precisa nao chegar la.
+ * **So aparece o que muda a linha do tempo de quem relatou.** A etapa final, o
+ * desfecho e o "espera quem relatou" sairam da tela porque nao chegavam a pessoa; o
+ * desfecho que ela le e escolhido no Encerrar do card. Salvar uma etapa devolve os
+ * tres como vieram, sem apagar o que ja estava gravado.
  *
  * **Recusa nao fecha o formulario.** Rotulo repetido e texto comprido tem o que
  * corrigir, e fechar a caixa faria a pessoa digitar tudo de novo para ler a
@@ -201,25 +200,31 @@ describe('PublicStagesScreen', () => {
     })
     montar()
 
-    expect(
-      await screen.findByText('Termina, Foi feito, Pode voltar, Colunas: Feito, Arquivado'),
-    ).toBeTruthy()
-    expect(screen.getByText('Espera quem relatou')).toBeTruthy()
+    expect(await screen.findByText('Pode voltar, Colunas: Feito, Arquivado')).toBeTruthy()
+    // As marcas que nao chegam a quem relatou nao aparecem mais no cabecalho.
+    expect(screen.queryByText('Espera quem relatou')).toBeNull()
+    expect(screen.queryByText(/Termina|Foi feito/)).toBeNull()
     // Sem marca e sem coluna, a frase da etapa: o cabecalho nunca fica so com o nome.
     expect(within(lista()).getByText('O que acontece em Recebido.')).toBeTruthy()
-    // Com etapa final, nada de aviso de que ela falta.
-    expect(screen.queryByText('Sem etapa final')).toBeNull()
   })
 
-  it('avisa quando nenhuma etapa termina a jornada', async () => {
+  it('não fala mais em etapa final, desfecho ou espera de quem relatou', async () => {
     dublê.listar.mockResolvedValue([
       etapa('e-1', 'Recebido', 0),
       etapa('e-2', 'Em análise', 1),
       etapa('e-3', 'Pronto', 2),
     ])
     montar()
+    await screen.findAllByText('Recebido')
+    abrir('Pronto')
 
-    expect(await screen.findByText('Sem etapa final')).toBeTruthy()
+    expect(
+      screen.getByRole('checkbox', { name: 'O relato pode voltar para esta etapa' }),
+    ).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: 'O relato termina nesta etapa' })).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: /espera uma resposta/ })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Não será feito' })).toBeNull()
+    expect(screen.queryByText('Sem etapa final')).toBeNull()
   })
 
   it('o título diz que cada mudança vale na hora', async () => {
@@ -325,36 +330,11 @@ describe('PublicStagesScreen', () => {
     await waitFor(() => expect(rotulosNaTela()).toEqual(['Recebido', 'Concluído']))
   })
 
-  it('não deixa salvar etapa que termina sem desfecho escolhido', async () => {
+  it('salvar devolve a etapa final, o desfecho e a espera como vieram', async () => {
     dublê.listar.mockResolvedValue([
       etapa('e-1', 'Recebido', 0),
       etapa('e-2', 'Em análise', 1),
-      etapa('e-3', 'Pronto', 2),
-    ])
-
-    montar()
-    await screen.findAllByText('Recebido')
-    abrir('Pronto')
-
-    // Antes de marcar, a etapa esta completa e da para salvar.
-    expect(botaoSalvar().disabled).toBe(false)
-
-    fireEvent.click(screen.getByRole('checkbox', { name: 'O relato termina nesta etapa' }))
-
-    expect(botaoSalvar().disabled).toBe(true)
-    expect(dublê.salvar).not.toHaveBeenCalled()
-
-    // O desfecho e escolhido em pecas com desenho, e nao numa lista que abre.
-    fireEvent.click(screen.getByRole('radio', { name: 'Não será feito' }))
-
-    expect(botaoSalvar().disabled).toBe(false)
-  })
-
-  it('tira o desfecho junto ao desmarcar que a etapa termina', async () => {
-    dublê.listar.mockResolvedValue([
-      etapa('e-1', 'Recebido', 0),
-      etapa('e-2', 'Em análise', 1),
-      etapa('e-3', 'Concluído', 2, { IsTerminal: true, Outcome: 'Done' }),
+      etapa('e-3', 'Concluído', 2, { IsTerminal: true, Outcome: 'Done', AwaitsReporter: true }),
     ])
     dublê.salvar.mockImplementation(
       async (_: string, __: string, pedido: ProjectPublicStageViewModel) => ({
@@ -366,12 +346,17 @@ describe('PublicStagesScreen', () => {
     montar()
     await screen.findAllByText('Recebido')
     abrir('Concluído')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'O relato termina nesta etapa' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'O relato pode voltar para esta etapa' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
-    // Desmarcar sem levar o desfecho junto mandaria um final no meio da jornada.
-    expect(dublê.salvar.mock.calls[0]?.[2]).toMatchObject({ IsTerminal: false, Outcome: null })
+    // O que saiu da tela nao some do que esta gravado.
+    expect(dublê.salvar.mock.calls[0]?.[2]).toMatchObject({
+      AllowsReturn: true,
+      IsTerminal: true,
+      Outcome: 'Done',
+      AwaitsReporter: true,
+    })
   })
 
   it('mantém o formulário aberto, com a mensagem, quando a API recusa', async () => {
@@ -456,9 +441,6 @@ describe('PublicStagesScreen', () => {
     await waitFor(() => expect(rotulosNaTela()).toEqual(['Recebido', 'Em análise', 'Concluído']))
   })
 })
-
-/** O botao de salvar do formulario aberto. */
-const botaoSalvar = () => screen.getByRole('button', { name: 'Salvar' }) as HTMLButtonElement
 
 /** A lista das etapas — a previa desenha outra lista com os mesmos rotulos. */
 const lista = () => screen.getByRole('list', { name: 'Etapas do andamento' })

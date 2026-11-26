@@ -30,7 +30,11 @@ import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
 import { HowItWorks } from '@/shared/components/HowItWorks'
 import { LeaveGuard } from '@/shared/components/LeaveGuard'
-import { PreviewSection, PreviewUnavailable } from '@/shared/components/PreviewSection'
+import {
+  LARGURA_DA_PREVIA_DO_FORMULARIO,
+  PreviewSection,
+  PreviewUnavailable,
+} from '@/shared/components/PreviewSection'
 import { ReportTypeIconSvg } from '@/shared/components/ReportTypeGlyph'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { SortableListItem } from '@/shared/components/SortableListItem'
@@ -377,13 +381,14 @@ export function ReportTypesScreen() {
       <EditorWithPreview
         previewEmFolha
         folhaAlta
+        larguraDaPrevia={LARGURA_DA_PREVIA_DO_FORMULARIO}
         preview={
           types !== null && naPrevia ? (
             <PreviewSection
               settings={naPrevia}
               dirty={sujo}
               startOpen
-              hint="O formulário com os tipos ativos, na ordem da lista, aberto no tipo que você está mudando, como está escrito agora."
+              hint="Os tipos ativos, com o que você está mudando aberto."
             />
           ) : ferramentaFalhou ? (
             <PreviewUnavailable onRetry={lerFerramenta} />

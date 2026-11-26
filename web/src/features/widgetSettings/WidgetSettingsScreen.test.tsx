@@ -232,9 +232,7 @@ describe('WidgetSettingsScreen', () => {
     montar()
 
     expect(await screen.findByText('igual ao seu sistema')).toBeTruthy()
-    expect(
-      screen.getByText(/Como fica no seu sistema\. Clique no botão para abrir o formulário\./),
-    ).toBeTruthy()
+    expect(screen.getByText('Clique no botão para abrir o formulário.')).toBeTruthy()
 
     fireEvent.change(campoBotao(), { target: { value: 'Fale com a gente' } })
 

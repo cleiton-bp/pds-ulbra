@@ -193,6 +193,11 @@ describe('regra de dependencia entre as pastas', () => {
       to: '@/features/reports/useWorkFilters',
       why: 'o "Revisar na lista" so muda o filtro do Trabalho pelo lugar em que a tela de Trabalho lembra os filtros, e ela ainda nao esta montada',
     },
+    {
+      from: 'features/cycle/CycleSettingsScreen.tsx',
+      to: '@/features/projectStates/ProjectStatesScreen',
+      why: 'o "?" da reabertura leva a Colunas com o nome da coluna nova ja escrito, e o formato desse recado e o que a tela de Colunas le',
+    },
   ]
 
   it('uma feature nao importa de outra, fora das excecoes escritas', () => {

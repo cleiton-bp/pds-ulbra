@@ -7,7 +7,7 @@ import { FORM_BACKGROUNDS, paletteColor } from '@/features/widgetSettings/button
 import { ColorChoice } from '@/features/widgetSettings/ColorChoice'
 import { Button } from '@/shared/components/Button'
 import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
-import { PreviewSection } from '@/shared/components/PreviewSection'
+import { LARGURA_DA_PREVIA_DO_FORMULARIO, PreviewSection } from '@/shared/components/PreviewSection'
 import { Select } from '@/shared/components/Select'
 import { Check, Field, Hint, RadioGroup } from '@/shared/components/SettingsControls'
 import { SettingsGroup } from '@/shared/components/SettingsGroup'
@@ -232,6 +232,7 @@ export function FormTextsScreen() {
         <EditorWithPreview
           previewEmFolha
           folhaAlta
+          larguraDaPrevia={LARGURA_DA_PREVIA_DO_FORMULARIO}
           acaoNoCelular={
             dirty ? (
               <Button variant="primary" disabled={saving} onClick={() => void salvar()}>
@@ -246,7 +247,7 @@ export function FormTextsScreen() {
               dirty={dirty}
               startOpen
               highlight={realce}
-              hint="O formulário com estes textos, este tema e os tipos de relato de agora. A parte que você está mudando aparece contornada."
+              hint="A parte que você está mudando aparece contornada."
             />
           }
         >

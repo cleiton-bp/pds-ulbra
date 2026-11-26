@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import type {
   ClosureTrigger,
   CycleSettingsViewModel,
@@ -8,9 +9,9 @@ import type {
 import { MAX_PUBLIC_DELAY_MINUTES } from '@/contracts'
 import { projectStateService } from '@/data'
 import { Dias, Marcar, useCycleDraft } from '@/features/cycle/cycleParts'
-import { dias, minutos, type PathPart, ReportPath } from '@/features/cycle/ReportPath'
+import type { ColunaSugerida } from '@/features/projectStates/ProjectStatesScreen'
 import { Button } from '@/shared/components/Button'
-import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
+import { HelpPopover } from '@/shared/components/HelpPopover'
 import { HowItWorks } from '@/shared/components/HowItWorks'
 import { NumberField } from '@/shared/components/NumberField'
 import { Select } from '@/shared/components/Select'
@@ -18,10 +19,12 @@ import { Field, Hint, Options, RadioGroup } from '@/shared/components/SettingsCo
 import { SettingsGroup } from '@/shared/components/SettingsGroup'
 import { SettingsHeader } from '@/shared/components/SettingsHeader'
 import { Skeleton } from '@/shared/components/Skeleton'
+import type { EstadoDaVolta } from '@/shared/components/VoltarDeOndeVeio'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
+import type { ScrollToHashState } from '@/shared/hooks/useScrollToHash'
 import { CYCLE_DEFAULTS, changedFromDefaults, defaultsOf } from '@/shared/lib/factoryDefaults'
-import { useScreenGuide } from '@/shared/tour/guideStore'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 type Campos = ReadonlyArray<readonly [keyof CycleSettingsViewModel, string]>
 
@@ -32,21 +35,21 @@ type Campos = ReadonlyArray<readonly [keyof CycleSettingsViewModel, string]>
  * Sprints e Colunas (`useCycleDraft`).
  */
 const GRUPOS = {
-  encerramento: [['ClosureTrigger', 'Quando encerra']],
+  encerramento: [['ClosureTrigger', 'Como encerra']],
   reabertura: [
-    ['AllowsReopen', 'Deixar reabrir'],
-    ['ReopenStatePublicId', 'Coluna da reabertura'],
-    ['ReopenRequiresComment', 'Pedir o que acontece'],
+    ['AllowsReopen', 'Pode reabrir'],
+    ['ReopenStatePublicId', 'Coluna de volta'],
+    ['ReopenRequiresComment', 'Contar o que ainda acontece'],
   ],
   informacao: [
     ['InfoRequestEnabled', 'Pedir informação'],
-    ['InfoRequestWarnDays', 'Prazo do aviso'],
-    ['InfoRequestCloseDays', 'Prazo do encerramento'],
+    ['InfoRequestWarnDays', 'Dias até o aviso'],
+    ['InfoRequestCloseDays', 'Dias até encerrar'],
   ],
-  espera: [['PublicDelayMinutes', 'Espera antes de mostrar']],
+  espera: [['PublicDelayMinutes', 'Tempo para desfazer']],
   nota: [
-    ['SatisfactionEnabled', 'Nota ao confirmar'],
-    ['SatisfactionStyle', 'Como a nota aparece'],
+    ['SatisfactionEnabled', 'Pedir nota'],
+    ['SatisfactionStyle', 'Tipo de nota'],
     ['SatisfactionRequired', 'Nota obrigatória'],
   ],
   arquivar: [['AllowsReportArchiving', 'Arquivar relato']],
@@ -66,17 +69,6 @@ const CAMPOS_NA_TELA = Object.values(GRUPOS).flatMap((campos) =>
 
 /** O nome do acordeao desta tela: abrir um grupo fecha o outro. Ver `SettingsGroup`. */
 const ACORDEAO = 'ciclo'
-
-/** A parte do caminho que cada grupo muda: e ela que o diagrama contorna. */
-const PARTE_NO_CAMINHO: Record<Grupo, PathPart> = {
-  encerramento: 'close',
-  reabertura: 'reopen',
-  informacao: 'info',
-  espera: 'wait',
-  nota: 'confirm',
-  arquivar: 'archive',
-  codigo: 'read',
-}
 
 const ESTILOS: Record<SatisfactionStyle, string> = {
   Stars: 'Estrelas',
@@ -113,9 +105,10 @@ type Change = (patch: Partial<CycleSettingsViewModel>) => void
  * mudou, com o proprio "Voltar ao padrão" (`SettingsGroup`); a dica e de uma linha, e a
  * explicacao longa espera no "Como funciona".
  *
- * **A direita, o caminho do relato gerado do rascunho** (`ReportPath`), contornando a
- * parte que o grupo aberto muda: quem configura ve o que a regra faz com o
- * relato, e nao so o nome dela.
+ * **Sem previa ao lado.** O "Caminho do relato" que ficava a direita repetia em frases o
+ * que os resumos dos grupos ja dizem, no lugar onde as outras telas mostram uma tela de
+ * verdade (o formulario, o card, o acompanhamento): parecia previa, nao era, e confundia.
+ * Os grupos, numa coluna so, bastam.
  *
  * **O rascunho manda de volta o que recebeu** (`useCycleDraft`). As regras do quadro
  * moram na tela de Colunas, e as sprints na tela de Sprints: estavam no fim desta
@@ -127,13 +120,8 @@ export function CycleSettingsScreen() {
   useScreenGuide('encerramento', [
     {
       alvo: 'opcoes',
-      titulo: 'Encerramento',
-      texto: 'Como o card se encerra e o que quem relatou responde no fim.',
-    },
-    {
-      alvo: 'previa',
-      titulo: 'Como aparece',
-      texto: 'O fim do relato como quem relatou vai ver.',
+      titulo: 'As regras',
+      texto: 'Cada grupo é uma regra do fim do relato, e abrir um grupo mostra as opções dele.',
     },
     {
       alvo: 'salvar',
@@ -158,18 +146,6 @@ export function CycleSettingsScreen() {
     useCallback(() => projectStateService.listProjectStates(project.PublicId), [project.PublicId]),
   )
 
-  /** O grupo aberto: e a parte dele que o caminho contorna. */
-  const [aberto, setAberto] = useState<Grupo | null>(null)
-  const grupoRealcado = aberto
-
-  /** Liga o grupo ao caminho: aberto e em foco contornam a parte dele. */
-  function acompanhar(grupo: Grupo) {
-    return {
-      onToggle: (abriu: boolean) =>
-        setAberto((atual) => (abriu ? grupo : atual === grupo ? null : atual)),
-    }
-  }
-
   /** O que o grupo mudou do padrao, e o "Voltar ao padrão" so dos campos dele. */
   function padrao(grupo: Grupo) {
     return {
@@ -181,10 +157,12 @@ export function CycleSettingsScreen() {
   const voltaPara = draft ? destinoDaReabertura(draft.ReopenStatePublicId, colunas.data) : ''
 
   return (
-    <div className="max-w-6xl">
+    // Mais larga que as telas de lista: sem a previa ao lado, os grupos ficavam numa coluna
+    // estreita, com o resto da tela vazio.
+    <div className="max-w-220">
       <SettingsHeader
         title="Encerramento"
-        description="Como um relato termina, quando quem relatou pode reabrir e quando o time pode pedir mais informação."
+        description="Escolha como o time encerra um relato e o que quem relatou pode fazer depois de ler a resposta."
         ready={draft !== null}
         dirty={dirty}
         changeCount={changeCount}
@@ -204,44 +182,26 @@ export function CycleSettingsScreen() {
       )}
 
       {loading && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="flex flex-col gap-3">
-            <Skeleton className="h-20 w-full rounded-xl" />
-            <Skeleton className="h-20 w-full rounded-xl" />
-            <Skeleton className="h-20 w-full rounded-xl" />
-          </div>
-          <Skeleton className="h-96 w-full rounded-xl" />
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
         </div>
       )}
 
       {draft && (
-        <EditorWithPreview
-          previewEmFolha
-          acaoNoCelular={
-            dirty ? (
-              <Button variant="primary" disabled={saving} onClick={() => void salvar()}>
-                {saving ? 'Salvando…' : 'Salvar'}
-              </Button>
-            ) : null
-          }
-          tituloDaPrevia="Caminho do relato"
-          preview={
-            <ReportPath
-              draft={draft}
-              reopenColumn={voltaPara}
-              dirty={dirty}
-              highlight={grupoRealcado ? PARTE_NO_CAMINHO[grupoRealcado] : null}
-            />
-          }
-        >
+        <div className="flex flex-col gap-3" {...guideTarget('opcoes')}>
           <SettingsGroup
             name={ACORDEAO}
             id="encerramento"
-            title="Encerramento"
-            value={draft.ClosureTrigger === 'LastColumn' ? 'Na última coluna' : 'Por um botão'}
+            title="Como o time encerra"
+            value={
+              draft.ClosureTrigger === 'LastColumn'
+                ? 'Ao mover o card para a última coluna'
+                : 'Pelo botão Encerrar relato'
+            }
             defaultOpen
             {...padrao('encerramento')}
-            {...acompanhar('encerramento')}
           >
             <ClosureFields draft={draft} change={change} />
           </SettingsGroup>
@@ -249,14 +209,14 @@ export function CycleSettingsScreen() {
           <SettingsGroup
             name={ACORDEAO}
             id="grupo-reabertura"
-            title="Reabertura"
+            title="Reabrir o relato"
             value={describeReopen(draft, voltaPara)}
             {...padrao('reabertura')}
-            {...acompanhar('reabertura')}
           >
             <ReopenFields
               draft={draft}
               change={change}
+              projectPublicId={project.PublicId}
               colunas={colunas.data}
               colunasFalharam={colunas.failed}
               recarregarColunas={colunas.reload}
@@ -266,14 +226,15 @@ export function CycleSettingsScreen() {
           <SettingsGroup
             name={ACORDEAO}
             id="grupo-pedido-de-informacao"
-            title="Pedido de informação"
+            title="Pedir informação a quem relatou"
             value={
               draft.InfoRequestEnabled
-                ? `${draft.InfoRequestWarnDays} + ${draft.InfoRequestCloseDays} dias`
+                ? `Ligado, aviso em ${dias(draft.InfoRequestWarnDays)} e encerra em ${dias(
+                    draft.InfoRequestWarnDays + draft.InfoRequestCloseDays,
+                  )}`
                 : 'Desligado'
             }
             {...padrao('informacao')}
-            {...acompanhar('informacao')}
           >
             <InfoRequestFields draft={draft} change={change} />
           </SettingsGroup>
@@ -281,14 +242,13 @@ export function CycleSettingsScreen() {
           <SettingsGroup
             name={ACORDEAO}
             id="grupo-espera"
-            title="Antes de mostrar"
+            title="Tempo para desfazer"
             value={
               draft.PublicDelayMinutes === 0
-                ? 'Na hora'
-                : `Espera ${minutos(draft.PublicDelayMinutes)}`
+                ? 'Sem espera, quem relatou vê na hora'
+                : `Espera ${minutos(draft.PublicDelayMinutes)} antes de quem relatou ver`
             }
             {...padrao('espera')}
-            {...acompanhar('espera')}
           >
             <DelayFields draft={draft} change={change} />
           </SettingsGroup>
@@ -296,10 +256,9 @@ export function CycleSettingsScreen() {
           <SettingsGroup
             name={ACORDEAO}
             id="grupo-nota"
-            title="Nota ao confirmar"
+            title="Nota de satisfação"
             value={describeRating(draft)}
             {...padrao('nota')}
-            {...acompanhar('nota')}
           >
             <RatingFields draft={draft} change={change} />
           </SettingsGroup>
@@ -308,25 +267,29 @@ export function CycleSettingsScreen() {
             name={ACORDEAO}
             id="grupo-arquivar"
             title="Arquivar relato"
-            value={draft.AllowsReportArchiving ? 'Permitido' : 'Não permitido'}
+            value={
+              draft.AllowsReportArchiving ? 'Ligado, o time pode arquivar relato' : 'Desligado'
+            }
             {...padrao('arquivar')}
-            {...acompanhar('arquivar')}
           >
             <Marcar
               marcado={draft.AllowsReportArchiving}
               id="arquivar-relato"
               titulo="Deixar o time arquivar relato"
-              explicacao="O relato aberto encerra junto, com desfecho e motivo."
+              explicacao="Arquivar tira o card do Trabalho e, se o relato estiver aberto, encerra junto, pedindo como terminou e o motivo."
               aoTrocar={(AllowsReportArchiving) => change({ AllowsReportArchiving })}
             />
             <HowItWorks className="mt-4">
               <p>
-                Arquivar tira o relato do Trabalho; se ele estiver aberto, encerra junto, com
-                desfecho e motivo, para ninguém ficar sem retorno.
+                O card arquivado sai do quadro e continua guardado em Arquivados, na tela Trabalho.
               </p>
               <p>
-                Quem relatou lê o motivo e pode reabrir. O card do time se arquiva sempre, com ou
-                sem esta regra.
+                Como o relato aberto encerra junto, quem relatou recebe o motivo e ainda pode
+                reabrir, se a reabertura estiver ligada.
+              </p>
+              <p>
+                Os cards que o próprio time cria, sem vir de um relato, podem ser arquivados sempre,
+                com ou sem esta opção.
               </p>
             </HowItWorks>
           </SettingsGroup>
@@ -338,7 +301,6 @@ export function CycleSettingsScreen() {
               title="Quem chega sem o link"
               value={draft.TrackingCodeCanAct ? 'O código também age' : 'O código só lê'}
               {...padrao('codigo')}
-              {...acompanhar('codigo')}
             >
               <Marcar
                 marcado={draft.TrackingCodeCanAct}
@@ -366,39 +328,59 @@ export function CycleSettingsScreen() {
               </HowItWorks>
             </SettingsGroup>
           )}
-        </EditorWithPreview>
+        </div>
       )}
     </div>
   )
 }
 
+/** O destino padrao da reabertura, em palavras: a primeira coluna ativa do quadro. */
+const PRIMEIRA_COLUNA = 'a primeira coluna do quadro'
+
 /**
- * Para onde o relato reaberto volta, em palavras — o mesmo texto no resumo do grupo e no
- * caminho. Sem as colunas (carregando ou com falha), "a coluna escolhida": o nome nao
+ * Para onde o relato reaberto volta, em palavras, como o resumo do grupo diz. Sem as
+ * colunas (carregando ou com falha), "a coluna escolhida": o nome nao
  * esta na mao, mas a escolha salva continua valendo.
  */
 function destinoDaReabertura(
   escolhida: string | null,
   colunas: ProjectStateViewModel[] | null,
 ): string {
-  if (escolhida === null) return 'a primeira coluna da fila'
+  if (escolhida === null) return PRIMEIRA_COLUNA
   if (colunas === null) return 'a coluna escolhida'
 
   const coluna = colunas.find((item) => item.PublicId === escolhida)
-  // Desativada ou apagada, a reabertura cai na primeira da fila: e o que acontece de fato.
-  return coluna?.IsActive ? coluna.Name : 'a primeira coluna da fila'
+  // Desativada ou apagada, a reabertura cai na primeira coluna: e o que acontece de fato.
+  return coluna?.IsActive ? coluna.Name : PRIMEIRA_COLUNA
+}
+
+/**
+ * A coluna que encerra o relato quando o projeto encerra pela ultima coluna: a ultima
+ * ativa, na ordem do quadro. Nulo no projeto que encerra pelo botao, em que coluna
+ * nenhuma encerra.
+ */
+function colunaQueEncerra(
+  draft: CycleSettingsViewModel,
+  colunas: ProjectStateViewModel[] | null,
+): ProjectStateViewModel | null {
+  if (draft.ClosureTrigger !== 'LastColumn' || colunas === null) return null
+  const ativas = colunas.filter((coluna) => coluna.IsActive)
+  return ativas.reduce<ProjectStateViewModel | null>(
+    (ultima, coluna) => (ultima === null || coluna.Position > ultima.Position ? coluna : ultima),
+    null,
+  )
 }
 
 function describeReopen(draft: CycleSettingsViewModel, voltaPara: string) {
-  if (!draft.AllowsReopen) return 'Não pode'
-  const coluna = voltaPara === 'a primeira coluna da fila' ? 'a primeira coluna' : voltaPara
-  return `Pode reabrir, e volta para ${coluna}${draft.ReopenRequiresComment ? '' : ' sem pedir texto'}`
+  if (!draft.AllowsReopen) return 'Desligado, quem relatou só pode confirmar que resolveu'
+  const coluna = voltaPara === PRIMEIRA_COLUNA ? 'a primeira coluna' : voltaPara
+  return `Ligado, e o card volta para ${coluna}${draft.ReopenRequiresComment ? '' : ', sem pedir texto'}`
 }
 
 function describeRating(draft: CycleSettingsViewModel) {
-  if (!draft.SatisfactionEnabled) return 'Não pede'
-  const estilo = draft.SatisfactionStyle === 'Stars' ? 'Estrelas' : 'Números'
-  return `${estilo}, ${draft.SatisfactionRequired ? 'obrigatória' : 'opcional'}`
+  if (!draft.SatisfactionEnabled) return 'Desligado'
+  const estilo = draft.SatisfactionStyle === 'Stars' ? 'em estrelas' : 'em números de 1 a 5'
+  return `Ligado, ${estilo}, ${draft.SatisfactionRequired ? 'obrigatória' : 'opcional'}`
 }
 
 /**
@@ -412,66 +394,86 @@ function ClosureFields({ draft, change }: { draft: CycleSettingsViewModel; chang
   return (
     <div>
       <RadioGroup<ClosureTrigger>
-        label="Quando o relato encerra"
+        label="Como o time encerra um relato"
         value={draft.ClosureTrigger}
         onChange={(ClosureTrigger) => change({ ClosureTrigger })}
         options={[
           {
             value: 'LastColumn',
-            label: 'Ao cair na última coluna',
-            note: 'Mover para lá encerra.',
+            label: 'Ao mover para a última coluna',
+            note: 'Levar o card até a última coluna do quadro encerra o relato.',
             drawing: <DesenhoUltimaColuna />,
             className: 'flex-1 basis-44 px-3 py-3',
           },
           {
             value: 'Button',
-            label: 'Por um botão de concluir',
-            note: 'O relato fica onde está.',
+            label: 'Pelo botão Encerrar relato',
+            note: 'Só o botão do card encerra, e o card fica na coluna onde está.',
             drawing: <DesenhoBotao />,
             className: 'flex-1 basis-44 px-3 py-3',
           },
         ]}
       />
-      <Hint>Encerrar sempre pede um motivo, e é ele que quem relatou lê.</Hint>
+      <Hint>
+        Nos dois jeitos, o time escolhe como terminou e escreve um motivo, que é o que quem relatou
+        lê.
+      </Hint>
       <HowItWorks className="mt-3">
         <p>
-          <strong className="font-medium text-fg">Na última coluna:</strong> mover um relato para a
-          última coluna ativa encerra, e o painel pede o desfecho e o motivo no mesmo gesto.
-          Desativar a última coluna passa a vez para a anterior.
+          <strong className="font-medium text-fg">Ao mover para a última coluna:</strong> quando o
+          card chega à última coluna ativa do quadro, o painel pede como terminou e o motivo, e
+          tirar o card de lá desfaz o encerramento.
         </p>
         <p>
-          <strong className="font-medium text-fg">Por um botão:</strong> nenhum movimento encerra.
-          Existe um botão no relato aberto, e o relato fica onde está. Para quem termina em
-          “Aguardando deploy” ou “Arquivado”, colunas que não querem dizer que acabou.
+          <strong className="font-medium text-fg">Pelo botão Encerrar relato:</strong> mudar o card
+          de coluna nunca encerra, o que serve para quadros em que a última coluna não quer dizer
+          que acabou, como “Aguardando publicação”.
+        </p>
+        <p>
+          O botão Encerrar relato aparece no card enquanto o relato estiver aberto, e quando o
+          projeto encerra pela última coluna ele também leva o card até ela.
         </p>
       </HowItWorks>
     </div>
   )
 }
 
+/** O nome que o "?" da reabertura sugere para a coluna propria dos reabertos. */
+const NOME_SUGERIDO = 'Reaberto'
+
 function ReopenFields({
   draft,
   change,
+  projectPublicId,
   colunas,
   colunasFalharam,
   recarregarColunas,
 }: {
   draft: CycleSettingsViewModel
   change: Change
+  projectPublicId: string
   colunas: ProjectStateViewModel[] | null
   colunasFalharam: boolean
   recarregarColunas: () => void
 }) {
   const escolhida = draft.ReopenStatePublicId
+  const encerra = colunaQueEncerra(draft, colunas)
+  const escolheuAQueEncerra = encerra !== null && escolhida === encerra.PublicId
 
   const opcoes = [
-    { value: '', label: 'A primeira coluna da fila' },
+    { value: '', label: 'A primeira coluna do quadro' },
     ...(colunas ?? [])
       .filter((coluna) => coluna.IsActive)
-      .map((coluna) => ({ value: coluna.PublicId, label: coluna.Name })),
+      .map((coluna) => ({
+        value: coluna.PublicId,
+        // A coluna que encerra vai marcada: o card reaberto que chega nela fica no meio dos
+        // concluidos, parecendo que nunca voltou.
+        label:
+          coluna.PublicId === encerra?.PublicId ? `${coluna.Name} (encerra o relato)` : coluna.Name,
+      })),
   ]
   // A escolha salva que nao esta na lista ainda aparece com um nome: sem isto a caixa
-  // ficava em branco — muda — enquanto as colunas nao chegam ou quando elas falham.
+  // ficava em branco, muda, enquanto as colunas nao chegam ou quando elas falham.
   if (escolhida !== null && !opcoes.some((opcao) => opcao.value === escolhida)) {
     const desativada = colunas?.find((coluna) => coluna.PublicId === escolhida)
     opcoes.push({
@@ -480,7 +482,7 @@ function ReopenFields({
         ? 'A coluna já escolhida'
         : colunas === null
           ? 'Carregando as colunas…'
-          : `${desativada?.Name ?? 'Uma coluna apagada'} (cai na primeira da fila)`,
+          : `${desativada?.Name ?? 'Uma coluna apagada'} (vai para a primeira coluna)`,
     })
   }
 
@@ -489,17 +491,28 @@ function ReopenFields({
       <Marcar
         marcado={draft.AllowsReopen}
         id="reabrir"
-        titulo="Deixar quem relatou reabrir"
-        explicacao="Desligado, a pessoa só pode confirmar; o relato encerrado não volta mais."
+        titulo="Quem relatou pode reabrir"
+        explicacao="Se a pessoa responder “Não, ainda não”, o relato volta para o time, e desligado ela só pode confirmar que resolveu."
         aoTrocar={(AllowsReopen) => change({ AllowsReopen })}
       />
 
       {draft.AllowsReopen && (
         <div className="mt-3 flex flex-col gap-3 border-border border-l-2 pl-4">
           <div>
+            {/* O rotulo mora fora do `Select` para levar o "?" ao lado: e nesse campo que
+                quem configura pela primeira vez para sem saber o que escolher. */}
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <label htmlFor="volta-para" className="text-detail text-fg-muted">
+                Coluna para onde o card volta
+              </label>
+              <AjudaDaColunaDeVolta
+                projectPublicId={projectPublicId}
+                colunas={colunas}
+                encerraPelaUltima={draft.ClosureTrigger === 'LastColumn'}
+              />
+            </div>
             <Select
               id="volta-para"
-              label="O relato reaberto volta para"
               className="max-w-80"
               value={escolhida ?? ''}
               disabled={colunasFalharam}
@@ -507,8 +520,10 @@ function ReopenFields({
               options={opcoes}
               hint={
                 colunasFalharam
-                  ? 'Não deu para carregar as colunas, então não dá para trocar agora. A escolha salva continua valendo.'
-                  : 'Uma coluna “Reaberto” ajuda a ver o que já voltou uma vez.'
+                  ? 'Não deu para carregar as colunas agora, mas a coluna já escolhida continua valendo.'
+                  : escolheuAQueEncerra
+                    ? 'Esta é a coluna que encerra o relato, então o card reaberto ficaria no meio dos concluídos, e o melhor é escolher outra.'
+                    : 'O card reaberto entra no topo desta coluna, para o time ver primeiro.'
               }
             />
             {colunasFalharam && (
@@ -521,8 +536,8 @@ function ReopenFields({
           <Marcar
             marcado={draft.ReopenRequiresComment}
             id="contar-ao-reabrir"
-            titulo="Pedir que ela conte o que ainda está acontecendo"
-            explicacao="O texto vai junto, para quem pegar o trabalho de novo."
+            titulo="Pedir que a pessoa conte o que ainda acontece"
+            explicacao="Para reabrir, ela escreve o que continua errado, e o texto fica no card para quem pegar o trabalho de novo."
             aoTrocar={(ReopenRequiresComment) => change({ ReopenRequiresComment })}
           />
         </div>
@@ -530,15 +545,101 @@ function ReopenFields({
 
       <HowItWorks className="mt-4">
         <p>
-          Quem relatou lê o motivo e responde se resolveu. Dizendo que não, o relato volta para a
-          fila, na coluna escolhida.
+          Depois de ler o motivo, quem relatou responde se resolveu: com “Sim, resolveu” o relato
+          termina de vez, e com “Não, ainda não” ele reabre e o card volta para a coluna escolhida.
         </p>
         <p>
-          Uma coluna própria (“Reaberto”) ajuda a não perder de vista o que já voltou uma vez.
-          Desativar a coluna escolhida faz a reabertura cair na primeira da fila.
+          Quem já respondeu “Sim, resolveu” não pode mais reabrir, e se o problema voltar, a pessoa
+          faz um relato novo.
+        </p>
+        <p>
+          Se a coluna escolhida for desativada ou apagada, o card reaberto vai para a primeira
+          coluna do quadro.
         </p>
       </HowItWorks>
     </div>
+  )
+}
+
+/**
+ * O "?" da coluna da reabertura: sugere uma coluna so para os reabertos, ou uma que o time
+ * ja usa, e leva a Colunas com o nome sugerido escrito e o caminho de volta no alto.
+ *
+ * **O aviso da ultima coluna so aparece quando vale.** A coluna nova entra no fim do
+ * quadro, e no projeto que encerra pela ultima coluna ela passaria a encerrar os relatos:
+ * quem seguiu a sugestao sem saber disso trocaria um problema por outro.
+ */
+function AjudaDaColunaDeVolta({
+  projectPublicId,
+  colunas,
+  encerraPelaUltima,
+}: {
+  projectPublicId: string
+  colunas: ProjectStateViewModel[] | null
+  encerraPelaUltima: boolean
+}) {
+  const location = useLocation()
+  const jaExiste = colunas?.find(
+    (coluna) => coluna.IsActive && /^reabert/i.test(coluna.Name.trim()),
+  )
+  const estado: EstadoDaVolta & ScrollToHashState & ColunaSugerida = {
+    voltarPara: `${location.pathname}${location.search}#grupo-reabertura`,
+    rotuloDaVolta: 'Voltar para Encerramento',
+    realce: true,
+    nomeSugerido: NOME_SUGERIDO,
+  }
+
+  return (
+    <HelpPopover
+      label="Ajuda sobre a coluna da reabertura"
+      title="Para onde mandar o card reaberto"
+    >
+      <p>
+        Uma coluna só para os reabertos, como “{NOME_SUGERIDO}”, deixa claro para o time o que
+        voltou, e todo card reaberto entra nela.
+      </p>
+      <p>
+        Se preferir, use uma coluna que você já tem, como “A fazer” ou “Em desenvolvimento”, e o
+        card reaberto entra no topo dela.
+      </p>
+      {jaExiste ? (
+        <p className="text-fg">
+          Você já tem a coluna “{jaExiste.Name}”, e é só escolher ela na lista.
+        </p>
+      ) : (
+        <>
+          {encerraPelaUltima && (
+            <p className="text-fg">
+              Como este projeto encerra na última coluna, depois de criar arraste a coluna nova para
+              antes dela, porque toda coluna nova entra no fim do quadro.
+            </p>
+          )}
+          <Link
+            to={`/projects/${projectPublicId}/states#nova-coluna`}
+            state={estado}
+            className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 font-medium text-detail text-fg transition-colors hover:bg-surface-sunken"
+          >
+            Criar a coluna “{NOME_SUGERIDO}”
+            <svg
+              viewBox="0 0 12 12"
+              className="size-3 flex-none"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M2 6h7.5m-3-3 3 3-3 3" />
+            </svg>
+          </Link>
+          <p>
+            Depois de criar, use o “Voltar para Encerramento” no alto da tela e escolha a coluna
+            nesta lista.
+          </p>
+        </>
+      )}
+    </HelpPopover>
   )
 }
 
@@ -548,27 +649,34 @@ function InfoRequestFields({ draft, change }: { draft: CycleSettingsViewModel; c
       <Marcar
         marcado={draft.InfoRequestEnabled}
         id="pedir-informacao"
-        titulo="Deixar o time devolver o relato pedindo informação"
-        explicacao="Só para quem aceitou responder dúvidas ao escrever."
+        titulo="O time pode pedir informação a quem relatou"
+        explicacao="Em vez de encerrar, o time manda uma pergunta, e a pessoa responde na página de acompanhamento do relato."
         aoTrocar={(InfoRequestEnabled) => change({ InfoRequestEnabled })}
       />
+      {/* A condicao vem antes dos prazos: descobrir depois, ao nao achar o botao no card,
+          faz parecer defeito. O texto entre aspas e o da caixinha do formulario. */}
+      <Hint className="mt-1 ml-6 text-caption">
+        Só vale para quem marcou, no formulário, “Pode me perguntar algo sobre isto, se precisarem”.
+      </Hint>
 
       {draft.InfoRequestEnabled && (
         <div className="mt-3 border-border border-l-2 pl-4">
           <Dias
             id="aviso"
-            rotulo="Avisar depois de"
+            rotulo="Dias sem resposta até o aviso"
             valor={draft.InfoRequestWarnDays}
             aoTrocar={(InfoRequestWarnDays) => change({ InfoRequestWarnDays })}
-            explicacao="O acompanhamento passa a dizer que o relato vai encerrar."
+            explicacao="Passado esse prazo, a página de acompanhamento avisa a pessoa que o relato vai ser encerrado."
           />
 
           <Dias
             id="encerrar"
-            rotulo="E encerrar mais"
+            rotulo="Dias depois do aviso até encerrar"
             valor={draft.InfoRequestCloseDays}
             aoTrocar={(InfoRequestCloseDays) => change({ InfoRequestCloseDays })}
-            explicacao="Depois do aviso, encerra como “sem retorno”."
+            explicacao={`Sem resposta até lá, o relato encerra sozinho como “Sem retorno”${
+              draft.AllowsReopen ? ', e a pessoa ainda pode reabrir' : ''
+            }.`}
           />
 
           <p className="text-caption text-fg leading-relaxed">
@@ -580,12 +688,12 @@ function InfoRequestFields({ draft, change }: { draft: CycleSettingsViewModel; c
 
       <HowItWorks className="mt-4">
         <p>
-          “Não reproduzi” não é “não vamos fazer”: o time devolve o relato com uma pergunta, e quem
-          relatou tem um prazo para responder.
+          Use quando falta algo para entender o problema, como um passo a passo ou um print, em vez
+          de encerrar como “Não será feito”.
         </p>
-        <p>O relato de quem não aceitou responder dúvidas ao escrever não pode ser devolvido.</p>
         <p>
-          Encerrado como “sem retorno”, o relato continua podendo ser reaberto por quem o escreveu.
+          O botão Pedir informação aparece no card, ao lado de Encerrar relato, e quando a pessoa
+          responde, a resposta chega ao card e os prazos param de contar.
         </p>
       </HowItWorks>
     </div>
@@ -599,7 +707,7 @@ function DelayFields({ draft, change }: { draft: CycleSettingsViewModel; change:
           antigo cai aqui. */}
       <div id="mais-opcoes" className="scroll-mt-6">
         <label htmlFor="espera" className="mb-1.5 block text-detail text-fg-muted">
-          Esperar antes de mostrar
+          Esperar antes de quem relatou ver
         </label>
         <div className="mb-1.5 flex items-center gap-2">
           {/* Um `number` de verdade: o teclado do telefone abre numerico, as setas
@@ -623,15 +731,19 @@ function DelayFields({ draft, change }: { draft: CycleSettingsViewModel; change:
         </div>
         <p className="text-caption text-fg-muted leading-relaxed">
           {draft.PublicDelayMinutes === 0
-            ? 'Zero: quem relatou vê o movimento na hora. É como funciona hoje.'
-            : 'Depende de uma fila configurada nesta instalação. Sem ela, salvar é recusado com o motivo.'}
+            ? 'Com zero, quem relatou vê na hora cada mudança de coluna e cada encerramento.'
+            : 'Nesse tempo quem relatou ainda não vê a mudança, e o time pode desfazer movendo o card de volta.'}
         </p>
       </div>
 
       <HowItWorks className="mt-4">
         <p>
-          Tempo para desfazer um movimento por engano antes de quem relatou ver: desfazer é mover de
-          volta.
+          Serve para quando alguém arrasta um card para a coluna errada: dentro da espera, basta
+          mover de volta e quem relatou nem fica sabendo.
+        </p>
+        <p>
+          O botão Encerrar relato não espera, porque ali o time já escolheu como terminou e escreveu
+          o motivo.
         </p>
       </HowItWorks>
     </div>
@@ -644,8 +756,8 @@ function RatingFields({ draft, change }: { draft: CycleSettingsViewModel; change
       <Marcar
         marcado={draft.SatisfactionEnabled}
         id="nota"
-        titulo="Pedir uma nota ao confirmar"
-        explicacao="De 1 a 5, sobre o atendimento do relato, e não sobre o produto."
+        titulo="Pedir uma nota quando a pessoa disser que resolveu"
+        explicacao="Uma nota de 1 a 5 sobre o atendimento do time, e não sobre o produto."
         aoTrocar={(SatisfactionEnabled) => change({ SatisfactionEnabled })}
       />
 
@@ -665,18 +777,18 @@ function RatingFields({ draft, change }: { draft: CycleSettingsViewModel; change
 
           <Marcar
             marcado={draft.SatisfactionRequired}
-            titulo="Exigir a resposta para confirmar"
-            explicacao="“Prefiro não responder” continua existindo, fora da escala."
+            titulo="Exigir a nota para confirmar"
+            explicacao="Mesmo assim a pessoa pode escolher “Prefiro não responder”, que não conta como nota."
             aoTrocar={(SatisfactionRequired) => change({ SatisfactionRequired })}
           />
         </div>
       )}
 
       <HowItWorks className="mt-4">
-        <p>Quem confirma que resolveu pode dar uma nota ao atendimento. Quem reabre não dá nota.</p>
+        <p>A nota aparece quando a pessoa responde “Sim, resolveu”, e quem reabre não dá nota.</p>
         <p>
-          A nota obrigatória mantém o “Prefiro não responder”: sem saída, a obrigação vira clique
-          sem pensar e a média passa a medir o clique.
+          Mesmo obrigatória, a nota mantém o “Prefiro não responder”, porque sem essa saída muita
+          gente marca qualquer nota só para seguir, e a média deixa de dizer alguma coisa.
         </p>
       </HowItWorks>
     </div>
@@ -725,4 +837,14 @@ function DesenhoBotao() {
       <path d="m36.5 25 2 2 4-4" className="text-accent" />
     </svg>
   )
+}
+
+/** "1 minuto", "30 minutos". */
+function minutos(valor: number) {
+  return `${valor} ${valor === 1 ? 'minuto' : 'minutos'}`
+}
+
+/** "1 dia", "7 dias". */
+function dias(valor: number) {
+  return `${valor} ${valor === 1 ? 'dia' : 'dias'}`
 }

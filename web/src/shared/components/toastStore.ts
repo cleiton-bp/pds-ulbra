@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { semMovimento } from '@/shared/lib/rolagemSuave'
 
 /**
  * ONDE UM ERRO APARECE — a convencao que as cinco telas ja seguem:
@@ -29,6 +30,8 @@ export interface Toast {
   tone: ToastTone
   message: string
   action?: ToastAction
+  /** Fechado, e ainda saindo: some devagar antes de deixar a lista (ver `dismiss`). */
+  saindo?: boolean
 }
 
 /** O que mais o aviso pode ter: o botao, e quanto tempo fica. */
@@ -56,6 +59,9 @@ interface ToastState {
 const DURACAO_MS = 5000
 const DURACAO_COM_BOTAO_MS = 12_000
 
+/** Quanto o aviso leva para sair: o tempo da animacao de saida (`animate-aviso-sai`). */
+const SAIDA_MS = 220
+
 /** A contagem de cada aviso: quanto falta e quando ela recomecou. */
 const relogios = new Map<
   string,
@@ -63,11 +69,31 @@ const relogios = new Map<
 >()
 
 export const useToastStore = create<ToastState>((set) => {
+  const remover = (id: string) =>
+    set((state) => ({ toasts: state.toasts.filter((item) => item.id !== id) }))
+
+  /**
+   * **Fechar e sair devagar.** O aviso fica marcado como saindo pelo tempo da animacao (ele
+   * sobe sumindo, e os de baixo sobem junto), e so entao deixa a lista. Quem pede menos
+   * movimento ao sistema ve ele sumir na hora, e sem `matchMedia` (os testes) tambem.
+   */
   const dismiss = (id: string) => {
     const relogio = relogios.get(id)
     if (relogio?.timer) clearTimeout(relogio.timer)
     relogios.delete(id)
-    set((state) => ({ toasts: state.toasts.filter((item) => item.id !== id) }))
+    if (semMovimento()) {
+      remover(id)
+      return
+    }
+    let jaSaindo = false
+    set((state) => ({
+      toasts: state.toasts.map((item) => {
+        if (item.id !== id) return item
+        jaSaindo = item.saindo === true
+        return { ...item, saindo: true }
+      }),
+    }))
+    if (!jaSaindo) setTimeout(() => remover(id), SAIDA_MS)
   }
 
   const contar = (id: string, ms: number) => {
