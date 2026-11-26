@@ -14,7 +14,7 @@ import {
 import { ProjectSwitcher } from '@/app/ProjectSwitcher'
 import { SectionIcon } from '@/app/SectionIcon'
 import type { ProjectViewModel } from '@/contracts'
-import { isPanelError } from '@/data'
+import { isPanelError, projectIdentitySettingsService } from '@/data'
 import { useSessionStore } from '@/features/auth/sessionStore'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { ProfileDialog } from '@/features/profile/ProfileDialog'
@@ -33,7 +33,9 @@ import { cn } from '@/shared/lib/cn'
 import { canConfigure } from '@/shared/lib/projectAccess'
 import { rememberProjectOpened } from '@/shared/lib/recentProjects'
 import { GuideButton } from '@/shared/tour/GuideButton'
-import { guideTarget, useGuideStore } from '@/shared/tour/guideStore'
+import { type GuideStep, guideTarget, useGuideStore } from '@/shared/tour/guideStore'
+import { noveltySteps, useModerationInMenu } from '@/shared/tour/moderationInMenu'
+import { acharAlvo, ScreenGuide } from '@/shared/tour/ScreenGuide'
 
 /**
  * Nao e um booleano `notFound`: "nao encontrado" e "nao deu para saber" pedem
@@ -103,6 +105,46 @@ function CascaDoProjeto() {
   useScrollToHash()
 
   const project = projects.find((item) => item.PublicId === publicId)
+
+  // A Moderação so entra no menu com a lista publica ligada (ver `moderationInMenu`): le
+  // a Privacidade ao abrir o projeto, e a ultima resposta fica guardada no navegador.
+  const moderacaoNoMenu = useModerationInMenu((estado) => estado.publicos[publicId] === true)
+  // Acabou de abrir ao publico: o item espera o menu subir, para entrar a vista.
+  const moderacaoChegando = useModerationInMenu((estado) => estado.chegada === publicId)
+  const moderacaoEntrouAgora = useModerationInMenu((estado) => estado.entrouAgora === publicId)
+  const definirPublico = useModerationInMenu((estado) => estado.definir)
+  useEffect(() => {
+    if (!publicId) return
+    let vale = true
+    projectIdentitySettingsService
+      .getIdentitySettings(publicId)
+      .then((ajustes) => {
+        if (vale) definirPublico(publicId, ajustes.Visibility !== 'Private')
+      })
+      .catch(() => {})
+    return () => {
+      vale = false
+    }
+  }, [publicId, definirPublico])
+  const secoesDoTrabalho = WORK_SECTIONS.filter(
+    (secao) => secao.key !== 'moderation' || (moderacaoNoMenu && !moderacaoChegando),
+  )
+
+  // O guia da novidade, um instante depois de a Privacidade abrir os relatos ao publico.
+  // Os passos olham o que esta na tela agora: com o menu recolhido (o celular), no meio.
+  const temNovidade = useModerationInMenu((estado) => estado.novidade === publicId)
+  const dispensarNovidade = useModerationInMenu((estado) => estado.dispensar)
+  const [passosDaNovidade, setPassosDaNovidade] = useState<GuideStep[] | null>(null)
+  useEffect(() => {
+    setPassosDaNovidade(
+      temNovidade
+        ? noveltySteps({
+            itemVisible: acharAlvo('menu-moderacao') !== null,
+            guideVisible: acharAlvo('guia') !== null,
+          })
+        : null,
+    )
+  }, [temNovidade])
 
   // O "Abertos recentemente" do hub: so o projeto que a pessoa enxerga entra, e so
   // quando ele chega — o endereco digitado errado nao vira um recente.
@@ -190,6 +232,35 @@ function CascaDoProjeto() {
   const menuButton = useRef<HTMLButtonElement>(null)
   const nav = useRef<HTMLElement>(null)
   const bordasDaLista = useScrollEdges()
+
+  // **O item chega a vista.** A pessoa salvou a Privacidade com o menu rolado para baixo
+  // (o grupo da configuracao aberto): a lista sobe devagar ate o topo e, so quando chega
+  // la, a Moderação abre a vaga dela. Sem isso o item surgia fora da vista, e passava
+  // despercebido.
+  const listaDoMenu = bordasDaLista.element
+  const itemEntrou = useModerationInMenu((estado) => estado.itemEntrou)
+  useEffect(() => {
+    if (!moderacaoChegando) return
+    let feito = false
+    const entrar = () => {
+      if (feito) return
+      feito = true
+      itemEntrou(publicId)
+    }
+    if (!listaDoMenu || listaDoMenu.scrollTop < 2 || semMovimento()) {
+      listaDoMenu?.scrollTo?.({ top: 0 })
+      entrar()
+      return
+    }
+    listaDoMenu.scrollTo?.({ top: 0, behavior: 'smooth' })
+    listaDoMenu.addEventListener('scrollend', entrar, { once: true })
+    // O `scrollend` nao chega em todo navegador: a reserva entra de qualquer jeito.
+    const reserva = window.setTimeout(entrar, SUBIDA_MAXIMA_MS)
+    return () => {
+      listaDoMenu.removeEventListener('scrollend', entrar)
+      window.clearTimeout(reserva)
+    }
+  }, [moderacaoChegando, listaDoMenu, itemEntrou, publicId])
 
   // O guia da tela, para o pe do menu do celular: abre pelo pedido, e o botao da barra (que
   // no celular fica escondido) atende.
@@ -599,7 +670,7 @@ function CascaDoProjeto() {
           >
             <div className="flex flex-col gap-5">
               <div className="flex flex-col gap-0.5">
-                {WORK_SECTIONS.map((section) => (
+                {secoesDoTrabalho.map((section) => (
                   <SectionLink
                     key={section.key}
                     section={section}
@@ -607,6 +678,8 @@ function CascaDoProjeto() {
                     publicId={publicId}
                     iconOnly={iconesSo}
                     onNavigate={() => setDrawerOpen(false)}
+                    guia={section.key === 'moderation' ? 'menu-moderacao' : undefined}
+                    entrando={section.key === 'moderation' && moderacaoEntrouAgora}
                   />
                 ))}
               </div>
@@ -714,6 +787,16 @@ function CascaDoProjeto() {
           </div>
         </main>
       </div>
+
+      {/* O guia da novidade e outro guia, e nao o da tela: explica o item que entrou no
+          menu, e o ultimo passo leva ao guia da tela dele. */}
+      {passosDaNovidade && (
+        <ScreenGuide
+          nome="Novidade no menu"
+          passos={passosDaNovidade}
+          aoFechar={dispensarNovidade}
+        />
+      )}
     </div>
   )
 }
@@ -941,12 +1024,18 @@ function SectionLink({
   publicId,
   iconOnly,
   onNavigate,
+  guia,
+  entrando = false,
 }: {
   section: ConsoleSection
   segment: string
   publicId: string
   iconOnly: boolean
   onNavigate: () => void
+  /** O nome do item para um guia apontar para ele (`guideTarget`). */
+  guia?: string
+  /** O item acabou de entrar no menu (a Moderação, ao abrir ao publico): abre a vaga dele. */
+  entrando?: boolean
 }) {
   const ativo = isSectionActive(section, segment)
 
@@ -956,8 +1045,10 @@ function SectionLink({
       onClick={onNavigate}
       aria-current={ativo ? 'page' : undefined}
       aria-label={iconOnly ? section.label : undefined}
+      {...(guia ? guideTarget(guia) : {})}
       className={cn(
         'flex h-[34px] pointer-coarse:h-11 max-lg:h-11 flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors focus-visible:-outline-offset-2',
+        entrando && 'animate-entra-no-menu',
 
         // O item ativo e uma folha sobre o papel da lateral, com o fio dos cartoes. O fio
         // vai por dentro (`ring-inset`): por fora, a lista que rola e a dos grupos, que
@@ -1091,6 +1182,8 @@ function LoadingSection() {
 
 /** Quanto a lateral leva para abrir ou fechar — o mesmo `duration-300` da largura. */
 const DURACAO_DA_LATERAL = 300
+/** O mais que a subida do menu espera antes de o item novo entrar (sem `scrollend`). */
+const SUBIDA_MAXIMA_MS = 800
 
 /**
  * Quem pediu menos movimento no sistema ve a lateral trocar de uma vez. Sem

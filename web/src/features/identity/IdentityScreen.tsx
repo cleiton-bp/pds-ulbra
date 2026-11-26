@@ -53,6 +53,7 @@ import {
   type WidgetTextValues,
 } from '@/shared/lib/widgetText'
 import { useScreenGuide } from '@/shared/tour/guideStore'
+import { useModerationInMenu } from '@/shared/tour/moderationInMenu'
 
 /**
  * O que esta tela grava em Quem relata: o modo, a visibilidade e o que a identidade do
@@ -242,6 +243,8 @@ export function IdentityScreen() {
   ])
   const project = useCurrentProject()
   const quemRelata = useIdentitySettingsDraft(project.PublicId, CAMPOS_DE_QUEM_RELATA)
+  const abriuAoPublico = useModerationInMenu((estado) => estado.abriuAoPublico)
+  const definirPublico = useModerationInMenu((estado) => estado.definir)
   const textos = useWidgetSettingsDraft(project.PublicId, TEXTOS_DA_FERRAMENTA)
 
   // A chave publica do projeto, so para os exemplos do cracha: o `aud` e a linha do script.
@@ -303,10 +306,17 @@ export function IdentityScreen() {
 
   async function salvar() {
     if (saving || semComoSalvar) return
+    // O nivel antes e depois: de privado para publico, a Moderação entra no menu e se
+    // apresenta; de volta ao privado, ela sai (ver `moderationInMenu`).
+    const eraPublico =
+      quemRelata.published !== null && quemRelata.published.Visibility !== 'Private'
+    const ficaPublico = draft !== null && draft.Visibility !== 'Private'
     // Uma de cada vez: se a primeira falhar, a segunda nao vai, e o aviso e um so.
     if (quemRelata.dirty && !(await quemRelata.save())) return
     if (textos.dirty && !(await textos.save())) return
     toast.done('Privacidade: salvo.')
+    if (ficaPublico && !eraPublico) abriuAoPublico(project.PublicId)
+    else definirPublico(project.PublicId, ficaPublico)
   }
 
   /** Liga o grupo a previa: aberto, ele escolhe a aba e realca a parte dele. */

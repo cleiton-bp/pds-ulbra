@@ -291,13 +291,19 @@ export function ScreenGuide({
               style={{ left: lugar.left, top: lugar.top, width: largura }}
             >
               <div key={visto?.indice} className="animate-fade-in" aria-live="polite">
-                <p className="mb-1.5 flex items-baseline justify-between gap-3 text-caption text-fg-muted">
-                  <span className="min-w-0 truncate font-medium text-fg">{nome}</span>
+                {/* **Um titulo so, o do passo.** O nome do guia e uma etiqueta: cinza, sem
+                    negrito e com o desenho do guia. Em branco e negrito, logo acima do
+                    titulo, ele parecia um segundo titulo, e o cartao ficava confuso. */}
+                <p className="mb-3 flex items-center justify-between gap-3 text-caption text-fg-muted">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <DesenhoDoGuia />
+                    <span className="min-w-0 truncate">{nome}</span>
+                  </span>
                   <span className="flex-none tabular-nums">
                     Passo {posicao} de {passos.length}
                   </span>
                 </p>
-                <Dialog.Title className="mb-1 font-semibold text-body text-fg">
+                <Dialog.Title className="mb-1.5 font-semibold text-body text-fg leading-snug">
                   {passo.titulo}
                 </Dialog.Title>
                 <Dialog.Description className="text-detail text-fg-muted leading-relaxed">
@@ -334,5 +340,25 @@ export function ScreenGuide({
         </div>
       </Dialog.Portal>
     </Dialog.Root>
+  )
+}
+
+/** O desenho do guia, o mesmo do botao da barra, pequeno: marca a etiqueta do cartao. */
+function DesenhoDoGuia() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-3.5 flex-none"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="8" cy="8" r="6.25" />
+      <path d="M6.3 6.2a1.75 1.75 0 1 1 2.4 1.62c-.45.2-.7.55-.7 1.03v.4" />
+      <circle cx="8" cy="11.3" r="0.5" fill="currentColor" stroke="none" />
+    </svg>
   )
 }

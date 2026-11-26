@@ -55,6 +55,8 @@ const dublê = vi.hoisted(() => {
   return {
     abrir: vi.fn<(publicId: string) => Promise<ProjectViewModel>>(),
     listar: vi.fn<() => Promise<ProjectViewModel[]>>(),
+    // A Privacidade do projeto: privada de fabrica, como todo projeto nasce.
+    privacidade: vi.fn(async () => ({ Visibility: 'Private' })),
   }
 })
 
@@ -63,10 +65,15 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...real,
     projectService: { ...real.projectService, getProject: dublê.abrir, listProjects: dublê.listar },
+    projectIdentitySettingsService: {
+      ...real.projectIdentitySettingsService,
+      getIdentitySettings: dublê.privacidade,
+    },
   }
 })
 
 const { ProjectShell } = await import('@/app/ProjectShell')
+const { useModerationInMenu } = await import('@/shared/tour/moderationInMenu')
 const { useProjectsStore } = await import('@/features/projects/projectsStore')
 const { PanelError } = await import('@/data/errors')
 const { TooltipProvider } = await import('@/shared/components/Tooltip')
@@ -156,7 +163,8 @@ const areas = () =>
     .queryAllByRole('group')
     .map((grupo) => grupo.getAttribute('aria-label'))
 
-const TRABALHO = ['Trabalho', 'Membros', 'Moderação']
+/** Projeto privado: sem a Moderação, que so entra com a lista publica ligada. */
+const TRABALHO = ['Trabalho', 'Membros']
 /** As cinco areas, no grupo Configurar o projeto. */
 const AREAS = ['O seu sistema', 'O formulário', 'Depois de enviar', 'O quadro', 'O time']
 /** Sem Membros: ja esta no topo, e repetido em O time seriam dois itens iguais. */
@@ -183,11 +191,49 @@ instalarRemendosDoRadix()
 beforeEach(() => {
   dublê.abrir.mockReset()
   dublê.listar.mockReset()
+  dublê.privacidade.mockReset()
+  dublê.privacidade.mockResolvedValue({ Visibility: 'Private' })
+  window.localStorage.removeItem('pds.web.moderacao-no-menu.v1')
+  useModerationInMenu.setState({ publicos: {}, chegada: null, entrouAgora: null, novidade: null })
   useProjectsStore.getState().reset()
   window.localStorage.removeItem('pds.web.lateral.recolhida')
 })
 
 afterEach(cleanup)
+
+describe('ProjectShell, a Moderação no menu', () => {
+  it('em projeto privado o menu não tem a Moderação, e com a lista pública ele tem', async () => {
+    abrir('/projects/p-1/reports', [projeto('Member', false)])
+    expect(await screen.findByText('tela de relatos')).toBeTruthy()
+    await waitFor(() => expect(dublê.privacidade).toHaveBeenCalledWith('p-1'))
+    expect(nomesNoMenu()).toEqual(['Trabalho', 'Membros'])
+    cleanup()
+
+    dublê.privacidade.mockResolvedValue({ Visibility: 'PublicAnonymous' })
+    useProjectsStore.getState().reset()
+    abrir('/projects/p-1/reports', [projeto('Member', false)])
+    await waitFor(() => expect(nomesNoMenu()).toEqual(['Trabalho', 'Membros', 'Moderação']))
+  })
+
+  it('aberto ao público pela Privacidade, o item entra na hora e, um instante depois, o guia da novidade explica', async () => {
+    abrir('/projects/p-1/reports', [projeto('Administrator', false)])
+    expect(await screen.findByText('tela de relatos')).toBeTruthy()
+    await waitFor(() => expect(dublê.privacidade).toHaveBeenCalled())
+    expect(nomesNoMenu()).not.toContain('Moderação')
+
+    act(() => useModerationInMenu.getState().abriuAoPublico('p-1'))
+    await waitFor(() => expect(nomesNoMenu()).toContain('Moderação'))
+    // O guia nao abre de uma vez: o item entra antes.
+    expect(screen.queryByText('Novidade no menu')).toBeNull()
+
+    expect(await screen.findByText('Novidade no menu', {}, { timeout: 4000 })).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Ela apareceu no menu porque você abriu os relatos ao público em Privacidade',
+      ),
+    ).toBeTruthy()
+  })
+})
 
 describe('ProjectShell, o menu', () => {
   it('para quem é só membro, o menu tem o trabalho e não tem a configuração', async () => {
