@@ -341,6 +341,28 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* **O que se clica mostra a mao.** O Tailwind 4 tirou o `cursor: pointer` dos botoes (o
+     padrao do navegador e a seta), e so tinha a mao quem lembrava de pedir: a mesma tela
+     tinha botao com mao e botao com seta, e a pessoa nao sabia o que era clicavel. Aqui
+     vale para todo botao, item de menu, aba, opcao de lista, caixa de marcar e o rotulo
+     dela. Desligado, fica a seta (o `Button` poe a placa de proibido). Quem pede outro
+     cursor na propria classe (arrastar, texto) continua com o dele: utilitario vence a
+     base. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([data-disabled]),
+  [role="menuitemcheckbox"]:not([data-disabled]),
+  [role="menuitemradio"]:not([data-disabled]),
+  [role="option"]:not([data-disabled]):not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled),
+  input:is([type="checkbox"], [type="radio"], [type="color"], [type="file"]):not(:disabled),
+  label:has(> input:is([type="checkbox"], [type="radio"]):not(:disabled)) {
+    cursor: pointer;
+  }
+
   /* O mesmo anel em todo controle. `--focus` nao e publicado como utilitario: a
      regra e uma so e vale para todos, e publicar "por via das duvidas" e o que
      deixa token sem consumidor por meses. */
@@ -601,6 +623,26 @@
   animation: abre-vaga 240ms var(--ease-out) both;
 }
 
+/**
+ * O item que entra no menu (a Moderação, ao abrir os relatos ao publico): abre a vaga dele
+ * devagar, os itens de baixo descem junto, sem pulo, e o nome aparece no fim. A altura
+ * final e a do proprio item, que tem altura fixa.
+ */
+@keyframes entra-no-menu {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  55% {
+    opacity: 0;
+  }
+}
+
+@utility animate-entra-no-menu {
+  animation: entra-no-menu 560ms var(--ease-out) both;
+  overflow: hidden;
+}
+
 /** O anel na cor do tipo em volta do card que acabou de chegar ao quadro, que esfria. */
 @keyframes esfria {
   to {
@@ -625,6 +667,47 @@
 
 @utility animate-carimbo {
   animation: carimbo 540ms var(--mola) both;
+}
+
+/**
+ * O salvar chamando: quem ia sair com mudanca e escolheu "Voltar e salvar" volta para o
+ * botao de salvar (ou publicar) da tela, e ele fica marcado: um contorno na cor do
+ * destaque, com um halo que pulsa duas vezes, e o contorno some devagar no fim. Nada e
+ * salvo sozinho, o clique continua sendo da pessoa (ver `LeaveGuard`). Com movimento
+ * reduzido, so o contorno, parado, ate sair.
+ */
+@keyframes chama-atencao {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 55%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 0.75rem color-mix(in oklab, var(--accent) 0%, transparent);
+  }
+}
+
+@keyframes chama-atencao-contorno {
+  0%,
+  75% {
+    outline-color: var(--accent);
+  }
+  100% {
+    outline-color: transparent;
+  }
+}
+
+[data-chamando] {
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  animation:
+    chama-atencao 900ms var(--ease-out) 2,
+    chama-atencao-contorno 1800ms linear both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-chamando] {
+    animation: none;
+    outline-color: var(--accent);
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -878,6 +961,7 @@
   .animate-travel,
   .animate-sobe-da-mascara,
   .animate-abre-vaga,
+  .animate-entra-no-menu,
   .animate-carimbo {
     animation: none;
   }
