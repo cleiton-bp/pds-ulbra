@@ -49,6 +49,12 @@ export type MyReportsCredential =
  * não encontrado". A frase precisa servir aos dois casos sem mentir em nenhum. O
  * crachá responde igual: o que não confere e o que nunca relatou são a mesma lista.
  */
+/**
+ * De quanto em quanto tempo a lista na tela se le de novo. Tres pedidos por minuto, por
+ * quem esta com a lista aberta: bem abaixo do limite de quem chama sem login.
+ */
+export const ATUALIZAR_A_CADA_MS = 20_000
+
 export function MyReports({
   publicKey,
   credencial,
@@ -81,6 +87,11 @@ export function MyReports({
   const [erro, setErro] = useState<string | null>(null)
   /** O relato aberto aqui dentro. Nulo, a lista. */
   const [aberto, setAberto] = useState<string | null>(null)
+  /**
+   * Cada leitura da lista leva um numero, e so a ultima vale. A atualizacao sozinha pode
+   * voltar depois de uma busca por outro codigo, e nao pode trocar a lista nova pela velha.
+   */
+  const leitura = useRef(0)
   /** O relato de onde a pessoa veio: ao voltar, o foco volta a ele, e nao ao topo. */
   const voltarPara = useRef<string | null>(null)
   const lista = useRef<HTMLUListElement>(null)
@@ -92,9 +103,11 @@ export function MyReports({
 
       setBuscando(true)
       setErro(null)
+      const minha = ++leitura.current
 
       try {
         const resposta = await reportService.listByReporterCode({ Key: publicKey, Code: limpo })
+        if (minha !== leitura.current) return
         setRelatos(resposta.Reports)
         setTemMais(resposta.HasMore)
         setCodigoDaLista(limpo)
@@ -112,12 +125,14 @@ export function MyReports({
     async (cracha: string) => {
       setBuscando(true)
       setErro(null)
+      const minha = ++leitura.current
 
       try {
         const resposta = await reportService.listByIdentity({
           Key: publicKey,
           IdentityToken: cracha,
         })
+        if (minha !== leitura.current) return
         setRelatos(resposta.Reports)
         setTemMais(resposta.HasMore)
       } catch (falha) {
@@ -142,6 +157,47 @@ export function MyReports({
     if (token.length > 0) void buscarPeloCracha(token)
     else setRelatos([])
   }, [peloCracha, token, buscarPeloCracha])
+
+  /**
+   * Le a lista de novo, **sem piscar**: nem o "Buscando", nem o erro, nem o campo mudam.
+   * Falhou, fica a lista que ja estava na tela.
+   */
+  const atualizar = useCallback(async () => {
+    const credencialDaLista = peloCracha ? token : codigoDaLista
+    if (credencialDaLista.length === 0) return
+    const minha = ++leitura.current
+    try {
+      const resposta = peloCracha
+        ? await reportService.listByIdentity({ Key: publicKey, IdentityToken: token })
+        : await reportService.listByReporterCode({ Key: publicKey, Code: codigoDaLista })
+      if (minha !== leitura.current) return
+      setRelatos(resposta.Reports)
+      setTemMais(resposta.HasMore)
+    } catch {
+      // A lista de antes continua valendo ate a proxima volta.
+    }
+  }, [peloCracha, token, codigoDaLista, publicKey])
+
+  // **A lista acompanha o time.** Antes ela era lida uma vez so: o time movia o card, o
+  // relato aberto mudava ao vivo, e a lista continuava dizendo a etapa antiga. Agora ela
+  // le de novo a cada `ATUALIZAR_A_CADA_MS` enquanto esta na tela, e na hora em que a
+  // aba volta a ficar visivel. Aba escondida nao pede nada.
+  const listaNaTela = aberto === null && relatos !== null
+  useEffect(() => {
+    if (!listaNaTela) return
+    const visivel = () => document.visibilityState === 'visible'
+    const relogio = setInterval(() => {
+      if (visivel()) void atualizar()
+    }, ATUALIZAR_A_CADA_MS)
+    const aoVoltar = () => {
+      if (visivel()) void atualizar()
+    }
+    document.addEventListener('visibilitychange', aoVoltar)
+    return () => {
+      clearInterval(relogio)
+      document.removeEventListener('visibilitychange', aoVoltar)
+    }
+  }, [listaNaTela, atualizar])
 
   /** O link da pagina de acompanhamento deste relato, pela credencial da lista. */
   const linkDe = (trackingCode: string) =>
@@ -181,6 +237,8 @@ export function MyReports({
             onClick={() => {
               voltarPara.current = aberto
               setAberto(null)
+              // O relato aberto pode ter andado enquanto a pessoa lia: a lista volta em dia.
+              void atualizar()
             }}
           >
             Voltar aos seus relatos
