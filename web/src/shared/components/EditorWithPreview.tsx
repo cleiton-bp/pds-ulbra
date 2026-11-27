@@ -1,7 +1,8 @@
-import { type ReactNode, useEffect, useLayoutEffect, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { BottomSheet } from '@/shared/components/BottomSheet'
 import { PreviaNaAltura, PreviaNaFolha } from '@/shared/components/PreviewSection'
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
+import { useScrollEdges } from '@/shared/hooks/useScrollEdges'
 import { cn } from '@/shared/lib/cn'
 import { guideTarget } from '@/shared/tour/guideStore'
 
@@ -96,6 +97,17 @@ export function EditorWithPreview({
   const lado = !estreita && !(previewEmFolha && apertada)
   const larguraDoOpcional = larguraDaPrevia ?? LARGURA_DA_PREVIA_OPCIONAL
   const [coluna, setColuna] = useState<HTMLDivElement | null>(null)
+  // As bordas da coluna da previa que ainda escondem algo: ver o comentario da coluna.
+  const bordas = useScrollEdges()
+  const medirBordas = bordas.ref
+  // A mesma funcao a cada desenho: uma nova faria o React soltar e prender a coluna de novo.
+  const prenderColuna = useCallback(
+    (no: HTMLDivElement | null) => {
+      setColuna(no)
+      medirBordas(no)
+    },
+    [medirBordas],
+  )
   const altura = useAlturaDaPrevia(coluna, lado)
   useParteAcesaAVista(coluna, altura !== null)
 
@@ -190,13 +202,22 @@ export function EditorWithPreview({
         {children}
       </div>
       <div
-        ref={setColuna}
+        ref={prenderColuna}
         className={cn(
           'order-first min-w-0 lg:sticky lg:-top-5 lg:order-none lg:col-start-2 lg:row-start-1',
           // Na altura que sobra da tela: a previa do formulario preenche essa altura (o palco
           // cresce com ela), e a que nao preenche (o caminho do relato, a jornada) fica com a
           // dela e, maior que a coluna, rola por dentro, sem passar da dobra.
-          altura !== null && 'flex flex-col overflow-y-auto [scrollbar-width:thin]',
+          //
+          // **Sem barra de rolagem, e com a borda esmaecida no lugar**, como o menu lateral.
+          // A barra fina do navegador ignora a do tema: no Mac com mouse (ou com "mostrar
+          // barras: sempre") e no Windows ela aparecia cinza, com 11 px, e a previa encolhia
+          // para dar lugar a ela. Agora a previa tem sempre a largura toda, a roda e o toque
+          // rolam igual, e a borda que ainda esconde algo esmaece como dica.
+          altura !== null &&
+            'esmaece-nas-bordas flex flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          altura !== null && bordas.acima && '[--esmaece-acima:1.25rem]',
+          altura !== null && bordas.abaixo && '[--esmaece-abaixo:1.5rem]',
           // Enquanto a coluna cresce, a previa nao se espreme: ela tem a largura dela, e o
           // que ainda nao cabe fica de fora.
           opcional && 'overflow-x-hidden',
