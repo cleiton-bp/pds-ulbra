@@ -308,9 +308,11 @@ public class WatchReportTrackingDto
 /// <summary>
 /// A resposta de quem relatou: resolveu.
 ///
-/// <para><b>Carrega as mesmas duas credenciais da consulta</b>, e pelo mesmo
-/// motivo: nao ha sessao aqui, e o token do link e a unica prova de que este
-/// relato e de quem o apresenta. Recusa igual para qualquer um dos dois errado.</para>
+/// <para><b>Leva uma das credenciais que abrem o relato</b>, e so uma: o token do
+/// link, a chave com o codigo pessoal, ou a chave com o cracha do site. O retorno
+/// sobre o encerramento e de quem relatou, por qualquer porta que prove isso;
+/// responder a pergunta do time e anexar continuam so pelo link. Recusa igual para
+/// qualquer credencial errada.</para>
 /// </summary>
 public class ConfirmReportDto
 {
@@ -318,8 +320,17 @@ public class ConfirmReportDto
     /// <example>7K2M-9QXP-4TRV</example>
     public string? TrackingCode { get; set; }
 
-    /// <summary>O token entregue uma unica vez. E ele que prova de quem e o relato.</summary>
+    /// <summary>O token do link, quando a pagina abriu por ele.</summary>
     public string? Token { get; set; }
+
+    /// <summary>A chave publica do projeto, com o codigo pessoal ou com o cracha.</summary>
+    public string? Key { get; set; }
+
+    /// <summary>O codigo pessoal, quando a pagina abriu pela lista do codigo.</summary>
+    public string? ReporterCode { get; set; }
+
+    /// <summary>O cracha do site, quando a pagina abriu pela lista da identidade.</summary>
+    public string? IdentityToken { get; set; }
 
     /// <summary>
     /// A nota de 1 a 5 sobre como foi o tratamento, ou nula.
@@ -347,6 +358,9 @@ public class ConfirmReportDto
 /// <para><b>Nao leva nota</b>, e isso e decisao e nao esquecimento: quem reabre
 /// esta dizendo que o trabalho nao acabou, e avaliar servico inacabado mede outra
 /// coisa. A nota volta a ser pedida quando o relato for encerrado de novo.</para>
+///
+/// <para>Aceita as mesmas credenciais de <see cref="ConfirmReportDto"/>: o link, o
+/// codigo pessoal ou o cracha.</para>
 /// </summary>
 public class ReopenReportDto
 {
@@ -354,8 +368,17 @@ public class ReopenReportDto
     /// <example>7K2M-9QXP-4TRV</example>
     public string? TrackingCode { get; set; }
 
-    /// <summary>O token entregue uma unica vez.</summary>
+    /// <summary>O token do link, quando a pagina abriu por ele.</summary>
     public string? Token { get; set; }
+
+    /// <summary>A chave publica do projeto, com o codigo pessoal ou com o cracha.</summary>
+    public string? Key { get; set; }
+
+    /// <summary>O codigo pessoal, quando a pagina abriu pela lista do codigo.</summary>
+    public string? ReporterCode { get; set; }
+
+    /// <summary>O cracha do site, quando a pagina abriu pela lista da identidade.</summary>
+    public string? IdentityToken { get; set; }
 
     /// <summary>
     /// Por que o relato esta voltando. Obrigatorio quando o projeto pede.

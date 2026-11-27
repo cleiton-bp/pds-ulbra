@@ -77,11 +77,10 @@ const ESTILOS: Record<SatisfactionStyle, string> = {
 
 /**
  * **"O codigo sozinho tambem confirma e reabre" esta escondida, e nao removida.**
- * Marcada, ela liga os botoes para quem chega pela lista pessoal — mas confirmar,
- * reabrir e responder so aceitam o token do link, e quem chega pelo codigo nao o
- * tem: o botao aparecia e a API recusava. Volta quando essas tres rotas aceitarem
- * o codigo. Ate la o valor salvo segue intacto no rascunho, como o das regras sem
- * tela.
+ * Desde 26/11/2026 confirmar e reabrir aceitam o codigo e o cracha sempre, porque o
+ * retorno sobre o encerramento e de quem relatou por qualquer caminho. O que a regra
+ * ainda decidiria e so responder a pergunta do time pelo codigo, que segue so pelo
+ * link. Ate la o valor salvo segue intacto no rascunho, como o das regras sem tela.
  *
  * **Volta junto com `ActionsAcceptReporterCode`, no `ReportService` da API.** Ate
  * la a API ignora o valor salvo — ligar so esta constante desenharia um controle que

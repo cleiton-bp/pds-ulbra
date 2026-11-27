@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   PublicAttachmentViewModel,
@@ -169,6 +169,27 @@ describe('a pagina publica de acompanhamento', () => {
       TrackingCode: '7K2M-9QXP-4TRV',
       Token: 'tok-secreto',
     })
+  })
+
+  it('o que a pessoa enviou fica recolhido, e abre ao clicar, com o protocolo sempre à vista', async () => {
+    dublê.abrir.mockResolvedValue(relato)
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    render(<TrackingPage />)
+
+    const botao = await screen.findByRole('button', { name: 'Ver o que você enviou' })
+    expect(botao.getAttribute('aria-expanded')).toBe('false')
+    const bloco = document.getElementById(botao.getAttribute('aria-controls') ?? '')
+    // Fechado, continua na página para a animação existir, mas fora do foco e do leitor.
+    expect(bloco?.hasAttribute('inert')).toBe(true)
+    expect(screen.getByText('7K2M-9QXP-4TRV')).toBeTruthy()
+
+    fireEvent.click(botao)
+
+    const aberto = screen.getByRole('button', { name: 'Esconder o que você enviou' })
+    expect(aberto.getAttribute('aria-expanded')).toBe('true')
+    expect(bloco?.hasAttribute('inert')).toBe(false)
+    expect(within(bloco as HTMLElement).getByText('Defeito')).toBeTruthy()
   })
 
   it('mostra o titulo que a pessoa escreveu, quando escreveu, acima do texto', async () => {
@@ -620,6 +641,65 @@ describe('a resposta de quem relatou', () => {
     // **A tela mostra o que ficou gravado**, e não o que ela mandou: a resposta da
     // API vira o relato, e o bloco do encerramento some porque não há mais fim.
     await waitFor(() => expect(screen.queryByText('Como terminou')).toBeNull())
+  })
+
+  // **O retorno é de quem relatou, por qualquer porta.** Quem volta pela lista pessoal
+  // é a mesma pessoa do link; sem isto, o relato terminava sem a nota dela.
+  it('aberto pela lista pessoal, a nota vai com o código pessoal, e não com o link', async () => {
+    dublê.abrirPorCodigo.mockResolvedValue({
+      ...relato,
+      Journey: [
+        passo('Recebido', '2026-09-12T13:24:00.000Z'),
+        passo('Concluído', '2026-09-20T10:00:00.000Z', true),
+      ],
+      Closure: fechamento(),
+    })
+    dublê.confirmar.mockResolvedValue({ ...relato, Closure: null })
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV&k=pk_DEMO#p=H7QK-3M2X-P9WD')
+    render(<TrackingPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sim, resolveu' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Nota 5' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() =>
+      expect(dublê.confirmar).toHaveBeenCalledWith({
+        TrackingCode: '7K2M-9QXP-4TRV',
+        Key: 'pk_DEMO',
+        ReporterCode: 'H7QK-3M2X-P9WD',
+        Satisfaction: 5,
+        SatisfactionDeclined: false,
+      }),
+    )
+  })
+
+  it('aberto pela lista pessoal, reabrir também vai com o código pessoal', async () => {
+    dublê.abrirPorCodigo.mockResolvedValue({
+      ...relato,
+      Journey: [
+        passo('Recebido', '2026-09-12T13:24:00.000Z'),
+        passo('Concluído', '2026-09-20T10:00:00.000Z', true),
+      ],
+      Closure: fechamento(),
+    })
+    dublê.reabrir.mockResolvedValue({ ...relato, Closure: null })
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV&k=pk_DEMO#p=H7QK-3M2X-P9WD')
+    render(<TrackingPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Não, ainda não' }))
+    fireEvent.change(screen.getByRole('textbox', { name: /O que ainda está acontecendo/ }), {
+      target: { value: 'Ainda trava no celular.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
+
+    await waitFor(() =>
+      expect(dublê.reabrir).toHaveBeenCalledWith({
+        TrackingCode: '7K2M-9QXP-4TRV',
+        Key: 'pk_DEMO',
+        ReporterCode: 'H7QK-3M2X-P9WD',
+        Comment: 'Ainda trava no celular.',
+      }),
+    )
   })
 
   it('projeto que não deixa reabrir não oferece a saída', async () => {

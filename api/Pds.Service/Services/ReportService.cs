@@ -66,15 +66,20 @@ public partial class ReportService : IReportService
     private const string TrackingRefusal = TrackedReportGate.Refusal;
 
     /// <summary>
-    /// Se confirmar, reabrir e responder ja aceitam o codigo pessoal no lugar do
-    /// token do link. <b>Enquanto for falso, a regra "o codigo sozinho confirma e
-    /// reabre" (<c>TrackingCodeCanAct</c>) e ignorada</b>: quem abre pela lista
-    /// pessoal le o relato, e as tres acoes saem desligadas, seja qual for o valor
-    /// gravado.
+    /// Se responder a pergunta do time ja aceita o codigo pessoal no lugar do token do
+    /// link. <b>Enquanto for falso, a regra "o codigo sozinho confirma e reabre"
+    /// (<c>TrackingCodeCanAct</c>) e ignorada</b>: quem abre pela lista pessoal le o
+    /// relato e da o retorno sobre o encerramento, mas nao responde pergunta, seja qual
+    /// for o valor gravado.
     ///
-    /// <para><b>A API ignora, e nao so a tela esconde.</b> As tres acoes so passam
-    /// pela porta do link (<see cref="TrackedReportGate"/>), e quem chega pelo codigo
-    /// nao tem o token. Obedecer ao valor gravado ligava botoes que a propria API
+    /// <para><b>Confirmar e reabrir ja nao dependem daqui.</b> Desde 26/11/2026 eles
+    /// aceitam o link, o codigo pessoal e o cracha (ver
+    /// <see cref="RequireFeedbackReporterAsync"/>): o retorno sobre o encerramento e de
+    /// quem relatou, por qualquer porta que prove isso.</para>
+    ///
+    /// <para><b>A API ignora, e nao so a tela esconde.</b> Responder so passa pela porta
+    /// do link (<see cref="TrackedReportGate"/>), e quem chega pelo codigo nao tem o
+    /// token. Obedecer ao valor gravado ligava botoes que a propria API
     /// recusava com 404 — e o projeto que ligou a regra antes de ela sair da tela de
     /// Ciclo ficou sem como desliga-la.</para>
     ///
@@ -85,15 +90,14 @@ public partial class ReportService : IReportService
     ///
     /// <para><b>O que falta para virar verdadeiro:</b></para>
     /// <list type="number">
-    /// <item><see cref="ConfirmAsync"/>, <see cref="ReopenAsync"/> e
-    /// <see cref="ReplyAsync"/> aceitarem chave publica + codigo + protocolo como
+    /// <item><see cref="ReplyAsync"/> aceitar chave publica + codigo + protocolo como
     /// alternativa ao token, com a mesma conferencia de
     /// <see cref="OpenByReporterCodeAsync"/> — modo codigo pessoal, codigo que existe,
     /// relato daquele codigo, uma recusa so. E conferindo a regra gravada <b>dentro
     /// delas</b>: a acao desligada na resposta nao impede ninguem de chamar a rota
     /// direto.</item>
-    /// <item>A pagina de acompanhamento mandar o codigo nessas tres chamadas quando
-    /// nao tem o token.</item>
+    /// <item>A pagina de acompanhamento mandar o codigo na resposta quando nao tem o
+    /// token, como ja manda ao confirmar e ao reabrir.</item>
     /// <item>A tela de Ciclo mostrar a regra de novo: <c>MOSTRAR_REGRA_DO_CODIGO</c>,
     /// em <c>CycleSettingsScreen.tsx</c>, vira verdadeiro, os dois testes pulados
     /// voltam e sai o que confere que ela esta fora da tela.</item>
@@ -576,9 +580,52 @@ public partial class ReportService : IReportService
         return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
 
+    /// <summary>
+    /// O relato de quem da o retorno sobre o encerramento, pela credencial que abriu a
+    /// pagina: o token do link, a chave com o codigo pessoal, ou a chave com o cracha.
+    ///
+    /// <para><b>O retorno e de quem relatou, por qualquer porta que prove isso.</b> Quem
+    /// volta pela lista pessoal e a mesma pessoa que recebeu o link, e prender a nota ao
+    /// link fazia o encerramento terminar sem resposta. Cada porta confere como na
+    /// abertura, com a mesma recusa unica.</para>
+    ///
+    /// <para>Devolve tambem se essa pessoa pode responder a pergunta do time, que continua
+    /// so pelo link (ver <see cref="ActionsAcceptReporterCode"/>).</para>
+    /// </summary>
+    private async Task<(Report Report, bool PodeAgir)> RequireFeedbackReporterAsync(
+        string? trackingCode,
+        string? token,
+        string? key,
+        string? reporterCode,
+        string? identityToken,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(token))
+            return (await RequireTrackedReportAsync(trackingCode, token, cancellationToken), true);
+
+        if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(reporterCode))
+        {
+            var pelaLista = await ReporterCodeGate.RequireAsync(
+                _unitOfWork, key, reporterCode, trackingCode, cancellationToken);
+
+            return (pelaLista, await ReporterCodeCanActAsync(pelaLista, cancellationToken));
+        }
+
+        if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(identityToken))
+        {
+            var pelaIdentidade = await InheritedIdentityGate.RequireAsync(
+                _unitOfWork, key, identityToken, trackingCode, cancellationToken);
+
+            return (pelaIdentidade, false);
+        }
+
+        throw new KeyNotFoundException(TrackingRefusal);
+    }
+
     public async Task<PublicReportViewModel> ConfirmAsync(ConfirmReportDto dto, CancellationToken cancellationToken = default)
     {
-        var report = await RequireTrackedReportAsync(dto.TrackingCode, dto.Token, cancellationToken);
+        var (report, podeAgir) = await RequireFeedbackReporterAsync(
+            dto.TrackingCode, dto.Token, dto.Key, dto.ReporterCode, dto.IdentityToken, cancellationToken);
         var regras = await _unitOfWork.ProjectCycleSettings
             .FindByProjectWithoutSessionAsync(report.ProjectId, cancellationToken);
 
@@ -642,12 +689,13 @@ public partial class ReportService : IReportService
 
         await _notifier.CardChangedAsync(report.PublicId);
 
-        return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
+        return await BuildPublicAsync(report, podeAgir, cancellationToken);
     }
 
     public async Task<PublicReportViewModel> ReopenAsync(ReopenReportDto dto, CancellationToken cancellationToken = default)
     {
-        var report = await RequireTrackedReportAsync(dto.TrackingCode, dto.Token, cancellationToken);
+        var (report, podeAgir) = await RequireFeedbackReporterAsync(
+            dto.TrackingCode, dto.Token, dto.Key, dto.ReporterCode, dto.IdentityToken, cancellationToken);
         var project = report.Project;
 
         var regras = await _unitOfWork.ProjectCycleSettings
@@ -757,7 +805,7 @@ public partial class ReportService : IReportService
         foreach (var subtarefa in voltaram ?? [])
             await _notifier.CardChangedAsync(subtarefa);
 
-        return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
+        return await BuildPublicAsync(report, podeAgir, cancellationToken);
     }
 
     /// <summary>
@@ -827,11 +875,13 @@ public partial class ReportService : IReportService
     /// trabalho dele.</para>
     /// </summary>
     /// <param name="podeAgir">
-    /// Se quem esta lendo pode <b>agir</b> — confirmar, reabrir, responder.
+    /// Se quem esta lendo pode <b>responder</b> a pergunta do time. O retorno sobre o
+    /// encerramento, confirmar com nota e reabrir, nao depende daqui: vale para quem
+    /// chegou por qualquer porta.
     ///
     /// <para><b>E parametro obrigatorio, e nao um padrao.</b> Quem chega pelo link
-    /// pode; quem chega pela lista pessoal hoje nao pode, e so vai poder quando as
-    /// acoes aceitarem o codigo e o projeto tiver ligado isso — ver
+    /// pode; quem chega pela lista pessoal hoje nao pode, e so vai poder quando a
+    /// resposta aceitar o codigo e o projeto tiver ligado isso, ver
     /// <see cref="ActionsAcceptReporterCode"/>. Um valor padrao faria a chamada nova
     /// nascer permitindo, que e o lado errado para errar — e obrigar a declarar forca
     /// quem acrescentar um caminho a pensar nele.</para>
@@ -861,10 +911,13 @@ public partial class ReportService : IReportService
                 fechamento.Satisfaction,
                 fechamento.SatisfactionDeclined,
                 new PublicClosureActionsViewModel(
-                    podeAgir && !respondeu,
+                    // **O retorno nao depende de podeAgir.** Toda porta que chega aqui ja
+                    // provou que o relato e de quem le, e confirmar e reabrir aceitam as
+                    // tres credenciais (ver RequireFeedbackReporterAsync).
+                    !respondeu,
                     // Quem confirmou fechou a conversa: o problema que volta depois
                     // disso e outro relato.
-                    podeAgir && (regras?.AllowsReopen ?? CycleSettingsDefaults.AllowsReopen) && !respondeu,
+                    (regras?.AllowsReopen ?? CycleSettingsDefaults.AllowsReopen) && !respondeu,
                     regras?.SatisfactionEnabled ?? CycleSettingsDefaults.SatisfactionEnabled,
                     regras?.SatisfactionStyle ?? CycleSettingsDefaults.SatisfactionStyle,
                     regras?.SatisfactionRequired ?? CycleSettingsDefaults.SatisfactionRequired,
@@ -3091,8 +3144,8 @@ public partial class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        // Le, e nao age: a identidade prova que o relato e dela, e o link e que da
-        // poder sobre ele, a mesma regra do codigo pessoal.
+        // Le e da o retorno sobre o encerramento, mas nao responde pergunta: a mesma
+        // regra do codigo pessoal.
         return await BuildPublicAsync(report, podeAgir: false, cancellationToken);
     }
 
@@ -3101,8 +3154,8 @@ public partial class ReportService : IReportService
     /// ao vivo perguntam a mesma coisa, e a resposta mora num lugar so.
     ///
     /// <para><b>E aqui que a regra do codigo sozinho decide, quando puder.</b> Enquanto
-    /// confirmar, reabrir e responder so aceitarem o token, obedecer ao valor gravado
-    /// mostraria botoes que a propria API recusa; entao ele fica gravado e e ignorado. O
+    /// responder so aceitar o token, obedecer ao valor gravado mostraria um campo que a
+    /// propria API recusa; entao ele fica gravado e e ignorado. O
     /// que falta para voltar esta em <see cref="ActionsAcceptReporterCode"/>.</para>
     /// </summary>
     private async Task<bool> ReporterCodeCanActAsync(Report report, CancellationToken cancellationToken)

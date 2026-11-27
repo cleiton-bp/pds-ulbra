@@ -13,8 +13,9 @@ namespace Pds.Service.Security;
 /// nao existe e protocolo de outra pessoa recebem a mesma resposta: dizer qual deles
 /// falhou contaria algo sobre o projeto ou sobre outra pessoa.</para>
 ///
-/// <para><b>Le, e nao age.</b> A identidade prova que o relato e da pessoa; o link e
-/// que da poder sobre ele — a mesma regra do codigo pessoal.</para>
+/// <para><b>Le e da o retorno sobre o encerramento, mas nao responde pergunta.</b> A
+/// identidade prova que o relato e da pessoa, e confirmar e reabrir aceitam essa prova;
+/// responder e anexar continuam pelo link, a mesma regra do codigo pessoal.</para>
 /// </summary>
 public static class InheritedIdentityGate
 {

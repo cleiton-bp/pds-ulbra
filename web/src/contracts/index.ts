@@ -216,6 +216,7 @@ export type {
   ReporterCodeLookupRequest,
   ReporterCodeReportsViewModel,
   ReporterCodeReportViewModel,
+  ReporterFeedbackCredential,
   ReportHistoryEntryViewModel,
   ReportHistoryPageViewModel,
   ReportInfoRequestViewModel,

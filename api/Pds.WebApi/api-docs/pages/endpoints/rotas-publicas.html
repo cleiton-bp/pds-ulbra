@@ -26,11 +26,11 @@
   <tr><td><span class="verb get">GET</span></td><td><code>/public/reports/published</code></td><td>O que já foi liberado ao público. Projeto privado: <strong>lista vazia</strong>.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking</code></td><td>Abre o acompanhamento, pelo protocolo e pelo token do link.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code</code></td><td>Os relatos de um código pessoal. Código desconhecido: <strong>lista vazia</strong>.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/open</code></td><td>Abre um relato da lista pessoal. Só lê.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/open</code></td><td>Abre um relato da lista pessoal. Lê e dá o retorno do encerramento; responder e anexar, só pelo link.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-identity</code></td><td>Os relatos da pessoa identificada pelo crachá (<code>Key</code>, <code>IdentityToken</code>). Sem quem achar: <strong>lista vazia</strong>.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-identity/open</code></td><td>Abre um relato pela identidade (<code>Key</code>, <code>IdentityToken</code>, <code>TrackingCode</code>). Só lê.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/confirm</code></td><td>Quem relatou diz que resolveu e dá a nota, ou recusa dá-la.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reopen</code></td><td>Diz que não resolveu; o relato volta para a coluna configurada.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-identity/open</code></td><td>Abre um relato pela identidade (<code>Key</code>, <code>IdentityToken</code>, <code>TrackingCode</code>). Lê e dá o retorno do encerramento; responder e anexar, só pelo link.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/confirm</code></td><td>Quem relatou diz que resolveu e dá a nota, ou recusa dá-la. Aceita o link, o código pessoal ou o crachá.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reopen</code></td><td>Diz que não resolveu; o relato volta para a coluna configurada. Aceita o link, o código pessoal ou o crachá.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reply</code></td><td>Responde ao pedido de informação, só enquanto houver um aberto.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments</code></td><td><strong>Com limitador.</strong> Pede permissão para enviar um arquivo; devolve um formulário assinado.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments/confirm</code></td><td><strong>Com limitador.</strong> Confere os primeiros bytes e prende o anexo ao relato.</td></tr>
@@ -231,9 +231,9 @@ carregador não desenha nada.</p>
 <div class="note why">
   <strong>Três portas</strong>
   <ul>
-    <li><b>Link:</b> oito rotas com protocolo e token entram por <code>TrackedReportGate.RequireAsync</code>: acompanhar, confirmar, reabrir, responder, pedir e confirmar anexo, ler os arquivos e ler o que dá para anexar.</li>
-    <li><b>Código:</b> <code>by-code/open</code> e <code>by-code/attachments</code> (chave, código e protocolo) entram por <code>ReporterCodeGate.RequireAsync</code>.</li>
-    <li><b>Crachá:</b> <code>by-identity/open</code> e <code>by-identity/attachments</code> entram por <code>InheritedIdentityGate.RequireAsync</code>.</li>
+    <li><b>Link:</b> oito rotas com protocolo e token entram por <code>TrackedReportGate.RequireAsync</code>: acompanhar, confirmar, reabrir, responder, pedir e confirmar anexo, ler os arquivos e ler o que dá para anexar. Confirmar e reabrir aceitam também as duas portas abaixo, porque o retorno sobre o encerramento é de quem relatou, por qualquer caminho que prove isso.</li>
+    <li><b>Código:</b> <code>by-code/open</code> e <code>by-code/attachments</code> (chave, código e protocolo) entram por <code>ReporterCodeGate.RequireAsync</code>, e também <code>confirm</code> e <code>reopen</code> quando chegam com <code>Key</code> e <code>ReporterCode</code> no lugar do token.</li>
+    <li><b>Crachá:</b> <code>by-identity/open</code> e <code>by-identity/attachments</code> entram por <code>InheritedIdentityGate.RequireAsync</code>, e também <code>confirm</code> e <code>reopen</code> quando chegam com <code>Key</code> e <code>IdentityToken</code>.</li>
   </ul>
   <p>As que abrem o relato respondem por <code>BuildPublicAsync</code>, sem nome do time nem nome
   interno das colunas. O código e o crachá provam que o relato é da pessoa; só o link dá poder de

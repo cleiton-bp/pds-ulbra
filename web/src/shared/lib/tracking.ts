@@ -73,7 +73,8 @@ export interface TrackingLink {
 
 /**
  * Por onde a pagina entrou sem o token do link: a chave e o codigo pessoal, ou a chave
- * e o cracha do site. Nos dois casos ela le e nao age — agir continua pedindo o token.
+ * e o cracha do site. Nos dois casos ela le e da o retorno sobre o encerramento
+ * (confirmar com nota e reabrir); responder e anexar continuam pedindo o token.
  */
 export type PersonalEntry =
   | { key: string; reporterCode: string }

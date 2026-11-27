@@ -779,15 +779,23 @@ export interface PublicClosureActionsViewModel {
 }
 
 /**
+ * As credenciais do retorno sobre o encerramento: uma so, a mesma que abriu a pagina.
+ * O token do link, a chave com o codigo pessoal, ou a chave com o cracha do site.
+ */
+export type ReporterFeedbackCredential =
+  | { Token: string }
+  | { Key: string; ReporterCode: string }
+  | { Key: string; IdentityToken: string }
+
+/**
  * A resposta de quem relatou: resolveu.
  *
- * Carrega as mesmas duas credenciais da consulta, e pelo mesmo motivo: nao ha
- * sessao aqui, e o token do link e a unica prova de que o relato e de quem o
- * apresenta.
+ * Vale por qualquer porta que abriu o relato: o retorno sobre o encerramento e de
+ * quem relatou, e prender a nota ao link fazia o relato terminar sem resposta para
+ * quem volta pela lista pessoal. Responder e anexar continuam so pelo link.
  */
-export interface ConfirmReportRequest {
+export type ConfirmReportRequest = ReporterFeedbackCredential & {
   TrackingCode: string
-  Token: string
   /** A nota de 1 a 5, ou nula quando nao houve resposta. */
   Satisfaction: number | null
   /** **Nao e a nota zero, e nao e a sexta estrela.** Fica fora da escala. */
@@ -800,9 +808,8 @@ export interface ConfirmReportRequest {
  * **Nao leva nota**, e isso e decisao: quem reabre esta dizendo que o trabalho nao
  * acabou, e avaliar servico inacabado mede outra coisa.
  */
-export interface ReopenReportRequest {
+export type ReopenReportRequest = ReporterFeedbackCredential & {
   TrackingCode: string
-  Token: string
   /** Por que esta voltando. Obrigatorio quando o projeto pede. */
   Comment: string | null
 }

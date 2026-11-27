@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type {
   PublicAttachmentViewModel,
   PublicReportViewModel,
@@ -98,9 +98,8 @@ export function TrackingReport({
     // **Tres credenciais levam a esta pagina, e elas nao valem o mesmo.** O token
     // veio no link que a pessoa recebeu ao relatar, e da poder sobre o relato. O
     // codigo pessoal, ou o cracha do site, veio da lista dela e prova que o relato e
-    // dela — mas confirmar, reabrir e responder so aceitam o token do link, e a API
-    // ignora TrackingCodeCanAct ate elas aceitarem os outros. Quem decide isso e a
-    // API; aqui so muda por onde se pergunta.
+    // dela: com ele, ela confirma com nota e reabre, mas responder e anexar so aceitam
+    // o token do link. Quem decide isso e a API; aqui so muda por onde se pergunta.
     const peloToken = token.length > 0
     const peloCodigo = key.length > 0 && reporterCode.length > 0
     const pelaIdentidade = key.length > 0 && identityToken.length > 0
@@ -228,6 +227,14 @@ function Relato({
   const credenciais = { trackingCode: code, token }
 
   /**
+   * **O que a pessoa enviou fica recolhido**, e o protocolo continua a vista. Ela ja
+   * sabe o que escreveu; o que veio buscar e o andamento e a conversa, e o relato
+   * aberto empurrava os dois para baixo, com imagem e tudo.
+   */
+  const [enviadoAberto, setEnviadoAberto] = useState(false)
+  const idDoEnviado = useId()
+
+  /**
    * Os arquivos da reabertura. **Moram aqui, e nao no bloco do encerramento**:
    * reaberto, o relato deixa de ter fechamento e aquele bloco sai da tela — a lista
    * sairia junto, antes de subir.
@@ -333,7 +340,7 @@ function Relato({
           compacto ? 'p-4' : 'p-5',
         )}
       >
-        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="min-w-0">
             <div className="mb-1 text-caption text-fg-muted">Protocolo</div>
             <p className="font-mono text-fg text-lead tracking-wide">{relato.TrackingCode}</p>
@@ -343,26 +350,56 @@ function Relato({
           </div>
         </div>
 
-        <dl className="mb-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-detail">
-          <dt className="text-fg-muted">Tipo</dt>
-          <dd className="text-fg">{relato.TypeName}</dd>
-          <dt className="text-fg-muted">Recebido em</dt>
-          <dd className="text-fg">{formatDateTime(relato.CreatedAt)}</dd>
-        </dl>
+        <button
+          type="button"
+          onClick={() => setEnviadoAberto((aberto) => !aberto)}
+          aria-expanded={enviadoAberto}
+          aria-controls={idDoEnviado}
+          className="-mx-2 mt-3 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-detail text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
+        >
+          <Seta
+            className={cn(
+              'transition-transform duration-200 ease-out motion-reduce:transition-none',
+              enviadoAberto && 'rotate-90',
+            )}
+          />
+          {enviadoAberto ? 'Esconder o que você enviou' : 'Ver o que você enviou'}
+        </button>
 
-        <div className="mb-1.5 text-caption text-fg-muted">O que você escreveu</div>
-        {/* O titulo que ela mesma deu, quando deu. **Nunca o do time**: o titulo
-            reescrito no painel e interno, e a API nem o manda para ca. */}
-        {relato.Title && (
-          <p className="mb-1.5 break-words font-semibold text-fg text-lead">{relato.Title}</p>
-        )}
-        {/* Com perguntas, cada resposta embaixo da pergunta como ela estava quando a
-            pessoa enviou; sem perguntas, o texto como ela escreveu. */}
-        <ReportAnswers answers={relato.Answers} text={relato.Text} />
+        {/* Grade de uma linha indo de `0fr` a `1fr`: anima a altura automatica sem
+            chutar um `max-height`. Fechado, o bloco continua no DOM para a transicao
+            existir, e `inert` o tira do foco e do leitor de tela. */}
+        <div
+          id={idDoEnviado}
+          inert={!enviadoAberto}
+          className={cn(
+            'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
+            enviadoAberto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+          )}
+        >
+          <div className="overflow-hidden">
+            <dl className="mt-3 mb-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-detail">
+              <dt className="text-fg-muted">Tipo</dt>
+              <dd className="text-fg">{relato.TypeName}</dd>
+              <dt className="text-fg-muted">Recebido em</dt>
+              <dd className="text-fg">{formatDateTime(relato.CreatedAt)}</dd>
+            </dl>
 
-        {/* So os da criacao: os que vieram numa resposta aparecem na conversa,
-            logo abaixo dela. */}
-        <TrackingAttachments anexos={daCriacao} onExpired={midia.recarregar} />
+            <div className="mb-1.5 text-caption text-fg-muted">O que você escreveu</div>
+            {/* O titulo que ela mesma deu, quando deu. **Nunca o do time**: o titulo
+                reescrito no painel e interno, e a API nem o manda para ca. */}
+            {relato.Title && (
+              <p className="mb-1.5 break-words font-semibold text-fg text-lead">{relato.Title}</p>
+            )}
+            {/* Com perguntas, cada resposta embaixo da pergunta como ela estava quando a
+                pessoa enviou; sem perguntas, o texto como ela escreveu. */}
+            <ReportAnswers answers={relato.Answers} text={relato.Text} />
+
+            {/* So os da criacao: os que vieram numa resposta aparecem na conversa,
+                logo abaixo dela. */}
+            <TrackingAttachments anexos={daCriacao} onExpired={midia.recarregar} />
+          </div>
+        </div>
       </section>
 
       {/* Antes do andamento de propósito: quando há pergunta aberta, ela é a
@@ -422,6 +459,7 @@ function Relato({
           fechamento={relato.Closure}
           protocolo={code}
           token={token}
+          pessoal={pessoal}
           aoResponder={aoResponder}
           aoReabrir={aoReabrir}
           // Enquanto o envio de uma reabertura anterior ainda está na tela, a nova
@@ -499,5 +537,23 @@ function Carregando({ compacto }: { compacto: boolean }) {
         <Skeleton className="h-3 w-4/5" />
       </div>
     </>
+  )
+}
+
+/** A seta do "Ver o que você enviou": aponta para a direita e gira para baixo ao abrir. */
+function Seta({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className={cn('size-3.5 shrink-0', className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 4l4 4-4 4" />
+    </svg>
   )
 }
