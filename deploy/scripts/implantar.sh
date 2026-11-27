@@ -292,3 +292,7 @@ docker service ls --filter label=com.docker.stack.namespace=relatofacil --format
 docker service ls --filter label=com.docker.stack.namespace=relatofacil-dados --format '{{.Name}}  {{.Replicas}}  {{.Image}}'
 # Imagens sem uso ha mais de 30 dias saem; as em uso e as recentes ficam (voltar.sh precisa delas).
 docker image prune -af --filter "until=720h" >/dev/null || true
+# O cache da montagem fica em no maximo 5 GB (CACHE_DE_MONTAGEM para outro teto). Sem isto ele
+# crescia uns 2 GB a cada deploy e nunca saia: em 19 deploys chegou a 37 GB dos 44 usados no
+# disco. Fica o mais recente, e o proximo deploy continua aproveitando o que nao mudou.
+docker builder prune -f --max-used-space "${CACHE_DE_MONTAGEM:-5GB}" >/dev/null || true

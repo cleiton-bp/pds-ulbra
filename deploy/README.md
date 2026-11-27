@@ -154,6 +154,11 @@ nova sobe ao lado da antiga e só a substitui depois de responder; quem está us
 A borda é a exceção: dois Caddy não abrem a mesma porta, então trocar a borda derruba o acesso
 por alguns segundos. Ela só muda quando `deploy/borda/` muda.
 
+**O disco não cresce a cada deploy.** No fim, o script tira as imagens sem uso há mais de 30
+dias (as recentes ficam para o `voltar.sh`) e deixa o cache da montagem em no máximo 5 GB
+(`CACHE_DE_MONTAGEM` para outro teto). Antes desse teto, o cache crescia uns 2 GB por deploy e
+chegou a 37 GB. Para ver o uso: `df -h /` e `docker system df`.
+
 **Toda migração precisa aceitar a versão anterior da API**, que roda junto por alguns segundos
 no deploy e de novo se for preciso voltar. Renomear ou apagar coluna vira dois deploys:
 acrescenta, migra os dados, e só no seguinte remove.
