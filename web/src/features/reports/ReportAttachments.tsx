@@ -81,15 +81,16 @@ export function useReportAttachments(
 
 /**
  * O que o painel lembra embaixo dos arquivos. **O arquivo vem de quem relatou**, e o
- * que ha dentro de uma planilha ou de um documento ninguem conferiu: a leitura e sempre
- * download, e o resto e cuidado de quem abre.
+ * que ha dentro de uma planilha ou de um documento ninguem conferiu: o visualizador so
+ * mostra o texto, e o que se baixa e cuidado de quem abre no computador.
  */
 export const AVISO_DE_ARQUIVO =
   'Os arquivos vêm de quem relatou: abra só o que você esperava receber.'
 
 /**
  * O que a galeria mostra de um anexo, para o time: a imagem no tamanho que quem
- * relatou escolheu, e embaixo o nome original, o tamanho e a duracao.
+ * relatou escolheu, sem nada embaixo, e no arquivo o nome original, o tamanho e a
+ * duracao. O nome tambem e o do "Baixar".
  */
 export function toPanelGalleryItem(anexo: PanelAttachmentViewModel): GalleryItem {
   return {
@@ -101,6 +102,7 @@ export function toPanelGalleryItem(anexo: PanelAttachmentViewModel): GalleryItem
     displaySize: anexo.DisplaySize,
     contentType: anexo.ContentType,
     sizeBytes: anexo.SizeBytes,
+    fileName: anexo.OriginalName ?? undefined,
     caption: [
       anexo.OriginalName,
       formatBytes(anexo.SizeBytes),

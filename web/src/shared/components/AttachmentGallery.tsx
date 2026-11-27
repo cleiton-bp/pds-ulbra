@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AttachmentDisplaySize, MediaKind } from '@/contracts'
+import { AttachmentViewer, textoDoArquivo } from '@/shared/components/AttachmentViewer'
 import { cn } from '@/shared/lib/cn'
 import { DISPLAY_GRID_CLASS, DISPLAY_IMAGE_CLASS, displaySizeClass } from '@/shared/lib/displaySize'
-import { fileTypeBadge, fileTypeLabel } from '@/shared/lib/fileFormats'
-import { formatBytes } from '@/shared/lib/formatBytes'
+import { fileTypeBadge } from '@/shared/lib/fileFormats'
 
 /** Um arquivo, do jeito que a galeria precisa — sem saber de que lado ele veio. */
 export interface GalleryItem {
@@ -21,8 +21,14 @@ export interface GalleryItem {
   contentType?: string
   /** O tamanho, para quem vai baixar saber o que vem. */
   sizeBytes?: number
-  /** O que aparece embaixo da imagem, ou do video aberto, ou no arquivo. O painel mostra nome e tamanho; o lado de fora, nada. */
+  /**
+   * O que aparece no arquivo e embaixo do video aberto. O painel mostra nome e tamanho;
+   * o lado de fora, nada. **A imagem nao mostra**: ela aparece sozinha, e a legenda fica
+   * so no texto alternativo, para o leitor de tela.
+   */
   caption?: string
+  /** O nome com que o "Baixar" salva. So o painel tem; do lado de fora sai "anexo". */
+  fileName?: string
   /** Uma marca curta na miniatura do video, como "resposta". */
   badge?: string
 }
@@ -59,17 +65,20 @@ const ESPERA_MAXIMA_MS = 5 * 60_000
  * **A imagem aparece inteira, no tamanho que quem relatou escolheu** — um terco da
  * linha, meia, tres quartos ou a linha inteira —, na ordem em que ela montou. O
  * relato mostra o que a pessoa montou, do jeito que montou: o print e parte do que
- * ela disse, e nao um anexo para abrir. Um clique abre a imagem em tamanho real, em
- * outra aba.
+ * ela disse, e nao um anexo para abrir. **Sem nome embaixo**: so a imagem. Um clique a
+ * abre grande no visualizador (`AttachmentViewer`): no card do painel, dentro do proprio
+ * card; na pagina de acompanhamento e no formulario, por cima da tela.
  *
  * **O arquivo, e nao a miniatura.** A miniatura tem 320 pixels de largura: na linha
  * inteira, o texto de um print ficaria borrado. O print capturado sai em poucas
  * centenas de kilobytes, e a imagem so baixa quando chega perto da tela
  * (`loading="lazy"`).
  *
- * **O arquivo que nao e imagem so baixa** — uma linha com o tipo, o tamanho e
- * "Baixar", logo abaixo das imagens. O endereco dele sai da API com o anexo e o tipo
- * generico na propria assinatura: o navegador salva, e nunca abre na pagina.
+ * **O arquivo que nao e imagem abre no mesmo visualizador**: uma linha com o tipo, o
+ * tamanho e "Abrir", logo abaixo das imagens. O endereco dele continua assinado para
+ * baixar (anexo e tipo generico): o visualizador busca os bytes e os mostra como texto,
+ * tabela ou paginas, e nada do arquivo roda. As setas do visualizador passam pelas
+ * imagens e pelos arquivos, na ordem da tela.
  *
  * **O video antigo continua como era**: a miniatura numa grade, e o player so quando
  * alguem abre. Video nao entra mais, e os que ficaram nunca tiveram tamanho
@@ -137,13 +146,8 @@ export function AttachmentGallery({
   const [quebrados, setQuebrados] = useState<ReadonlyMap<string, { url: string; vezes: number }>>(
     () => new Map(),
   )
-  /**
-   * O arquivo cujo endereco estava vencendo no clique, e a lista de entao: o aviso vale
-   * ate os enderecos novos chegarem.
-   */
-  const [renovandoArquivo, setRenovandoArquivo] = useState<{ id: string; lista: string } | null>(
-    null,
-  )
+  /** O anexo aberto no visualizador, pela posicao entre imagens e arquivos. */
+  const [vendo, setVendo] = useState<number | null>(null)
 
   /**
    * Arquivo que ja pediu endereco novo por falha, o endereco com que falhou, e quando.
@@ -276,6 +280,8 @@ export function AttachmentGallery({
   // O que nao e imagem nem video so baixa — inclusive um tipo que esta tela ainda nao
   // conhece: baixar e o jeito seguro de entregar o que nao se sabe desenhar.
   const arquivos = items.filter((item) => item.kind !== 'Image' && item.kind !== 'Video')
+  // O visualizador passa pelas imagens e depois pelos arquivos, como aparecem na tela.
+  const visiveis = [...imagens, ...arquivos]
   const selecionado = videos.find((item) => item.id === aberto?.id) ?? null
   const urlDoVideo = selecionado ? (aberto?.videoUrl ?? selecionado.url) : null
 
@@ -300,6 +306,7 @@ export function AttachmentGallery({
                 onFalha={(url) => falhou(item.id, url)}
                 onCarga={() => carregou(item.id)}
                 onTentarDeNovo={() => tentarDeNovo(item.id)}
+                onAbrir={() => setVendo(i)}
               />
             </li>
           ))}
@@ -309,38 +316,15 @@ export function AttachmentGallery({
       {arquivos.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <ul aria-label={fileLabel} className="flex flex-col gap-1.5">
-            {arquivos.map((item) => {
-              // No painel, o nome e o tamanho; do lado de fora, o tipo e o tamanho — o nome
-              // original nunca sai.
-              const texto =
-                item.caption ??
-                [
-                  fileTypeLabel(item.contentType),
-                  item.sizeBytes !== undefined ? formatBytes(item.sizeBytes) : null,
-                ]
-                  .filter(Boolean)
-                  .join(', ')
+            {arquivos.map((item, i) => {
+              const texto = textoDoArquivo(item)
               return (
                 <li key={item.id}>
-                  <a
-                    href={item.url}
-                    download
-                    // Em outra aba: se o endereco falhar mesmo assim — o relogio de quem
-                    // olha atrasado —, o erro do armazenamento abre la, e nao no lugar
-                    // desta pagina, com a resposta que alguem estava escrevendo.
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`Baixar ${texto}`}
-                    onClick={(evento) => {
-                      // Vencido ou vencendo — o computador dormiu, a renovacao nao rodou:
-                      // pede um endereco novo em vez de abrir um que o armazenamento recusa.
-                      if (Date.parse(item.expiresAt) - Date.now() < RENOVAR_ANTES_MS) {
-                        evento.preventDefault()
-                        setRenovandoArquivo({ id: item.id, lista: assinatura })
-                        renovar()
-                      }
-                    }}
-                    className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-raised py-1 pr-2.5 pl-1.5 hover:bg-surface-sunken pointer-coarse:min-h-11"
+                  <button
+                    type="button"
+                    aria-label={`Abrir ${texto}`}
+                    onClick={() => setVendo(imagens.length + i)}
+                    className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-raised py-1 pr-2.5 pl-1.5 text-left transition-colors hover:bg-surface-sunken pointer-coarse:min-h-11"
                   >
                     <span
                       aria-hidden="true"
@@ -352,15 +336,9 @@ export function AttachmentGallery({
                       {texto}
                     </span>
                     <span className="flex-none font-medium text-detail text-fg underline underline-offset-4">
-                      Baixar
+                      Abrir
                     </span>
-                  </a>
-                  {renovandoArquivo?.id === item.id && renovandoArquivo.lista === assinatura && (
-                    <p role="status" className="mt-1 text-caption text-fg-muted leading-normal">
-                      O endereço deste arquivo tinha vencido. Pedimos um novo, então clique em
-                      Baixar de novo em alguns segundos.
-                    </p>
-                  )}
+                  </button>
                 </li>
               )
             })}
@@ -470,6 +448,14 @@ export function AttachmentGallery({
           )}
         </figure>
       )}
+
+      <AttachmentViewer
+        items={visiveis}
+        aberto={vendo}
+        onAbrir={setVendo}
+        onFechar={() => setVendo(null)}
+        onExpired={renovar}
+      />
     </div>
   )
 }
@@ -480,8 +466,8 @@ export function AttachmentGallery({
  * **A que ja carregou fica no endereco em que carregou.** A lista renova os enderecos a
  * cada poucos minutos; trocar o `src` de uma imagem ja na tela a baixaria de novo,
  * inteira, a cada renovacao, sem mudar nada do que a pessoa ve. So troca se o endereco
- * dela falhar — a imagem montada de novo, com o endereco velho fora do cache. O link
- * de "abrir" usa sempre o da lista, que e o que ainda vale.
+ * dela falhar: a imagem montada de novo, com o endereco velho fora do cache. O
+ * visualizador usa sempre o da lista, que e o que ainda vale.
  *
  * A que ainda nao carregou — longe da tela, esperando o `lazy` — usa o da lista.
  */
@@ -492,6 +478,7 @@ function ImagemAnexada({
   onFalha,
   onCarga,
   onTentarDeNovo,
+  onAbrir,
 }: {
   item: GalleryItem
   /** Como o leitor de tela chama a imagem, antes da legenda. */
@@ -500,6 +487,8 @@ function ImagemAnexada({
   onFalha: (url: string) => void
   onCarga: () => void
   onTentarDeNovo: () => void
+  /** Abre a imagem grande, no visualizador. */
+  onAbrir: () => void
 }) {
   const [fixa, setFixa] = useState<string | null>(null)
   const src = fixa ?? item.url
@@ -509,14 +498,13 @@ function ImagemAnexada({
       {quebrada ? (
         <NaoCarregou texto={`${nome} não carregou.`} onTentarDeNovo={onTentarDeNovo} />
       ) : (
-        // Abrir em outra aba e o jeito de ver em tamanho real. `noreferrer` impede a
-        // aba nova de alcancar esta pagina pelo `window.opener`.
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noreferrer"
-          title="Abrir em tamanho real"
-          className="block overflow-hidden rounded-lg border border-border bg-surface-sunken"
+        // Abre grande no visualizador, por cima da tela, sem sair da ferramenta.
+        <button
+          type="button"
+          onClick={onAbrir}
+          aria-label={`Abrir ${nome}`}
+          title="Ver maior"
+          className="block w-full overflow-hidden rounded-lg border border-border bg-surface-sunken transition-opacity hover:opacity-90"
         >
           <img
             src={src}
@@ -538,13 +526,7 @@ function ImagemAnexada({
             }}
             className={DISPLAY_IMAGE_CLASS}
           />
-        </a>
-      )}
-      {/* Cortada na imagem pequena; inteira ao passar o mouse. */}
-      {item.caption && (
-        <figcaption title={item.caption} className="truncate text-caption text-fg-muted">
-          {item.caption}
-        </figcaption>
+        </button>
       )}
     </figure>
   )

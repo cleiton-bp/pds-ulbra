@@ -777,9 +777,10 @@ describe('abrir um relato', () => {
       fireEvent.click(await screen.findByText(entreAspas('o botao some')))
 
       await screen.findByRole('img', { name: /ainda-quebrado\.png/ })
+      // A legenda nao aparece mais embaixo da imagem: o nome fica no texto alternativo.
       const nomes = Array.from(
-        screen.getByRole('list', { name: 'Imagens do relato' }).querySelectorAll('figcaption'),
-      ).map((legenda) => legenda.textContent?.split(', ')[0])
+        screen.getByRole('list', { name: 'Imagens do relato' }).querySelectorAll('img'),
+      ).map((imagem) => imagem.alt.replace(/^Imagem \d de \d: /, '').split(', ')[0])
       expect(nomes).toEqual(['primeiro.png', 'segundo.png', 'ainda-quebrado.png'])
     })
   })
