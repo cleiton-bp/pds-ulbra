@@ -70,10 +70,12 @@ export interface ColunaSugerida {
  * (um com Salvar, outro na hora). O mapa e versionado — cada gravacao e um retrato do
  * conjunto —, entao ele so e gravado quando a etapa mudou: renomear nao cria versao.
  *
- * **Desativar, e nao apagar.** Nao ha botao de apagar em lugar nenhum desta tela:
- * card antigo aponta para a coluna, e uma coluna que some leva junto o sentido de
- * tudo que passou por ela. O dialogo diz isso com todas as letras — e quantos cards
- * estao nela agora, que e o tamanho do efeito. A coluna que e entrada de um tipo nao
+ * **Desativar, e excluir so o que nao deixou rastro.** A coluna que nunca recebeu card
+ * (marcada "Sem uso", a criada para testar) e a so do time ja desativada ganham o
+ * "Excluir", com confirmacao e "Desfazer". As outras se desativam: card antigo aponta
+ * para elas. Onde a pessoa esperaria o "Excluir" e ele nao aparece, a linha diz por que.
+ * O dialogo de desativar diz quantos cards estao na coluna agora, que e o tamanho do
+ * efeito. A coluna que e entrada de um tipo nao
  * se desativa, e a linha diz onde trocar em vez de oferecer um botao que so recusa.
  *
  * **Reordenar, criar e desativar valem na hora** (`useListOrder`, otimista com
@@ -118,6 +120,7 @@ export function ProjectStatesScreen() {
     loading,
     failed,
     reload,
+    revalidate: revalidarColunas,
   } = useAsyncResource(
     useCallback(() => projectStateService.listProjectStates(project.PublicId), [project.PublicId]),
   )
@@ -149,6 +152,8 @@ export function ProjectStatesScreen() {
   const { closing: fechando, markClosing } = useClosingItem<StateDraft>()
 
   const [retiring, setRetiring] = useState<ProjectStateViewModel | null>(null)
+  /** A coluna cuja exclusao esta sendo perguntada. */
+  const [excluindo, setExcluindo] = useState<ProjectStateViewModel | null>(null)
   /** Quantos cards estao na coluna que vai ser desativada. Nulo enquanto conta. */
   const [cardsNaColuna, setCardsNaColuna] = useState<number | null>(null)
 
@@ -443,6 +448,8 @@ export function ProjectStatesScreen() {
         : await projectStateService.deactivateProjectState(project.PublicId, state.PublicId)
 
       trocarColuna(saved)
+      // Desativar e reativar mudam o que as outras podem: a unica ativa, a so do time.
+      revalidarColunas()
       toast.done(active ? 'Coluna de volta ao quadro.' : 'Coluna desativada.')
       // "Desativar" e "Reativar" sao o mesmo lugar do cabecalho: o foco fica nele.
       devolverFoco(idAtivo(state.PublicId))
@@ -451,6 +458,89 @@ export function ProjectStatesScreen() {
       // (alguem escolheu a coluna num tipo enquanto esta tela estava aberta), e a
       // mensagem da API diz o que fazer.
       toast.error(describeError(failure))
+    }
+  }
+
+  /**
+   * Exclui a coluna que nao deixou rastro. Sai da lista na hora, e o aviso traz o
+   * "Desfazer": a coluna volta como estava, na mesma posicao.
+   */
+  async function excluir(state: ProjectStateViewModel) {
+    try {
+      await projectStateService.deleteProjectState(project.PublicId, state.PublicId)
+      if (aberto === state.PublicId) setAberto(null)
+      setStates((lista) => (lista ?? []).filter((item) => item.PublicId !== state.PublicId))
+      // A que sobrou pode ter virado a unica ativa, ou a que encerra.
+      revalidarColunas()
+      toast.done(`Coluna “${state.Name}” excluída.`, {
+        action: { label: 'Desfazer', run: () => void restaurar(state) },
+      })
+    } catch (failure) {
+      // A recusa aqui e a corrida (um card entrou nela enquanto esta tela estava aberta),
+      // e a mensagem da API diz o que fazer.
+      toast.error(describeError(failure))
+      revalidarColunas()
+    }
+  }
+
+  async function restaurar(state: ProjectStateViewModel) {
+    try {
+      await projectStateService.restoreProjectState(project.PublicId, state.PublicId)
+      revalidarColunas()
+      toast.done(`Coluna “${state.Name}” de volta.`)
+    } catch (failure) {
+      toast.error(describeError(failure))
+    }
+  }
+
+  /** O que a confirmacao de excluir diz: nada se perde, e o que muda em volta. */
+  function descricaoDeExcluir(state: ProjectStateViewModel | null): string {
+    if (!state) return ''
+    if (!state.NeverUsed) {
+      return 'Os cards que passaram por ela continuam com esse nome no histórico, e nada mais depende dela.'
+    }
+    return state.IsActive && encerra(state)
+      ? 'Ela nunca recebeu card, então nada se perde, e a coluna anterior passa a encerrar o relato.'
+      : 'Ela nunca recebeu card, então nada se perde.'
+  }
+
+  /**
+   * Por que o "Excluir" nao aparece, numa frase. **So onde a pessoa o esperaria**: na
+   * coluna desativada e na que nunca foi usada. Na ativa com cards o motivo seria so
+   * barulho, porque o caminho dela e desativar.
+   */
+  function motivoDeNaoExcluir(state: ProjectStateViewModel, prendeTipo: boolean): ReactNode {
+    if (state.CanDelete || (!state.NeverUsed && state.IsActive)) return null
+    switch (state.DeleteBlockedBy) {
+      case 'Cards':
+        return 'Para excluir, mova antes os cards que ainda estão nela.'
+      case 'TypeEntry':
+        // A ativa ja diz onde trocar, na linha da entrada.
+        return prendeTipo ? null : (
+          <>
+            É a entrada de um tipo de relato, então troque em{' '}
+            <Link to="../report-types" className="text-fg underline underline-offset-4">
+              Tipos de relato
+            </Link>{' '}
+            antes de excluir.
+          </>
+        )
+      case 'ReopenTarget':
+        return (
+          <>
+            Recebe o relato reaberto, então troque em{' '}
+            <Link to="../cycle" className="text-fg underline underline-offset-4">
+              Encerramento
+            </Link>{' '}
+            antes de excluir.
+          </>
+        )
+      case 'OnlyActiveColumn':
+        return 'É a única coluna ativa, e o quadro precisa de pelo menos uma.'
+      case 'PublicStage':
+        return 'Já teve cards e mostra uma etapa para quem relatou, então fica só desativada.'
+      default:
+        return null
     }
   }
 
@@ -475,6 +565,8 @@ export function ProjectStatesScreen() {
     }
     if (encerra(state)) itens.push(<Marca key="encerra">Encerra o relato</Marca>)
     if (!state.IsActive) itens.push(<Marca key="desativada">Desativada</Marca>)
+    // A coluna recem-criada, que ninguem usou: e o que explica o "Excluir" nela.
+    if (state.NeverUsed) itens.push(<Marca key="sem-uso">Sem uso</Marca>)
     if (prendem.length > 0) {
       itens.push(
         <p
@@ -487,6 +579,14 @@ export function ProjectStatesScreen() {
             Tipos de relato
           </Link>
           .
+        </p>,
+      )
+    }
+    const motivo = motivoDeNaoExcluir(state, prendem.length > 0)
+    if (motivo) {
+      itens.push(
+        <p key="excluir" className="basis-full text-caption text-fg-muted leading-relaxed">
+          {motivo}
         </p>,
       )
     }
@@ -747,33 +847,45 @@ export function ProjectStatesScreen() {
                     tags={marcas(state)}
                     bodyClassName="p-3.5"
                     actions={
-                      state.IsActive ? (
-                        <Button
-                          id={idAtivo(state.PublicId)}
-                          size="sm"
-                          variant="ghost"
-                          aria-label={`Desativar ${state.Name}`}
-                          // A entrada de um tipo: o caminho esta escrito embaixo do nome,
-                          // em vez de um botao que so recusa.
-                          disabled={prendem.length > 0}
-                          aria-describedby={
-                            prendem.length > 0 ? idEntrada(state.PublicId) : undefined
-                          }
-                          onClick={() => perguntarDesativar(state)}
-                        >
-                          Desativar
-                        </Button>
-                      ) : (
-                        <Button
-                          id={idAtivo(state.PublicId)}
-                          size="sm"
-                          variant="ghost"
-                          aria-label={`Reativar ${state.Name}`}
-                          onClick={() => void setActive(state, true)}
-                        >
-                          Reativar
-                        </Button>
-                      )
+                      <>
+                        {state.CanDelete && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label={`Excluir ${state.Name}`}
+                            onClick={() => setExcluindo(state)}
+                          >
+                            Excluir
+                          </Button>
+                        )}
+                        {state.IsActive ? (
+                          <Button
+                            id={idAtivo(state.PublicId)}
+                            size="sm"
+                            variant="ghost"
+                            aria-label={`Desativar ${state.Name}`}
+                            // A entrada de um tipo: o caminho esta escrito embaixo do nome,
+                            // em vez de um botao que so recusa.
+                            disabled={prendem.length > 0}
+                            aria-describedby={
+                              prendem.length > 0 ? idEntrada(state.PublicId) : undefined
+                            }
+                            onClick={() => perguntarDesativar(state)}
+                          >
+                            Desativar
+                          </Button>
+                        ) : (
+                          <Button
+                            id={idAtivo(state.PublicId)}
+                            size="sm"
+                            variant="ghost"
+                            aria-label={`Reativar ${state.Name}`}
+                            onClick={() => void setActive(state, true)}
+                          >
+                            Reativar
+                          </Button>
+                        )}
+                      </>
                     }
                   >
                     {editor(state)}
@@ -827,6 +939,18 @@ export function ProjectStatesScreen() {
         }
         confirmLabel="Desativar"
         onConfirm={() => (retiring ? setActive(retiring, false) : undefined)}
+      />
+
+      <ConfirmDialog
+        open={excluindo !== null}
+        onOpenChange={(open) => {
+          if (!open) setExcluindo(null)
+        }}
+        title={excluindo ? `Excluir “${excluindo.Name}”` : 'Excluir coluna'}
+        description={descricaoDeExcluir(excluindo)}
+        confirmLabel="Excluir"
+        tone="warn"
+        onConfirm={() => (excluindo ? excluir(excluindo) : undefined)}
       />
 
       <ConfirmDialog

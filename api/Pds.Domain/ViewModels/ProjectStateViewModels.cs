@@ -1,3 +1,5 @@
+using Pds.Domain.Enums;
+
 namespace Pds.Domain.ViewModels;
 
 /// <summary>
@@ -8,9 +10,15 @@ namespace Pds.Domain.ViewModels;
 /// <param name="Position">A ordem na fila, contada a partir de zero.</param>
 /// <param name="IsActive">Falso quando o estado foi aposentado: ele continua no historico, mas nao recebe relato novo.</param>
 /// <param name="CreatedAt">Quando o estado foi criado, em UTC.</param>
+/// <param name="NeverUsed">Nenhum card passou por ela: a coluna criada para testar, por exemplo.</param>
+/// <param name="CanDelete">Pode ser excluida agora (ver <see cref="ProjectStateDeleteBlockEnum"/>).</param>
+/// <param name="DeleteBlockedBy">Por que nao pode, quando nao pode. Nulo quando pode.</param>
 public record ProjectStateViewModel(
     Guid PublicId,
     string Name,
     int Position,
     bool IsActive,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    bool NeverUsed = false,
+    bool CanDelete = false,
+    ProjectStateDeleteBlockEnum? DeleteBlockedBy = null);

@@ -137,6 +137,7 @@ export {
 } from '@/contracts/projectReportType'
 export type {
   CreateProjectStateRequest,
+  ProjectStateDeleteBlock,
   ProjectStateViewModel,
   RenameProjectStateRequest,
   ReorderProjectStatesRequest,

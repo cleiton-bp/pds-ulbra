@@ -36,4 +36,10 @@ public interface IProjectStateService
 
     /// <summary>Traz um estado aposentado de volta para a fila.</summary>
     Task<ProjectStateViewModel> ActivateAsync(Guid projectPublicId, Guid statePublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>Exclui a coluna que nao deixou rastro (ver a implementacao).</summary>
+    Task DeleteAsync(Guid projectPublicId, Guid statePublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>Traz de volta a coluna excluida: o "Desfazer".</summary>
+    Task<ProjectStateViewModel> RestoreAsync(Guid projectPublicId, Guid statePublicId, CancellationToken cancellationToken = default);
 }

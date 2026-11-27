@@ -53,4 +53,7 @@ public interface IProjectStateRepository : IBaseRepository<ProjectState>
 
     /// <summary>Quantas colunas ativas o projeto tem.</summary>
     Task<int> CountActiveAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>A coluna excluida deste projeto, para o "Desfazer". Nula se nao foi excluida.</summary>
+    Task<ProjectState?> FindDeletedAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);
 }

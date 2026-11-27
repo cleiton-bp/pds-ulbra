@@ -1,5 +1,5 @@
 import type { ProjectStateViewModel } from '@/contracts'
-import { apiGet, apiPost, apiPut } from '@/data/api/httpClient'
+import { apiDelete, apiGet, apiPost, apiPut } from '@/data/api/httpClient'
 import type { ProjectStateService } from '@/data/projectStateService'
 
 export const apiProjectStateService: ProjectStateService = {
@@ -20,4 +20,11 @@ export const apiProjectStateService: ProjectStateService = {
 
   activateProjectState: (publicId, statePublicId) =>
     apiPost<ProjectStateViewModel>(`/projects/${publicId}/states/${statePublicId}/activate`),
+
+  deleteProjectState: async (publicId, statePublicId) => {
+    await apiDelete(`/projects/${publicId}/states/${statePublicId}`)
+  },
+
+  restoreProjectState: (publicId, statePublicId) =>
+    apiPost<ProjectStateViewModel>(`/projects/${publicId}/states/${statePublicId}/restore`),
 }

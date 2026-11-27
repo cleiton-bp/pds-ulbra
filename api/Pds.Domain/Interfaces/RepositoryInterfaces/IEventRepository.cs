@@ -82,6 +82,12 @@ public interface IEventRepository
     /// dela. E a contagem do limite por conta, ao lado do limite por projeto.
     /// </summary>
     Task<int> CountAccountInvitationEmailsSinceAsync(long accountId, DateTime since, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// As colunas em que algum card ja entrou ou de que ja saiu, pelos movimentos gravados.
+    /// A coluna que nunca aparece aqui nunca recebeu card.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ListStatesEverEnteredAsync(long projectId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

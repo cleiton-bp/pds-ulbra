@@ -86,4 +86,12 @@ public class ProjectReportTypeRepository : BaseRepository<ProjectReportType, Dat
         // coluna aposentada, que e o que aposentar existe para impedir.
         => Context.ProjectReportTypes
             .AnyAsync(type => type.InitialStateId == projectStateId, cancellationToken);
+
+    public async Task<IReadOnlyList<long>> ListEntryStateIdsAsync(long projectId, CancellationToken cancellationToken = default)
+        // Os desativados contam, pelo mesmo motivo de `AnyUsingStateAsync`.
+        => await Context.ProjectReportTypes
+            .Where(type => type.ProjectId == projectId && type.InitialStateId != null)
+            .Select(type => type.InitialStateId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
 }

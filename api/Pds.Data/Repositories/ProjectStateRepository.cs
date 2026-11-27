@@ -68,4 +68,14 @@ public class ProjectStateRepository : BaseRepository<ProjectState, DataContext>,
             .Where(state => state.ProjectId == projectId)
             .Select(state => (int?)state.Position)
             .MaxAsync(cancellationToken);
+
+    public Task<ProjectState?> FindDeletedAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
+        // Sem os filtros, que escondem a excluida: o projeto ja foi conferido por quem chama.
+        => Context.ProjectStates
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(state => state.ProjectId == projectId
+                                          && state.PublicId == publicId
+                                          && state.DeletedAt != null
+                                          && state.Project.DeletedAt == null,
+                cancellationToken);
 }

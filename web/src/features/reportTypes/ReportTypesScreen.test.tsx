@@ -92,6 +92,9 @@ function coluna(publicId: string, name: string, position: number): ProjectStateV
     Position: position,
     IsActive: true,
     CreatedAt: '2026-10-01T12:00:00.000Z',
+    NeverUsed: false,
+    CanDelete: false,
+    DeleteBlockedBy: 'StillActive',
   }
 }
 
