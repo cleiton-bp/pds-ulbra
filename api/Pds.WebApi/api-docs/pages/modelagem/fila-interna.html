@@ -5,7 +5,7 @@
   <strong>Em resumo</strong>
   <ul>
     <li>Cada projeto tem as próprias colunas, que nascem do modelo escolhido: no Quadro simples, <strong>A fazer</strong>, <strong>Fazendo</strong> e <strong>Feito</strong>.</li>
-    <li>Coluna não se apaga, se desativa, para o histórico não perder o nome.</li>
+    <li>Coluna se desativa; só a que não deixou rastro se exclui, e o histórico guarda o nome de cada movimento.</li>
     <li>A coluna de entrada de algum tipo de relato não pode ser desativada.</li>
   </ul>
 </div>
@@ -33,9 +33,12 @@ lista fixa, a tradução para a jornada pública só mapearia os nossos nomes no
 </div>
 
 <div class="note warn">
-  <strong>Coluna não se apaga, se desativa</strong>
-  <p>Não existe rota de remoção: o relato antigo aponta para a coluna, e o histórico ficaria com uma
-  lacuna. <code>deleted_at</code> vem da base de toda tabela, mas nada escreve nele aqui.</p>
+  <strong>Coluna se desativa, e só a que não deixou rastro se exclui</strong>
+  <p>Excluir marca <code>deleted_at</code>, e vale só para a coluna sem card nenhum (nem arquivado nem
+  apagado), que não é entrada de tipo nem destino da reabertura, e que nunca recebeu card ou é só do
+  time (sem etapa pública) e já está desativada. Cada movimento guarda o nome da coluna
+  (<code>from_name</code>, <code>to_name</code>), e o histórico continua legível. O índice único do nome
+  ignora as excluídas, e <code>restore</code> as traz de volta.</p>
 </div>
 
 <div class="cartoes">

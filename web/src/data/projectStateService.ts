@@ -37,4 +37,10 @@ export interface ProjectStateService {
 
   /** Traz de volta para a fila. */
   activateProjectState(publicId: string, statePublicId: string): Promise<ProjectStateViewModel>
+
+  /** Exclui a coluna que nao deixou rastro (ver `CanDelete`). */
+  deleteProjectState(publicId: string, statePublicId: string): Promise<void>
+
+  /** O "Desfazer" da exclusao: a coluna volta como estava. */
+  restoreProjectState(publicId: string, statePublicId: string): Promise<ProjectStateViewModel>
 }

@@ -16,7 +16,25 @@ export interface ProjectStateViewModel {
   /** Falso quando o estado foi aposentado: continua no historico, mas nao recebe relato novo. */
   IsActive: boolean
   CreatedAt: string
+  /** Nenhum card passou por ela: a coluna criada para testar, por exemplo. */
+  NeverUsed: boolean
+  /**
+   * Pode ser excluida agora: sem card nenhum, sem ser entrada de tipo nem destino da
+   * reabertura, e que nunca recebeu card ou e so do time e ja foi desativada.
+   */
+  CanDelete: boolean
+  /** Por que nao pode, quando nao pode. Nulo quando pode. */
+  DeleteBlockedBy: ProjectStateDeleteBlock | null
 }
+
+/** Espelho de `ProjectStateDeleteBlockEnum`. */
+export type ProjectStateDeleteBlock =
+  | 'Cards'
+  | 'TypeEntry'
+  | 'ReopenTarget'
+  | 'OnlyActiveColumn'
+  | 'PublicStage'
+  | 'StillActive'
 
 /** Limite da coluna `name`: cabe num rotulo de coluna, e nao numa frase. */
 export const MAX_STATE_NAME_LENGTH = 40

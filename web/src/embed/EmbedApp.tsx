@@ -888,7 +888,13 @@ export function EmbedApp({
                   },
                 }
           }
-          onBack={() => setView('form')}
+          onBack={() => {
+            // **A confirmacao e so aviso, e nao um lugar para voltar.** Quem foi dela para a
+            // lista ja tem o relato la, junto dos outros; voltar abre o formulario limpo,
+            // como o "Relatar outra coisa" e o "Fechar" da confirmacao ja faziam.
+            if (created) reset()
+            setView('form')
+          }}
         />
       </div>
     )
@@ -983,8 +989,8 @@ export function EmbedApp({
         />
 
         <div className="mt-auto flex flex-wrap items-center gap-2">
-          {/* A lista mostra este relato junto dos outros, e voltar dela traz esta tela de
-              novo, com o link ainda aqui. */}
+          {/* A lista mostra este relato junto dos outros, e voltar dela abre o formulario
+              limpo: esta tela e so o aviso de que chegou. */}
           {temLista && !unicaVolta && (
             <Button size="sm" onClick={() => setView('list')}>
               Ver os meus relatos

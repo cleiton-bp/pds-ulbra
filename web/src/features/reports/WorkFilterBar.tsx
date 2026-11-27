@@ -107,6 +107,15 @@ export interface ListControls {
   sprints: SprintViewModel[] | null
   ordem: ReportSort | null
   aoOrdenar: (ordem: ReportSort | null) => void
+  /**
+   * Os blocos da lista, no mesmo menu da ordem: e um jeito de ler a lista, como a ordem, e
+   * um botao a mais na barra tomava o lugar de filtro.
+   */
+  blocos?: {
+    valor: string
+    opcoes: { value: string; label: string }[]
+    aoEscolher: (valor: string) => void
+  }
 }
 
 /**
@@ -752,7 +761,7 @@ export function WorkFilterBar({
         <FilterBarEnd>
           {lista && (
             <div className={aVista}>
-              <MenuDeOrdem ordem={lista.ordem} aoOrdenar={lista.aoOrdenar} />
+              <MenuDeOrdem ordem={lista.ordem} aoOrdenar={lista.aoOrdenar} blocos={lista.blocos} />
             </div>
           )}
           {vista && <div className={aVista}>{vista}</div>}
@@ -801,7 +810,13 @@ export function WorkFilterBar({
             </div>
             {(lista || vista) && (
               <div className="flex flex-wrap gap-2 border-border border-t pt-4">
-                {lista && <MenuDeOrdem ordem={lista.ordem} aoOrdenar={lista.aoOrdenar} />}
+                {lista && (
+                  <MenuDeOrdem
+                    ordem={lista.ordem}
+                    aoOrdenar={lista.aoOrdenar}
+                    blocos={lista.blocos}
+                  />
+                )}
                 {vista}
               </div>
             )}
@@ -1435,10 +1450,14 @@ function ItensDeSprint({
 function MenuDeOrdem({
   ordem,
   aoOrdenar,
+  blocos,
 }: {
   ordem: ReportSort | null
   aoOrdenar: (ordem: ReportSort | null) => void
+  blocos?: ListControls['blocos']
 }) {
+  const rotuloDaOrdem = useId()
+  const rotuloDosBlocos = useId()
   const vigente: ReportSort = ordem ?? { field: 'created', dir: 'desc' }
   const chave = (sort: ReportSort) => `${sort.field}.${sort.dir}`
   const listada = ORDENS.find((item) => chave(item.sort) === chave(vigente))
@@ -1454,8 +1473,56 @@ function MenuDeOrdem({
         <Seta />
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Content align="start" sideOffset={6} collisionPadding={8} className={MOLDURA}>
+        <Menu.Content
+          align="start"
+          sideOffset={6}
+          collisionPadding={8}
+          // Com os blocos, mais alto: as duas partes cabem sem rolar na tela comum.
+          className={cn(
+            MOLDURA,
+            blocos && 'max-h-[min(34rem,var(--radix-dropdown-menu-content-available-height))]',
+          )}
+        >
+          {blocos && (
+            <>
+              {/* Os blocos em cima: sao poucos, e e o que muda o jeito de ler a lista inteira.
+                  O nome e rotulo do grupo, e nao item: o leitor de tela o anuncia ao entrar
+                  nele, e as setas pulam o rotulo. */}
+              <Menu.Label
+                id={rotuloDosBlocos}
+                className="px-2.5 pt-1 pb-1 text-caption text-fg-muted"
+              >
+                Blocos
+              </Menu.Label>
+              <Menu.RadioGroup
+                aria-labelledby={rotuloDosBlocos}
+                value={blocos.valor}
+                onValueChange={blocos.aoEscolher}
+              >
+                {blocos.opcoes.map((opcao) => (
+                  <Menu.RadioItem
+                    key={opcao.value}
+                    value={opcao.value}
+                    // Escolher nao fecha: a pessoa experimenta um jeito, ve a lista mudar atras
+                    // e troca de novo, sem reabrir o menu a cada tentativa.
+                    onSelect={(evento) => evento.preventDefault()}
+                    className={ITEM}
+                  >
+                    <Marca marcada={blocos.valor === opcao.value} redonda />
+                    <span className="min-w-0 truncate">{opcao.label}</span>
+                  </Menu.RadioItem>
+                ))}
+              </Menu.RadioGroup>
+              <Menu.Separator className="my-1 h-px bg-border" />
+            </>
+          )}
+          {blocos && (
+            <Menu.Label id={rotuloDaOrdem} className="px-2.5 pt-1 pb-1 text-caption text-fg-muted">
+              Ordenar
+            </Menu.Label>
+          )}
           <Menu.RadioGroup
+            aria-labelledby={blocos ? rotuloDaOrdem : undefined}
             value={chave(vigente)}
             onValueChange={(valor) => {
               const achada = ORDENS.find((item) => chave(item.sort) === valor)
@@ -1467,7 +1534,13 @@ function MenuDeOrdem({
             }}
           >
             {ORDENS.map((item) => (
-              <Menu.RadioItem key={chave(item.sort)} value={chave(item.sort)} className={ITEM}>
+              <Menu.RadioItem
+                key={chave(item.sort)}
+                value={chave(item.sort)}
+                // Como nos blocos: a ordem se experimenta com o menu aberto.
+                onSelect={(evento) => evento.preventDefault()}
+                className={ITEM}
+              >
                 <Marca marcada={chave(item.sort) === chave(vigente)} redonda />
                 <span className="min-w-0 truncate">{item.label}</span>
               </Menu.RadioItem>

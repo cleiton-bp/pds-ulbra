@@ -242,8 +242,8 @@ chave. As duas respondem igual:</p>
   <code>Cache-Control: no-store</code>, para nenhum proxy guardar endereço válido. Sem armazenamento,
   o 409 evita que o time ache que o relato nunca teve anexo.</p>
   <p>O arquivo que não é imagem sai com <code>application/octet-stream</code> e
-  <code>Content-Disposition: attachment</code> dentro da assinatura: ninguém abre PDF, log ou planilha
-  na página. Fora, baixa como <code>anexo</code> com a extensão; no painel, com o nome original,
+  <code>Content-Disposition: attachment</code> dentro da assinatura: o navegador nunca abre PDF, log
+  ou planilha como página, e o visualizador da tela lê os bytes e os desenha como texto. Fora, baixa como <code>anexo</code> com a extensão; no painel, com o nome original,
   terminando numa extensão do catálogo.</p>
 </details>
 

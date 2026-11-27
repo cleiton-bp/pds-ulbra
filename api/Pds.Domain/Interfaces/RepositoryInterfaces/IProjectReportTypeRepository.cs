@@ -47,4 +47,7 @@ public interface IProjectReportTypeRepository : IBaseRepository<ProjectReportTyp
     /// estado que ainda e a porta de entrada de alguem.
     /// </summary>
     Task<bool> AnyUsingStateAsync(long projectStateId, CancellationToken cancellationToken = default);
+
+    /// <summary>As colunas que sao entrada de algum tipo, os desativados contando.</summary>
+    Task<IReadOnlyList<long>> ListEntryStateIdsAsync(long projectId, CancellationToken cancellationToken = default);
 }

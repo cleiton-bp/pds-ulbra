@@ -266,6 +266,8 @@ describe('card do time e arquivar', () => {
   afterEach(cleanup)
 
   beforeEach(() => {
+    // Estes testes sao da tabela corrida: a lista em blocos tem os testes dela.
+    window.localStorage.setItem('pds.web.trabalho.lista-blocos', 'none')
     for (const mock of Object.values(dublê)) mock.mockReset()
     dublê.contar.mockResolvedValue([coluna('s-1', 'Análise', 1), coluna('s-2', 'Pronto', 0, true)])
     dublê.comentarios.mockResolvedValue({ Internal: [], Public: [] })

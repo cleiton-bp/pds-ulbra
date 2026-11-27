@@ -407,13 +407,16 @@ public class PublicReportsController : BaseController
     /// manda é a nossa própria página, e perder a confirmação por causa de um campo
     /// que a pessoa não escolheu mandar seria punir ela por um erro nosso.
     ///
-    /// As duas credenciais são as mesmas da consulta, com a mesma recusa única.
+    /// **Vale por qualquer porta que abriu o relato**: o token do link, a chave com o
+    /// código pessoal, ou a chave com o crachá do site, com a mesma recusa única. O
+    /// retorno sobre o encerramento é de quem relatou, e prender a nota ao link fazia o
+    /// relato terminar sem resposta para quem volta pela lista pessoal.
     /// </remarks>
-    /// <param name="dto">Protocolo, token e a resposta sobre a nota.</param>
+    /// <param name="dto">Protocolo, uma das credenciais e a resposta sobre a nota.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">O relato, agora confirmado.</response>
     /// <response code="400">Nota fora de 1 a 5, nota e recusa juntas, ou nota obrigatória sem resposta.</response>
-    /// <response code="404">Link incompleto, protocolo desconhecido, ou token que não é deste relato.</response>
+    /// <response code="404">Credencial incompleta, protocolo desconhecido, ou credencial que não é deste relato.</response>
     /// <response code="409">O relato não está encerrado, ou você já respondeu sobre ele.</response>
     [HttpPost("confirm")]
     [Consumes("application/json")]
@@ -465,13 +468,16 @@ public class PublicReportsController : BaseController
     ///
     /// O motivo volta na resposta, em `Reopenings`, junto com o de cada reabertura
     /// anterior.
+    ///
+    /// Aceita as mesmas credenciais de `confirm`: o link, o código pessoal ou o crachá.
+    /// Os arquivos da reabertura continuam só pelo link.
     /// </remarks>
-    /// <param name="dto">Protocolo, token e o motivo de estar voltando.</param>
+    /// <param name="dto">Protocolo, uma das credenciais e o motivo de estar voltando.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">O relato, de volta à fila.</response>
     /// <response code="400">Comentário exigido e em branco, ou longo demais.</response>
     /// <response code="403">Este projeto não aceita reabrir.</response>
-    /// <response code="404">Link incompleto, protocolo desconhecido, ou token que não é deste relato.</response>
+    /// <response code="404">Credencial incompleta, protocolo desconhecido, ou credencial que não é deste relato.</response>
     /// <response code="409">O relato não está encerrado, ou você já confirmou que foi resolvido.</response>
     [HttpPost("reopen")]
     [Consumes("application/json")]

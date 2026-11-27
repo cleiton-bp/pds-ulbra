@@ -196,8 +196,8 @@ public class ProjectStatesController : BaseController
     /// <summary>Aposenta um estado.</summary>
     /// <remarks>
     /// Ele sai da lista de destinos e para de receber relato novo, **mas continua
-    /// existindo onde já foi usado**. É por isso que não existe remoção: um estado
-    /// que some leva junto o sentido de tudo que passou por ele.
+    /// existindo onde já foi usado**. Excluir é só para a coluna que não deixou rastro
+    /// (ver `DELETE`): a que nunca recebeu card, ou a que é só do time e já foi desativada.
     ///
     /// Aposentar o que já está aposentado devolve 200 sem gravar nada — dois cliques
     /// seguidos não são um erro.
@@ -256,6 +256,77 @@ public class ProjectStatesController : BaseController
         {
             var state = await _projectStateService.ActivateAsync(publicId, statePublicId, cancellationToken);
             return Success(state, "Estado reativado.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Exclui uma coluna que não deixou rastro.</summary>
+    /// <remarks>
+    /// **Só quando nada depende dela**: sem card nenhum (nem arquivado), sem ser a entrada
+    /// de um tipo de relato nem o destino da reabertura, e uma destas duas:
+    ///
+    /// - **nunca recebeu card** (a coluna criada para testar), mesmo ativa; ou
+    /// - **é só do time** (não está ligada a uma etapa que quem relatou vê) **e já foi
+    ///   desativada**.
+    ///
+    /// A coluna ligada a uma etapa pública que já teve cards só se aposenta. A lista diz,
+    /// em cada coluna, se ela pode ser excluida (`CanDelete`) e por que não
+    /// (`DeleteBlockedBy`). O histórico dos cards guarda o nome da coluna em cada movimento,
+    /// e continua legível. A coluna fica marcada como excluída, e `restore` a traz de volta.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="statePublicId">Identificador público do estado.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Coluna excluída.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto ou estado não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">A coluna ainda tem um motivo para ficar (ver `DeleteBlockedBy`).</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
+    [HttpDelete("{statePublicId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Delete(Guid publicId, Guid statePublicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _projectStateService.DeleteAsync(publicId, statePublicId, cancellationToken);
+            return Success<object?>(null, "Coluna excluida.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Traz de volta uma coluna excluída: o "Desfazer".</summary>
+    /// <remarks>
+    /// Ela volta como estava, na mesma posição e com a mesma ligação com a etapa pública.
+    /// **Recusado se outra coluna já tomou o nome** nesse meio tempo.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="statePublicId">Identificador público do estado excluído.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Coluna de volta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">A coluna não existe, não foi excluída, ou a pessoa não está no projeto.</response>
+    /// <response code="409">Outra coluna já tem o mesmo nome.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
+    [HttpPost("{statePublicId:guid}/restore")]
+    [ProducesResponseType(typeof(ApiResponse<ProjectStateViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Restore(Guid publicId, Guid statePublicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var state = await _projectStateService.RestoreAsync(publicId, statePublicId, cancellationToken);
+            return Success(state, "Coluna de volta.");
         }
         catch (Exception exception)
         {

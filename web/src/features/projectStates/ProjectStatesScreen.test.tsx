@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -65,6 +65,8 @@ const dublê = vi.hoisted(() => ({
   reordenar: vi.fn(),
   aposentar: vi.fn(),
   reativar: vi.fn(),
+  excluir: vi.fn(),
+  restaurar: vi.fn(),
   contar: vi.fn<() => Promise<ReportStateCountViewModel[]>>(),
   etapas: vi.fn<() => Promise<ProjectPublicStageViewModel[]>>(),
   lerMapa: vi.fn<() => Promise<ProjectStatusMappingViewModel>>(),
@@ -86,6 +88,8 @@ vi.mock('@/data', async (importOriginal) => {
       reorderProjectStates: dublê.reordenar,
       deactivateProjectState: dublê.aposentar,
       activateProjectState: dublê.reativar,
+      deleteProjectState: dublê.excluir,
+      restoreProjectState: dublê.restaurar,
     },
     // A tela le tambem o que quem relatou ve em cada coluna, as regras do quadro e,
     // ao perguntar se desativa, quantos cards a coluna tem. Sem dubles, essas
@@ -180,6 +184,7 @@ function estado(
   name: string,
   position: number,
   isActive = true,
+  extra: Partial<ProjectStateViewModel> = {},
 ): ProjectStateViewModel {
   return {
     PublicId: publicId,
@@ -187,6 +192,11 @@ function estado(
     Position: position,
     IsActive: isActive,
     CreatedAt: '2026-09-01T12:00:00.000Z',
+    // Como as colunas de antes desta mudanca: ja usadas, e por isso sem "Excluir".
+    NeverUsed: false,
+    CanDelete: false,
+    DeleteBlockedBy: 'StillActive',
+    ...extra,
   }
 }
 
@@ -354,6 +364,58 @@ describe('ProjectStatesScreen', () => {
     await waitFor(() => expect(within(item('Pronto')).getByText('Desativada')).toBeTruthy())
     expect(nomesNaTela()).toEqual(['Análise', 'Pronto'])
     expect(screen.getByRole('button', { name: 'Reativar Pronto' })).toBeTruthy()
+  })
+
+  // A coluna criada para testar, que ninguem usou, se exclui: desativar uma coluna que
+  // nunca serviu so deixava lixo na lista.
+  it('a coluna sem uso se exclui, com confirmação, e o aviso traz o Desfazer', async () => {
+    dublê.listar.mockResolvedValue([
+      estado('s-1', 'Análise', 0),
+      estado('s-2', 'Teste', 1, true, { NeverUsed: true, CanDelete: true, DeleteBlockedBy: null }),
+    ])
+    dublê.excluir.mockResolvedValue(undefined)
+    dublê.restaurar.mockResolvedValue(
+      estado('s-2', 'Teste', 1, true, { NeverUsed: true, CanDelete: true, DeleteBlockedBy: null }),
+    )
+
+    montar()
+    await waitFor(() => item('Teste'))
+    expect(within(item('Teste')).getByText('Sem uso')).toBeTruthy()
+    // A coluna usada nao oferece Excluir.
+    expect(screen.queryByRole('button', { name: 'Excluir Análise' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir Teste' }))
+    const dialogo = await screen.findByRole('alertdialog')
+    expect(within(dialogo).getByText(/nunca recebeu card, então nada se perde/)).toBeTruthy()
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Excluir' }))
+
+    await waitFor(() => expect(dublê.excluir).toHaveBeenCalledWith('p-1', 's-2'))
+    await waitFor(() => expect(nomesNaTela()).toEqual(['Análise']))
+    const aviso = useToastStore.getState().toasts.at(-1)
+    expect(aviso?.message).toBe('Coluna “Teste” excluída.')
+
+    act(() => aviso?.action?.run())
+    await waitFor(() => expect(dublê.restaurar).toHaveBeenCalledWith('p-1', 's-2'))
+  })
+
+  // Onde a pessoa esperaria o Excluir e ele nao aparece, a linha diz por que.
+  it('a desativada ligada ao andamento público diz por que não se exclui', async () => {
+    dublê.listar.mockResolvedValue([
+      estado('s-1', 'Análise', 0),
+      estado('s-2', 'Revisão', 1, false, { DeleteBlockedBy: 'PublicStage' }),
+    ])
+
+    montar()
+
+    await waitFor(() => item('Revisão'))
+    expect(
+      within(item('Revisão')).getByText(
+        /mostra uma etapa para quem relatou, então fica só desativada/,
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Excluir Revisão' })).toBeNull()
+    // A ativa com cards nao ganha frase nenhuma: o caminho dela e desativar.
+    expect(within(item('Análise')).queryByText(/excluir/i)).toBeNull()
   })
 
   it('a pergunta de desativar diz quantos cards estão na coluna', async () => {

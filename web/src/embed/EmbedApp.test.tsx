@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   CreatedReportViewModel,
@@ -8,6 +8,7 @@ import type {
   WidgetSettingsViewModel,
 } from '@/contracts'
 import { EmbedApp } from '@/embed/EmbedApp'
+import { ATUALIZAR_A_CADA_MS } from '@/embed/MyReports'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 
 /**
@@ -724,7 +725,9 @@ describe('o código pessoal', () => {
     expect(screen.getByRole('link', { name: 'Acompanhar este relato' })).toBeTruthy()
   })
 
-  it('da confirmação, "Ver os meus relatos" leva à lista e voltar traz a confirmação', async () => {
+  // A confirmação é só o aviso de que chegou: o relato já está na lista, e voltar dela
+  // para o aviso deixava a pessoa sem caminho para escrever outro.
+  it('da confirmação, "Ver os meus relatos" leva à lista e voltar abre o formulário limpo', async () => {
     dublê.listar.mockResolvedValue({ Reports: [], HasMore: false })
     await relatar()
 
@@ -732,7 +735,11 @@ describe('o código pessoal', () => {
     expect(await screen.findByRole('heading', { name: 'Os seus relatos' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: /Voltar ao formulário/ }))
-    expect(await screen.findByRole('heading', { name: 'Relato enviado' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Enviar' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Relato enviado' })).toBeNull()
+    expect((screen.getByRole('textbox', { name: PRIMEIRA }) as HTMLTextAreaElement).value).toBe('')
+    // O código continua neste navegador: a lista segue a um clique.
+    expect(window.localStorage.getItem('pds.reporter-code.pk_DEMO')).toBe('H7QK-3M2X-P9WD')
   })
 
   it('guarda o que a API confirmou, e não o que foi mandado', async () => {
@@ -824,6 +831,47 @@ describe('o código pessoal', () => {
     // Voltar devolve a lista.
     fireEvent.click(screen.getByRole('button', { name: 'Voltar aos seus relatos' }))
     expect(await screen.findByRole('button', { name: /ABCD-EFGH-JKLM/ })).toBeTruthy()
+  })
+
+  // O time move o card e a lista acompanha, sem a pessoa buscar de novo: antes ela era
+  // lida uma vez só, e continuava dizendo a etapa antiga.
+  it('a lista na tela se atualiza sozinha, e ao voltar de um relato aberto', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'H7QK-3M2X-P9WD')
+    const relato = (StageLabel: string) =>
+      ({
+        Reports: [
+          {
+            TrackingCode: 'ABCD-EFGH-JKLM',
+            TypeName: 'Defeito',
+            Title: null,
+            Excerpt: 'O botão não responde.',
+            StageLabel,
+            IsClosed: false,
+            CreatedAt: '2026-09-19T12:00:00.000Z',
+          },
+        ],
+        HasMore: false,
+      }) satisfies ReporterCodeReportsViewModel
+    dublê.listar.mockResolvedValue(relato('Recebido'))
+
+    render(<EmbedApp settings={comCodigo} config={config} host={null} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver os meus relatos' }))
+    expect(await screen.findByText('Recebido')).toBeTruthy()
+
+    dublê.listar.mockResolvedValue(relato('Em desenvolvimento'))
+    await act(async () => {
+      vi.advanceTimersByTime(ATUALIZAR_A_CADA_MS)
+    })
+    expect(await screen.findByText('Em desenvolvimento')).toBeTruthy()
+    expect(screen.queryByText('Recebido')).toBeNull()
+
+    // Voltando de um relato aberto, a lista le de novo na hora, sem esperar o relogio.
+    fireEvent.click(screen.getByRole('button', { name: /ABCD-EFGH-JKLM/ }))
+    dublê.listar.mockResolvedValue(relato('Em teste'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Voltar aos seus relatos' }))
+    expect(await screen.findByText('Em teste')).toBeTruthy()
+    vi.useRealTimers()
   })
 
   it('na lista, o relato com titulo mostra o titulo que a pessoa escreveu acima do comeco', async () => {

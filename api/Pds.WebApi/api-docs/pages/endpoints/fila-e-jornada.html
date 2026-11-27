@@ -5,7 +5,7 @@
   <strong>Em resumo</strong>
   <ul>
     <li>Qualquer papel lê as duas listas e o mapa; só quem administra muda.</li>
-    <li>A coluna só se desativa; a etapa pública se remove, entre três e sete.</li>
+    <li>A coluna se desativa, e só se exclui quando não deixou rastro; a etapa pública se remove, entre três e sete.</li>
     <li>O mapa se grava inteiro, e cada gravação vira uma versão nova.</li>
   </ul>
 </div>
@@ -15,11 +15,13 @@
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states</code></td><td>As colunas do projeto, na ordem, com as desativadas.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states</code></td><td>As colunas do projeto, na ordem, com as desativadas. Cada uma diz se nunca recebeu card (<code>NeverUsed</code>), se pode ser excluída (<code>CanDelete</code>) e por que não (<code>DeleteBlockedBy</code>).</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states</code></td><td><strong>Administrador.</strong> Cria uma coluna no fim. Nome único no projeto, sem diferenciar maiúscula.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/order</code></td><td><strong>Administrador.</strong> Reordena a fila <strong>inteira</strong> numa chamada.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/{statePublicId}</code></td><td><strong>Administrador.</strong> Renomeia. O histórico guarda o nome da época.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/deactivate</code></td><td><strong>Administrador.</strong> Desativa (<strong>não existe remoção</strong>). Se for a entrada de algum tipo de relato, 409.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/deactivate</code></td><td><strong>Administrador.</strong> Desativa. Se for a entrada de algum tipo de relato, 409.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/states/{statePublicId}</code></td><td><strong>Administrador.</strong> Exclui a coluna que não deixou rastro: sem card nenhum, sem ser entrada de tipo nem destino da reabertura, e que nunca recebeu card ou é só do time e já está desativada. Fora disso, 409.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/restore</code></td><td><strong>Administrador.</strong> O "Desfazer" da exclusão: a coluna volta como estava. Se outra já tomou o nome, 409.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/activate</code></td><td><strong>Administrador.</strong> Traz de volta para a fila.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/public-stages</code></td><td>A jornada pública, na ordem. Pode vir vazia em projeto antigo.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/public-stages</code></td><td><strong>Administrador.</strong> Cria uma etapa no fim. Recusada no teto de sete.</td></tr>
@@ -39,7 +41,7 @@ que caem em cada etapa.</p>
 <h2>Duas listas diferentes</h2>
 
 <div class="cartoes">
-  <div><strong>As colunas</strong><p>A fila em que o time trabalha. Sem teto, e só se desativam, porque a tela mostra a fila inteira.</p></div>
+  <div><strong>As colunas</strong><p>A fila em que o time trabalha. Sem teto, e em geral se desativam; só a que não deixou rastro se exclui.</p></div>
   <div><strong>A jornada</strong><p>O que quem relatou acompanha. De três a sete etapas, e se removem; os eventos guardam o rótulo da época.</p></div>
 </div>
 

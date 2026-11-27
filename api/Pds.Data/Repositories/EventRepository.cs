@@ -173,4 +173,25 @@ public class EventRepository : IEventRepository
                                  || entity.Type == EventTypeEnum.ProjectInvitationResent)
                              && entity.OccurredAt >= since)
             .CountAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Guid>> ListStatesEverEnteredAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        // SQL direto: o movimento guarda as colunas no payload (jsonb), e o LINQ nao le
+        // campo de dentro do json. Um pedido so, para todas as colunas do projeto.
+        var ids = await _context.Database
+            .SqlQuery<string>($"""
+                -- colunas que ja receberam card
+                SELECT DISTINCT coluna.id AS "Value"
+                FROM events e
+                CROSS JOIN LATERAL (VALUES (e.payload ->> 'from_id'), (e.payload ->> 'to_id')) AS coluna(id)
+                WHERE e.project_id = {projectId}
+                  AND e.type = 'report_state_changed'
+                  AND coluna.id IS NOT NULL
+                """)
+            .ToListAsync(cancellationToken);
+
+        return ids.Select(id => Guid.TryParse(id, out var guid) ? guid : Guid.Empty)
+            .Where(guid => guid != Guid.Empty)
+            .ToList();
+    }
 }

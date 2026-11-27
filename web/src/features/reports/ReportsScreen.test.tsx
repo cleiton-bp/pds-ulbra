@@ -306,6 +306,8 @@ instalarRemendosDoRadix()
 beforeEach(() => {
   window.sessionStorage.clear()
   window.localStorage.clear()
+  // Estes testes sao da tabela corrida: a lista em blocos tem os testes dela.
+  window.localStorage.setItem('pds.web.trabalho.lista-blocos', 'none')
 })
 
 /** Abre um menu da barra de filtros (os campos de lista, pelo "Filtrar"). */
@@ -346,6 +348,8 @@ describe('ReportsScreen', () => {
     dublê.lugar.mockReset()
     // A vista lembrada passaria de um teste para o outro.
     window.localStorage.clear()
+    // Estes testes sao da tabela corrida: a lista em blocos tem os testes dela.
+    window.localStorage.setItem('pds.web.trabalho.lista-blocos', 'none')
   })
 
   it('a linha diz o tipo, o numero, o texto e a coluna; protocolo e pagina ficam no card aberto', async () => {
@@ -777,9 +781,10 @@ describe('abrir um relato', () => {
       fireEvent.click(await screen.findByText(entreAspas('o botao some')))
 
       await screen.findByRole('img', { name: /ainda-quebrado\.png/ })
+      // A legenda nao aparece mais embaixo da imagem: o nome fica no texto alternativo.
       const nomes = Array.from(
-        screen.getByRole('list', { name: 'Imagens do relato' }).querySelectorAll('figcaption'),
-      ).map((legenda) => legenda.textContent?.split(', ')[0])
+        screen.getByRole('list', { name: 'Imagens do relato' }).querySelectorAll('img'),
+      ).map((imagem) => imagem.alt.replace(/^Imagem \d de \d: /, '').split(', ')[0])
       expect(nomes).toEqual(['primeiro.png', 'segundo.png', 'ainda-quebrado.png'])
     })
   })
@@ -1821,6 +1826,8 @@ describe('o quadro', () => {
     dublê.ciclo.mockResolvedValue({ LastColumnVisibleDays: 14, DueSoonDays: 2 })
     // A vista lembrada passaria de um teste para o outro.
     window.localStorage.clear()
+    // Estes testes sao da tabela corrida: a lista em blocos tem os testes dela.
+    window.localStorage.setItem('pds.web.trabalho.lista-blocos', 'none')
   })
 
   /** Uma coluna por chamada: a lista responde o recorte pedido. */
@@ -2154,6 +2161,8 @@ describe('o tempo real', () => {
     dublê.etiquetasDoProjeto.mockClear()
     aoVivo.estado.handlers = null
     window.localStorage.clear()
+    // Estes testes sao da tabela corrida: a lista em blocos tem os testes dela.
+    window.localStorage.setItem('pds.web.trabalho.lista-blocos', 'none')
   })
 
   const cardMudou = (ReportPublicId: string, StatePublicId: string | null, Archived = false) =>
@@ -2489,6 +2498,8 @@ describe('os filtros e a busca', () => {
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
     aoVivo.estado.handlers = null
     window.localStorage.clear()
+    // Estes testes sao da tabela corrida: a lista em blocos tem os testes dela.
+    window.localStorage.setItem('pds.web.trabalho.lista-blocos', 'none')
     window.sessionStorage.clear()
   })
 
@@ -2746,7 +2757,9 @@ describe('a lista', () => {
       await abrirMenu('Ordem: Mais novos primeiro')
       fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Prazo mais perto' }))
       await waitFor(() => expect(ultimaLista()?.[4]?.sort).toEqual({ field: 'due', dir: 'asc' }))
-      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+      // Escolher nao fecha: a pessoa experimenta com o menu aberto, e fecha quando quiser.
+      expect(screen.getByRole('menu')).toBeTruthy()
+      await fecharMenu()
       expect(cabecalho('Prazo').getAttribute('aria-sort')).toBe('ascending')
       // O botao do menu diz a ordem que vale.
       expect(screen.getByRole('button', { name: 'Ordem: Prazo mais perto' })).toBeTruthy()
@@ -2756,7 +2769,9 @@ describe('a lista', () => {
       await waitFor(() =>
         expect(ultimaLista()?.[4]?.sort).toEqual({ field: 'updated', dir: 'desc' }),
       )
-      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+      // Escolher nao fecha: a pessoa experimenta com o menu aberto, e fecha quando quiser.
+      expect(screen.getByRole('menu')).toBeTruthy()
+      await fecharMenu()
       // A ultima coluna troca de nome e de data: ordenar pela ultima mudanca mostrando
       // quando o card chegou nao deixaria conferir a ordem.
       expect(cabecalho('Atualizado').getAttribute('aria-sort')).toBe('descending')
@@ -2767,7 +2782,9 @@ describe('a lista', () => {
       await abrirMenu('Ordem: Atualizados há pouco')
       fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Mais novos primeiro' }))
       await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, false]))
-      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+      // Escolher nao fecha: a pessoa experimenta com o menu aberto, e fecha quando quiser.
+      expect(screen.getByRole('menu')).toBeTruthy()
+      await fecharMenu()
       expect(ordemGuardada()).toBeNull()
       expect(cabecalho('Criado').getAttribute('aria-sort')).toBe('descending')
       expect(await quando()).toBe('2026-09-01T12:00:00.000Z')
@@ -3575,5 +3592,107 @@ describe('a lista', () => {
       )
       expect(caixa.checked).toBe(false)
     })
+  })
+})
+
+// A lista em blocos, o padrao: um bloco por coluna, cada um lido com o recorte dele e com
+// poucos cards de inicio. A tabela corrida continua em "Sem blocos".
+describe('a lista em blocos', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    papel.atual = 'Administrator'
+    for (const mock of [dublê.listar, dublê.contar, dublê.ciclo, dublê.anexos]) mock.mockReset()
+    dublê.ciclo.mockResolvedValue({ LastColumnVisibleDays: 14, DueSoonDays: 2 })
+    dublê.anexos.mockResolvedValue([])
+    // O padrao de quem nunca escolheu: blocos por coluna.
+    window.localStorage.removeItem('pds.web.trabalho.lista-blocos')
+    dublê.contar.mockResolvedValue([
+      contagem('s-1', 'Análise', 20),
+      contagem('s-2', 'Fazendo', 0),
+      contagem('s-3', 'Pronto', 1, true, true),
+    ])
+    dublê.listar.mockImplementation(async (_projeto, pagina, _estado, _arquivados, opcoes) => {
+      const coluna = opcoes?.columns?.[0]
+      if (coluna === 's-1') {
+        // Como a API: a primeira parte com 15, e a segunda com o que sobra.
+        return pagina === 1
+          ? {
+              reports: [
+                relato('r-1', 'o botao some'),
+                ...Array.from({ length: 14 }, (_, i) => relato(`r-a${i}`, `relato ${i}`)),
+              ],
+              total: 20,
+            }
+          : { reports: [relato('r-9', 'o frete some')], total: 20 }
+      }
+      if (coluna === 's-3') return { reports: [relato('r-3', 'ja resolvido')], total: 1 }
+      if (coluna) return { reports: [], total: 0 }
+      return { reports: [relato('r-1', 'o botao some')], total: 1 }
+    })
+  })
+
+  it('um bloco por coluna, com quantos ha; a vazia some, e a que encerra comeca recolhida', async () => {
+    montar()
+
+    const analise = await screen.findByRole('button', { name: 'Análise, 20 cards' })
+    expect(analise.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('link', { name: entreAspas('o botao some') })).toBeTruthy()
+    // A coluna sem card nao ocupa uma linha.
+    expect(screen.queryByRole('button', { name: /^Fazendo,/ })).toBeNull()
+    // O que terminou fica embaixo, fechado.
+    expect(
+      screen.getByRole('button', { name: 'Pronto, 1 card' }).getAttribute('aria-expanded'),
+    ).toBe('false')
+    expect(screen.queryByRole('link', { name: entreAspas('ja resolvido') })).toBeNull()
+    // Cada bloco e lido com o recorte dele, e com poucos cards de inicio.
+    const opcoes = dublê.listar.mock.calls.map((chamada) => chamada[4])
+    expect(opcoes).toContainEqual(expect.objectContaining({ columns: ['s-1'], pageSize: 15 }))
+  })
+
+  it('o "Mostrar mais" traz a proxima parte daquele bloco, e so dele', async () => {
+    montar()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mostrar mais 5' }))
+
+    expect(await screen.findByRole('link', { name: entreAspas('o frete some') })).toBeTruthy()
+    expect(dublê.listar).toHaveBeenCalledWith(
+      'p-1',
+      2,
+      null,
+      false,
+      expect.objectContaining({ columns: ['s-1'], pageSize: 15 }),
+    )
+  })
+
+  it('recolher e abrir fica lembrado neste navegador', async () => {
+    montar()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pronto, 1 card' }))
+
+    expect(await screen.findByRole('link', { name: entreAspas('ja resolvido') })).toBeTruthy()
+    expect(
+      JSON.parse(
+        window.localStorage.getItem('pds.web.trabalho.lista-recolhidos.p-1.state') ?? '{}',
+      ),
+    ).toEqual({ 's-3': false })
+  })
+
+  it('"Sem blocos" volta a tabela corrida, e a escolha fica para a pessoa', async () => {
+    montar()
+    await screen.findByRole('button', { name: 'Análise, 20 cards' })
+
+    // Os blocos moram no menu da ordem: um botao a mais na barra tomava o lugar de filtro.
+    const menu = await abrirMenu('Ordem: Mais novos primeiro')
+    expect(
+      within(menu).getByRole('menuitemradio', { name: 'Por coluna' }).getAttribute('aria-checked'),
+    ).toBe('true')
+    fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Sem blocos' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Análise, 20 cards' })).toBeNull(),
+    )
+    expect(window.localStorage.getItem('pds.web.trabalho.lista-blocos')).toBe('none')
+    expect(dublê.listar.mock.calls.at(-1)?.[4]?.columns).toBeUndefined()
   })
 })

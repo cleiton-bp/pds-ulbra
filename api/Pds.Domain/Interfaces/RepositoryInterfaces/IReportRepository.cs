@@ -325,4 +325,10 @@ public interface IReportRepository : IBaseRepository<Report>
     /// invisiveis para sempre para quem os escreveu.</para>
     /// </summary>
     Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// As colunas que seguram algum card do projeto: o vivo, o arquivado, o apagado e o
+    /// retido pela origem. A coluna que segura card nao pode ser excluida.
+    /// </summary>
+    Task<IReadOnlyList<long>> ListStateIdsHoldingAnyAsync(long projectId, CancellationToken cancellationToken = default);
 }

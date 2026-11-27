@@ -137,6 +137,7 @@ export {
 } from '@/contracts/projectReportType'
 export type {
   CreateProjectStateRequest,
+  ProjectStateDeleteBlock,
   ProjectStateViewModel,
   RenameProjectStateRequest,
   ReorderProjectStatesRequest,
@@ -216,6 +217,7 @@ export type {
   ReporterCodeLookupRequest,
   ReporterCodeReportsViewModel,
   ReporterCodeReportViewModel,
+  ReporterFeedbackCredential,
   ReportHistoryEntryViewModel,
   ReportHistoryPageViewModel,
   ReportInfoRequestViewModel,

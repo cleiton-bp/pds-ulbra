@@ -1,4 +1,12 @@
-import { type MouseEvent, type ReactNode, useEffect, useRef } from 'react'
+import {
+  type MouseEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { Link, useHref, useNavigate } from 'react-router-dom'
 import type { ReportStateCountViewModel, ReportSummaryViewModel } from '@/contracts'
 import type { ReportSort, ReportSortField } from '@/data'
@@ -17,7 +25,9 @@ import {
   SubtaskProgress,
   statusTone,
 } from '@/features/reports/cardLook'
+import { LIST_GROUP_PAGE } from '@/features/reports/useGroupedReportList'
 import { useKeepFocus } from '@/features/reports/useKeepFocus'
+import { Button } from '@/shared/components/Button'
 import { CardChip } from '@/shared/components/CardChip'
 import { DueChip } from '@/shared/components/DueChip'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -137,7 +147,9 @@ export function ReportsTable({
   buscando = false,
   troca,
   cabecalhoPreso = true,
+  grupos,
 }: {
+  /** As linhas na tela. Com `grupos`, as dos blocos abertos, na ordem deles. */
   reports: ReportSummaryViewModel[]
   /** As colunas do projeto, para o tom da coluna de cada card. */
   colunas: ReportStateCountViewModel[] | null
@@ -167,6 +179,11 @@ export function ReportsTable({
    * arquivados): o recuo do "grudar" e o da pagina, e la ele sumia acima do corpo.
    */
   cabecalhoPreso?: boolean
+  /**
+   * A lista em blocos: um corpo por bloco, com a linha do titulo (recolhe e abre), as
+   * linhas e o "Mostrar mais". O cabecalho das colunas continua um so, em cima.
+   */
+  grupos?: GrupoDaTabela[]
 }) {
   const area = useRef<HTMLDivElement>(null)
   useKeepFocus(area)
@@ -199,6 +216,72 @@ export function ReportsTable({
   const vigente = ordem ?? ORDEM_DE_SEMPRE
   // A coluna que fica na tela, qualquer que seja a largura: a da ordem escolhida.
   const fixa = ordem?.field ?? null
+
+  const linha = (report: ReportSummaryViewModel, indice: number) => (
+    <Linha
+      key={report.PublicId}
+      indice={indice}
+      report={report}
+      colunas={colunas}
+      soonDays={soonDays}
+      destacada={destacados?.has(report.PublicId) ?? false}
+      marcada={selecao?.marcados.has(report.PublicId)}
+      aoMarcar={selecao ? marcarLinha : undefined}
+      comSprint={comSprint}
+      data={vigente.field === 'updated' ? 'updated' : 'created'}
+      fixa={fixa}
+    />
+  )
+
+  if (grupos) {
+    return (
+      // **Uma caixa por bloco, como as do Backlog**, cada uma com o cabecalho das colunas
+      // dela: as colunas se medem pelo conteudo, e uma tabela so nao cabe em caixas
+      // separadas. O cabecalho de cada caixa fica preso no alto enquanto ela rola.
+      <div
+        ref={area}
+        data-focus-group
+        aria-busy={buscando || undefined}
+        className={cn(
+          '@container flex flex-col gap-3 transition-opacity duration-200 ease-out motion-reduce:transition-none',
+          buscando && 'opacity-60 delay-150',
+        )}
+      >
+        {grupos.map((grupo) => {
+          const marcadasNoBloco = selecao
+            ? grupo.linhas.filter((report) => selecao.marcados.has(report.PublicId)).length
+            : 0
+          return (
+            <SecaoDaTabela key={`${troca ?? ''}|${grupo.chave}`} grupo={grupo}>
+              <table className="w-full border-collapse text-left text-detail">
+                <Cabecalho
+                  ordem={vigente}
+                  aoOrdenar={aoOrdenar}
+                  comSprint={comSprint}
+                  fixa={fixa}
+                  preso={cabecalhoPreso}
+                  selecao={
+                    selecao
+                      ? {
+                          todas: marcadasNoBloco === grupo.linhas.length,
+                          algumas: marcadasNoBloco > 0 && marcadasNoBloco < grupo.linhas.length,
+                          aoMarcar: (marcar) =>
+                            selecao.definir(
+                              grupo.linhas.map((report) => report.PublicId),
+                              marcar,
+                            ),
+                        }
+                      : undefined
+                  }
+                />
+                <tbody>{grupo.linhas.map((report, i) => linha(report, i))}</tbody>
+              </table>
+            </SecaoDaTabela>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
     // A linha com o foco que sai da lista por outra pessoa deixa o foco na vizinha, e
@@ -250,27 +333,193 @@ export function ReportsTable({
             }
           />
           {/* A chave troca com o recorte: as linhas nascem de novo, esmaecendo juntas. */}
-          <tbody key={troca}>
-            {reports.map((report, indice) => (
-              <Linha
-                key={report.PublicId}
-                indice={indice}
-                report={report}
-                colunas={colunas}
-                soonDays={soonDays}
-                destacada={destacados?.has(report.PublicId) ?? false}
-                marcada={selecao?.marcados.has(report.PublicId)}
-                aoMarcar={selecao ? marcarLinha : undefined}
-                comSprint={comSprint}
-                data={vigente.field === 'updated' ? 'updated' : 'created'}
-                fixa={fixa}
-              />
-            ))}
-          </tbody>
+          <tbody key={troca}>{reports.map((report, indice) => linha(report, indice))}</tbody>
         </table>
       </div>
     </div>
   )
+}
+
+/** Um bloco da lista, como a tabela o desenha. */
+export interface GrupoDaTabela {
+  chave: string
+  /** O titulo: o nome, com a marca da coluna, da pessoa, da prioridade ou do tipo. */
+  rotulo: ReactNode
+  /** O nome em texto, para o leitor de tela. */
+  nome: string
+  total: number
+  /** As linhas que ja chegaram. */
+  linhas: ReportSummaryViewModel[]
+  recolhido: boolean
+  aoAlternar: () => void
+  carregandoMais: boolean
+  aoMostrarMais: () => void
+  falhou: boolean
+  aoTentarDeNovo: () => void
+}
+
+/** O mesmo andamento do abrir e fechar das listas do Backlog. */
+const RECOLHER_MS = 320
+const RECOLHER_CURVA = 'cubic-bezier(0.4, 0, 0.2, 1)'
+
+/**
+ * Um bloco da lista numa caixa, como as do Backlog: a seta e o nome a esquerda (o clique
+ * em qualquer ponto deles abre e fecha), quantos ha a direita, e embaixo a tabela do
+ * bloco e o "Mostrar mais". **O titulo diz quantos ha no bloco**, e nao quantos vieram.
+ */
+function SecaoDaTabela({ grupo, children }: { grupo: GrupoDaTabela; children: ReactNode }) {
+  const faltam = Math.max(0, grupo.total - grupo.linhas.length)
+  const { caixa, mostrar } = useAbrirFecharSuave(grupo.recolhido)
+  const corpoId = useId()
+
+  return (
+    // `overflow-clip` arredonda o fundo das linhas nos cantos sem virar area de rolagem:
+    // e o que deixa o cabecalho das colunas preso no alto da pagina.
+    <section className="overflow-clip rounded-xl border border-border bg-surface-raised">
+      <header
+        className={cn(
+          'flex items-center justify-between gap-2 px-2 py-1.5 sm:px-3',
+          // A linha embaixo do titulo so com o bloco aberto: fechado, a caixa e so o titulo.
+          mostrar && 'border-border border-b',
+        )}
+      >
+        <h3 className="min-w-0">
+          <button
+            type="button"
+            aria-expanded={!grupo.recolhido}
+            aria-controls={corpoId}
+            aria-label={`${grupo.nome}, ${grupo.total} ${grupo.total === 1 ? 'card' : 'cards'}`}
+            onClick={grupo.aoAlternar}
+            className="group flex min-w-0 items-center gap-1 rounded-lg py-0.5 pr-2 text-left"
+          >
+            <span className="alvo-de-toque-icone relative flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted transition-colors group-hover:bg-surface-sunken group-hover:text-fg">
+              <svg
+                viewBox="0 0 12 12"
+                className={cn(
+                  'size-3 transition-transform duration-320 ease-in-out motion-reduce:transition-none',
+                  grupo.recolhido && '-rotate-90',
+                )}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="m3 4.5 3 3 3-3" />
+              </svg>
+            </span>
+            <span className="flex min-w-0 items-center gap-2 font-semibold text-body text-fg">
+              {grupo.rotulo}
+            </span>
+          </button>
+        </h3>
+        <span className="flex-none text-caption text-fg-muted tabular-nums">
+          {grupo.total} {grupo.total === 1 ? 'card' : 'cards'}
+        </span>
+      </header>
+
+      <div ref={caixa} id={corpoId} hidden={!mostrar}>
+        {/* So a area estreita rola para o lado: na larga a tabela cabe, e rolar aqui soltaria
+            o cabecalho preso. */}
+        <div className="overflow-x-auto @min-[64rem]:overflow-x-visible">{children}</div>
+        {grupo.falhou && (
+          <p className="border-border border-t px-3 py-2.5 text-caption text-fg-muted">
+            Não deu para carregar este bloco agora.{' '}
+            <button
+              type="button"
+              onClick={grupo.aoTentarDeNovo}
+              className="font-medium text-fg underline underline-offset-4"
+            >
+              Tentar de novo
+            </button>
+          </p>
+        )}
+        {!grupo.falhou && faltam > 0 && (
+          <div className="flex items-center gap-2 border-border border-t px-3 py-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={grupo.carregandoMais}
+              onClick={grupo.aoMostrarMais}
+            >
+              {grupo.carregandoMais
+                ? 'Carregando…'
+                : `Mostrar mais ${Math.min(LIST_GROUP_PAGE, faltam)}`}
+            </Button>
+            <span className="text-caption text-fg-muted tabular-nums">
+              {faltam === 1 ? 'falta 1' : `faltam ${faltam}`}
+            </span>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/**
+ * **O bloco abre e fecha devagar**, como as listas do Backlog: a altura anda e as linhas
+ * esmaecem no caminho, em vez de sumir de uma vez e a pagina pular. Ao fechar, as linhas
+ * ficam na tela ate o fim do movimento. Sem movimento (preferencia do sistema, ou o
+ * ambiente de teste, que nao tem `matchMedia`), a troca e na hora.
+ */
+function useAbrirFecharSuave(recolhido: boolean) {
+  const caixa = useRef<HTMLDivElement>(null)
+  const [fechando, setFechando] = useState(false)
+  const antes = useRef(recolhido)
+
+  useLayoutEffect(() => {
+    if (antes.current === recolhido) return
+    antes.current = recolhido
+    const elemento = caixa.current
+    const comMovimento =
+      typeof window.matchMedia === 'function' &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!elemento || !comMovimento || typeof elemento.animate !== 'function') return
+    if (recolhido) {
+      // Antes de pintar: o bloco nunca some pela metade.
+      setFechando(true)
+      return
+    }
+    // Abrir no meio do fechar desiste do fechar, e o bloco cresce dali.
+    setFechando(false)
+    const altura = elemento.scrollHeight
+    elemento.style.overflow = 'hidden'
+    const movimento = elemento.animate(
+      [
+        { height: '0px', opacity: 0.4 },
+        { height: `${altura}px`, opacity: 1 },
+      ],
+      { duration: RECOLHER_MS, easing: RECOLHER_CURVA },
+    )
+    movimento.onfinish = () => {
+      elemento.style.overflow = ''
+    }
+    return () => movimento.cancel()
+  }, [recolhido])
+
+  useLayoutEffect(() => {
+    const elemento = caixa.current
+    if (!fechando || !elemento) return
+    const altura = elemento.offsetHeight
+    elemento.style.overflow = 'hidden'
+    // `forwards` segura o fim ate a troca: sem ele, no quadro entre o fim do movimento e o
+    // React esconder o bloco, as linhas voltavam a altura cheia e piscavam.
+    const movimento = elemento.animate(
+      [
+        { height: `${altura}px`, opacity: 1 },
+        { height: '0px', opacity: 0 },
+      ],
+      { duration: RECOLHER_MS, easing: RECOLHER_CURVA, fill: 'forwards' },
+    )
+    movimento.onfinish = () => setFechando(false)
+    return () => {
+      movimento.cancel()
+      elemento.style.overflow = ''
+    }
+  }, [fechando])
+
+  return { caixa, mostrar: !recolhido || fechando }
 }
 
 /** Quem esta marcado na lista, e como marcar — uma linha, ou varias de uma vez. */

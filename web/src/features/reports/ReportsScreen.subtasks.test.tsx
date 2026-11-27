@@ -246,6 +246,8 @@ describe('a subtarefa fica dentro do pai', () => {
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
     aoVivo.estado.handlers = null
     window.localStorage.clear()
+    // Estes testes sao da tabela corrida: a lista em blocos tem os testes dela.
+    window.localStorage.setItem('pds.web.trabalho.lista-blocos', 'none')
     window.sessionStorage.clear()
   })
 

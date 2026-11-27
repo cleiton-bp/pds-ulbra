@@ -7,7 +7,7 @@
     <li>Só quem relatou anexa, e só depois de a porta do link aceitar.</li>
     <li>O envio é um formulário assinado, com tipo, tamanho e nome decididos pela API.</li>
     <li>A confirmação lê o começo do arquivo e só aceita o formato pedido.</li>
-    <li>O arquivo que não é imagem só baixa, nunca abre na página.</li>
+    <li>O arquivo que não é imagem nunca abre como página: baixa, ou aparece como texto no visualizador.</li>
   </ul>
 </div>
 
@@ -109,6 +109,10 @@ guarda é <strong>Adiado</strong>.</p>
   <code>U+202E</code> + <code>fdp.txt</code> parecer <code>faturatxt.pdf</code>), e sempre terminando
   numa extensão do catálogo. E o painel avisa: "Os arquivos vêm de quem relatou: abra só o que você
   esperava receber."</p>
+  <p>Para ler sem baixar, o painel e a página de acompanhamento abrem um visualizador por cima da
+  tela. Ele busca os bytes pelo mesmo endereço assinado e desenha o PDF em canvas (pdf.js) e o resto
+  como texto, tabela e parágrafos: nada do arquivo vira HTML nem roda, e o endereço continua só de
+  baixar. A imagem baixada pelo visualizador segue as mesmas regras de nome.</p>
 </div>
 
 <h2>O limite por minuto</h2>

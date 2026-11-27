@@ -1334,4 +1334,15 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .OrderBy(report => report.PublicStageDueAt)
             .Select(report => report.PublicId)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<long>> ListStateIdsHoldingAnyAsync(long projectId, CancellationToken cancellationToken = default)
+        // Sem os filtros: o card apagado e o retido tambem apontam para a coluna, e a
+        // coluna excluida deixaria esses cards sem lugar. O projeto ja foi conferido por
+        // quem chama.
+        => await Context.Reports
+            .IgnoreQueryFilters()
+            .Where(report => report.ProjectId == projectId && report.ProjectStateId != null)
+            .Select(report => report.ProjectStateId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
 }

@@ -119,7 +119,7 @@ describe('os arquivos no relato do painel', () => {
 
   // O time ve o relato como quem relatou o montou: a imagem inteira, no tamanho
   // escolhido. O nome original e o tamanho ficam embaixo, so para o time.
-  it('mostra a imagem no tamanho escolhido, com o nome original e o tamanho embaixo', async () => {
+  it('mostra a imagem no tamanho escolhido, sozinha, com o nome so para o leitor de tela', async () => {
     dublê.listar.mockResolvedValue([anexo({ DisplaySize: 'Small' })])
     dublê.comentarios.mockResolvedValue({ Internal: [], Public: [] })
     render(<Dialogo />)
@@ -127,7 +127,10 @@ describe('os arquivos no relato do painel', () => {
     const lista = await screen.findByRole('list', { name: 'Imagens do relato' })
     expect(lista.querySelector('li')?.className).toBe('col-span-4')
     expect(lista.querySelector('img')?.getAttribute('src')).toBe('http://armazenamento/inteiro')
-    expect(screen.getByText('erro-no-pagamento.png, 120 KB').tagName).toBe('FIGCAPTION')
+    expect(screen.queryByText('erro-no-pagamento.png, 120 KB')).toBeNull()
+    expect(lista.querySelector('img')?.getAttribute('alt')).toBe(
+      'Imagem anexada: erro-no-pagamento.png, 120 KB',
+    )
   })
 
   it('o arquivo da resposta aparece embaixo da fala, e nao embaixo do relato', async () => {

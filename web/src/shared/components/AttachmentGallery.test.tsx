@@ -1,22 +1,24 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AttachmentGallery, type GalleryItem } from '@/shared/components/AttachmentGallery'
+import { VisualizadorNoCardContext } from '@/shared/components/AttachmentViewer'
 
 /**
  * O QUE ESTES TESTES TRAVAM.
  *
  * **A imagem aparece inteira, no tamanho que quem relatou escolheu**, logo abaixo do
  * texto — o arquivo, e nao a miniatura de 320 pixels, que ficaria borrada na linha
- * inteira. Tamanho que a tela nao conhece ocupa a linha inteira. Um clique abre em
- * tamanho real, em outra aba. **O video antigo continua como era**: miniatura na
- * grade, e o player so no clique, baixando so o cabecalho.
+ * inteira. Tamanho que a tela nao conhece ocupa a linha inteira, e nenhum nome aparece
+ * embaixo. Um clique abre a imagem grande no visualizador, por cima da tela, e o arquivo
+ * abre no mesmo visualizador, lido ali mesmo. **O video antigo continua como era**:
+ * miniatura na grade, e o player so no clique, baixando so o cabecalho.
  *
  * **A imagem que ja carregou fica no endereco em que carregou.** A renovacao traz
  * enderecos novos a cada poucos minutos, e trocar o `src` baixaria a imagem inteira de
- * novo sem mudar nada na tela. O link de abrir usa o da lista; o guardado que falha
+ * novo sem mudar nada na tela. O visualizador usa o da lista; o guardado que falha
  * passa para o da lista.
  *
  * **Link vencido e tratado, e nunca em laco.** A galeria pede enderecos novos
@@ -78,6 +80,7 @@ function avancar(ms: number) {
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+  vi.unstubAllGlobals()
 })
 
 describe('a galeria', () => {
@@ -116,7 +119,7 @@ describe('a galeria', () => {
     expect(lista.innerHTML).not.toContain('miniatura')
   })
 
-  // Tres links "Imagem anexada" seguidos nao dizem qual e qual.
+  // Tres botoes "Abrir Imagem anexada" seguidos nao dizem qual e qual.
   it('com mais de uma, cada imagem tem um nome proprio para o leitor de tela', () => {
     render(
       <AttachmentGallery
@@ -125,9 +128,10 @@ describe('a galeria', () => {
       />,
     )
 
-    expect(
-      screen.getAllByRole('link').map((link) => link.textContent || link.querySelector('img')?.alt),
-    ).toEqual(['Imagem 1 de 2', 'Imagem 2 de 2'])
+    expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Abrir Imagem 1 de 2',
+      'Abrir Imagem 2 de 2',
+    ])
   })
 
   it('sem tamanho, ou com um que a tela nao conhece, a imagem ocupa a linha inteira', () => {
@@ -146,22 +150,27 @@ describe('a galeria', () => {
     expect(linhas.map((li) => li.className)).toEqual(['col-span-12', 'col-span-12', 'col-span-12'])
   })
 
-  it('um clique abre a imagem em tamanho real, em outra aba, sem alcancar esta pagina', () => {
-    render(<AttachmentGallery items={[item()]} onExpired={() => {}} />)
+  it('um clique abre a imagem grande no visualizador, por cima da tela, sem outra aba', async () => {
+    const { container } = render(<AttachmentGallery items={[item()]} onExpired={() => {}} />)
 
-    const link = screen.getByRole('link', { name: /Imagem anexada/ })
-    expect(link.getAttribute('href')).toBe('http://armazenamento/inteiro')
-    expect(link.getAttribute('target')).toBe('_blank')
-    expect(link.getAttribute('rel')).toBe('noreferrer')
+    expect(container.querySelector('a')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Imagem anexada' }))
+
+    const dialogo = await screen.findByRole('dialog')
+    expect(within(dialogo).getByRole('img').getAttribute('src')).toBe(
+      'http://armazenamento/inteiro',
+    )
+    // Um anexo so: sem setas.
+    expect(within(dialogo).queryByRole('button', { name: 'Próximo anexo' })).toBeNull()
   })
 
-  it('o painel mostra o nome e o tamanho embaixo da imagem', () => {
-    render(<AttachmentGallery items={[item()]} onExpired={() => {}} />)
+  it('a imagem aparece sozinha: o nome e o tamanho nao ficam embaixo dela', () => {
+    const { container } = render(<AttachmentGallery items={[item()]} onExpired={() => {}} />)
 
-    const legenda = screen.getByText('erro.png, 120 KB')
-    expect(legenda.tagName).toBe('FIGCAPTION')
-    // Cortada na imagem pequena; inteira ao passar o mouse.
-    expect(legenda.getAttribute('title')).toBe('erro.png, 120 KB')
+    expect(screen.queryByText('erro.png, 120 KB')).toBeNull()
+    expect(container.querySelector('figcaption')).toBeNull()
+    // Para o leitor de tela, a legenda continua no texto alternativo.
+    expect(imagem(container).alt).toBe('Imagem anexada: erro.png, 120 KB')
   })
 
   it('video abre num player, e so baixa o cabecalho ate alguem apertar play', () => {
@@ -573,7 +582,7 @@ describe('"nao carregou" vale para aquele endereco', () => {
 })
 
 describe('a imagem que ja carregou nao baixa de novo a cada renovacao', () => {
-  it('fica no endereco em que carregou; o link de abrir usa o da lista', () => {
+  it('fica no endereco em que carregou; o visualizador usa o da lista', async () => {
     const { container, rerender } = render(
       <AttachmentGallery items={[item()]} onExpired={() => {}} />,
     )
@@ -587,7 +596,11 @@ describe('a imagem que ja carregou nao baixa de novo a cada renovacao', () => {
     )
 
     expect(imagem(container).getAttribute('src')).toBe('http://armazenamento/inteiro')
-    expect(screen.getByRole('link').getAttribute('href')).toBe('http://armazenamento/inteiro?novo')
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Imagem anexada' }))
+    const dialogo = await screen.findByRole('dialog')
+    expect(within(dialogo).getByRole('img').getAttribute('src')).toBe(
+      'http://armazenamento/inteiro?novo',
+    )
   })
 
   it('a que ainda nao carregou segue a lista', () => {
@@ -770,7 +783,7 @@ describe('o arquivo que nao e imagem', () => {
       ...mudanca,
     })
 
-  it('vira uma linha de baixar, com o tipo e o tamanho, e nunca uma imagem', () => {
+  it('vira uma linha de abrir, com o tipo e o tamanho, e nunca uma imagem', () => {
     const { container } = render(
       <AttachmentGallery
         fileLabel="Arquivos que você anexou"
@@ -780,40 +793,97 @@ describe('o arquivo que nao e imagem', () => {
     )
 
     const lista = screen.getByRole('list', { name: 'Arquivos que você anexou' })
-    const link = screen.getByRole('link', { name: 'Baixar PDF, 120 KB' })
-    expect(lista.contains(link)).toBe(true)
-    expect(link.getAttribute('href')).toBe('http://armazenamento/fatura?assinado')
-    expect(link.hasAttribute('download')).toBe(true)
-    // Em outra aba: se o endereco falhar mesmo assim, o erro nao toma o lugar da pagina.
-    expect(link.getAttribute('target')).toBe('_blank')
-    expect(link.getAttribute('rel')).toBe('noreferrer')
+    const botao = screen.getByRole('button', { name: 'Abrir PDF, 120 KB' })
+    expect(lista.contains(botao)).toBe(true)
+    // Nenhum link para o armazenamento: o arquivo abre aqui, e nao em outra aba.
+    expect(container.querySelector('a')).toBeNull()
     expect(container.querySelector('img')).toBeNull()
   })
 
-  // O computador dormiu e a renovacao nao rodou: abrir o endereco vencido daria o erro
-  // do armazenamento. O clique pede um novo, e diz o que houve.
-  it('com o endereco vencendo, o clique pede um novo em vez de abrir', () => {
-    const renovar = vi.fn()
+  it('o texto abre no visualizador, lido ali mesmo, sem sair da pagina', async () => {
+    const buscar = vi.fn(async () => new Response('linha 1\nerro na linha 2'))
+    vi.stubGlobal('fetch', buscar)
+    render(<AttachmentGallery items={[pdf({ contentType: 'text/plain' })]} onExpired={() => {}} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /^Abrir Texto/ }))
+
+    const dialogo = await screen.findByRole('dialog')
+    expect(await within(dialogo).findByText(/erro na linha 2/)).toBeDefined()
+    expect(within(dialogo).getByRole('heading', { name: 'Texto, 120 KB' })).toBeDefined()
+    expect(buscar).toHaveBeenCalledWith(
+      'http://armazenamento/fatura?assinado',
+      expect.objectContaining({ credentials: 'omit' }),
+    )
+  })
+
+  // O computador dormiu e a renovacao nao rodou: o arquivo que nao abre pede um endereco
+  // novo uma vez, e abre sozinho quando ele chega.
+  it('o endereco que falha pede um novo uma vez, e o arquivo abre quando ele chega', async () => {
+    const buscar = vi.fn(async (url: string) =>
+      url.endsWith('v=1') ? new Response('', { status: 403 }) : new Response('{"campo":1}'),
+    )
+    vi.stubGlobal('fetch', buscar)
+    const renovou = vi.fn()
+    function Dono() {
+      const [versao, setVersao] = useState(1)
+      return (
+        <AttachmentGallery
+          items={[
+            pdf({ contentType: 'application/json', url: `http://armazenamento/f?v=${versao}` }),
+          ]}
+          onExpired={() => {
+            renovou()
+            setVersao((v) => v + 1)
+          }}
+        />
+      )
+    }
+    render(<Dono />)
+
+    fireEvent.click(screen.getByRole('button', { name: /^Abrir JSON/ }))
+
+    const dialogo = await screen.findByRole('dialog')
+    expect(await within(dialogo).findByText(/"campo": 1/)).toBeDefined()
+    expect(renovou).toHaveBeenCalledOnce()
+    expect(buscar).toHaveBeenCalledTimes(2)
+  })
+
+  it('o formato que nao tem previa diz isso e oferece o Baixar', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(new Uint8Array([80, 75, 3, 4]))),
+    )
+    render(
+      <AttachmentGallery items={[pdf({ contentType: 'application/zip' })]} onExpired={() => {}} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir ZIP, 120 KB' }))
+
+    const dialogo = await screen.findByRole('dialog')
+    expect(await within(dialogo).findByText(/não abre aqui/)).toBeDefined()
+    expect(within(dialogo).getAllByRole('button', { name: /Baixar/ }).length).toBeGreaterThan(0)
+  })
+
+  it('as setas passam pelas imagens e depois pelos arquivos, na ordem da tela', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('texto do log')),
+    )
     render(
       <AttachmentGallery
-        items={[pdf({ expiresAt: new Date(Date.now() + 10_000).toISOString() })]}
-        onExpired={renovar}
+        items={[pdf({ contentType: 'text/plain' }), item({ id: 'i-1' })]}
+        onExpired={() => {}}
       />,
     )
 
-    const clique = fireEvent.click(screen.getByRole('link', { name: /^Baixar/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Imagem anexada' }))
+    const dialogo = await screen.findByRole('dialog')
+    expect(within(dialogo).getByText('1 de 2')).toBeDefined()
 
-    expect(clique).toBe(false)
-    expect(renovar).toHaveBeenCalledOnce()
-    expect(screen.getByRole('status').textContent).toMatch(/tinha vencido/)
-  })
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Próximo anexo' }))
 
-  it('com o endereco valido, o clique segue para o download', () => {
-    const renovar = vi.fn()
-    render(<AttachmentGallery items={[pdf()]} onExpired={renovar} />)
-
-    expect(fireEvent.click(screen.getByRole('link', { name: /^Baixar/ }))).toBe(true)
-    expect(renovar).not.toHaveBeenCalled()
+    expect(await within(dialogo).findByText('texto do log')).toBeDefined()
+    expect(within(dialogo).getByText('2 de 2')).toBeDefined()
   })
 
   it('o aviso do painel fica embaixo da lista, e nao dentro dela', () => {
@@ -831,7 +901,7 @@ describe('o arquivo que nao e imagem', () => {
       />,
     )
 
-    expect(screen.getByRole('link', { name: 'Baixar fatura-março.pdf, 120 KB' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Abrir fatura-março.pdf, 120 KB' })).toBeDefined()
   })
 
   // O zip saiu do catalogo, e o que ja estava guardado continua na lista: sem o nome do
@@ -841,11 +911,11 @@ describe('o arquivo que nao e imagem', () => {
       <AttachmentGallery items={[pdf({ contentType: 'application/zip' })]} onExpired={() => {}} />,
     )
 
-    const link = screen.getByRole('link', { name: 'Baixar ZIP, 120 KB' })
-    expect(link.querySelector('[aria-hidden="true"]')?.textContent).toBe('ZIP')
+    const botao = screen.getByRole('button', { name: 'Abrir ZIP, 120 KB' })
+    expect(botao.querySelector('[aria-hidden="true"]')?.textContent).toBe('ZIP')
   })
 
-  it('um tipo que a tela nao conhece tambem so baixa', () => {
+  it('um tipo que a tela nao conhece tambem abre no visualizador', () => {
     render(
       <AttachmentGallery
         items={[pdf({ kind: 'Audio' as never, contentType: 'audio/ogg' })]}
@@ -853,7 +923,7 @@ describe('o arquivo que nao e imagem', () => {
       />,
     )
 
-    expect(screen.getByRole('link', { name: /^Baixar Arquivo/ })).toBeDefined()
+    expect(screen.getByRole('button', { name: /^Abrir Arquivo/ })).toBeDefined()
   })
 
   it('imagens na grade, e arquivos na lista, cada um no seu lugar', () => {
@@ -863,7 +933,59 @@ describe('o arquivo que nao e imagem', () => {
       screen.getByRole('list', { name: 'Imagens anexadas' }).querySelectorAll('img'),
     ).toHaveLength(1)
     expect(
-      screen.getByRole('list', { name: 'Arquivos anexados' }).querySelectorAll('a'),
+      screen.getByRole('list', { name: 'Arquivos anexados' }).querySelectorAll('button'),
     ).toHaveLength(1)
+  })
+})
+
+// No card do painel, o anexo abre no proprio card, cobrindo o corpo dele como a conversa
+// expandida, e nao num segundo modal por cima.
+describe('o anexo dentro do card', () => {
+  const registrou = vi.fn()
+  function EscDoCard({ cancelar }: { cancelar: () => void }) {
+    registrou(cancelar)
+    return null
+  }
+  const noCard = { EscDoCard }
+
+  it('abre no card, sem outro modal, e o Voltar ao relato devolve o foco a quem abriu', async () => {
+    render(
+      <VisualizadorNoCardContext.Provider value={noCard}>
+        <AttachmentGallery items={[item()]} onExpired={() => {}} />
+      </VisualizadorNoCardContext.Provider>,
+    )
+
+    const imagem = screen.getByRole('button', { name: 'Abrir Imagem anexada' })
+    imagem.focus()
+    fireEvent.click(imagem)
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    const aberto = screen.getByRole('region', { name: 'Imagem anexada' })
+    expect(aberto.className).toContain('absolute')
+    // O foco entra no anexo, para o Esc do card fechar so ele.
+    const voltar = within(aberto).getByRole('button', { name: 'Voltar ao relato' })
+    expect(document.activeElement).toBe(voltar)
+    expect(registrou).toHaveBeenCalled()
+
+    fireEvent.click(voltar)
+
+    expect(screen.queryByRole('region', { name: 'Imagem anexada' })).toBeNull()
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Abrir Imagem anexada' }),
+    )
+  })
+
+  it('o Esc do card chega ao anexo: o cancelar registrado fecha so ele', () => {
+    render(
+      <VisualizadorNoCardContext.Provider value={noCard}>
+        <AttachmentGallery items={[item()]} onExpired={() => {}} />
+      </VisualizadorNoCardContext.Provider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Imagem anexada' }))
+
+    const cancelar = registrou.mock.lastCall?.[0] as () => void
+    act(() => cancelar())
+
+    expect(screen.queryByRole('region', { name: 'Imagem anexada' })).toBeNull()
   })
 })

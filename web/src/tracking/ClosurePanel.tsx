@@ -4,6 +4,7 @@ import {
   type PublicClosureViewModel,
   type PublicMediaSettingsViewModel,
   type PublicReportViewModel,
+  type ReporterFeedbackCredential,
   SATISFACTION_SCALE,
 } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
@@ -13,6 +14,7 @@ import type { AttachmentDraft } from '@/embed/useAttachmentDraft'
 import { Button } from '@/shared/components/Button'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
+import type { PersonalEntry } from '@/shared/lib/tracking'
 import { StarRating, StarRatingValue } from '@/tracking/StarRating'
 
 /**
@@ -53,6 +55,7 @@ export function ClosurePanel({
   anexar = null,
   protocolo,
   token,
+  pessoal = null,
 }: {
   fechamento: PublicClosureViewModel
   /** A resposta da API vira o relato na tela: o que ela mostra é o que ficou gravado. */
@@ -66,8 +69,23 @@ export function ClosurePanel({
   anexar?: { midia: PublicMediaSettingsViewModel; rascunho: AttachmentDraft } | null
   protocolo: string
   token: string
+  /**
+   * A chave e o codigo, ou a chave e o cracha, de quem abriu pela lista pessoal. Nulo
+   * quando a pagina veio pelo link.
+   */
+  pessoal?: PersonalEntry | null
 }) {
   const { Actions: acoes } = fechamento
+
+  // O retorno vai pela porta por onde a pagina entrou: o token do link, ou a chave com
+  // o codigo pessoal (ou com o cracha) da lista. A nota e de quem relatou, por qualquer
+  // caminho que prove isso.
+  const credencial: ReporterFeedbackCredential =
+    token.length > 0 || !pessoal
+      ? { Token: token }
+      : 'reporterCode' in pessoal
+        ? { Key: pessoal.key, ReporterCode: pessoal.reporterCode }
+        : { Key: pessoal.key, IdentityToken: pessoal.identityToken }
 
   type Modo = 'parado' | 'confirmando' | 'reabrindo'
   const [modo, setModo] = useState<Modo>('parado')
@@ -140,7 +158,7 @@ export function ClosurePanel({
                     void enviar(() =>
                       reportService.confirmReport({
                         TrackingCode: protocolo,
-                        Token: token,
+                        ...credencial,
                         Satisfaction: null,
                         SatisfactionDeclined: false,
                       }),
@@ -244,7 +262,7 @@ export function ClosurePanel({
                   () =>
                     reportService.confirmReport({
                       TrackingCode: protocolo,
-                      Token: token,
+                      ...credencial,
                       Satisfaction: nota,
                       SatisfactionDeclined: recusou,
                     }),
@@ -336,7 +354,7 @@ export function ClosurePanel({
                   () =>
                     reportService.reopenReport({
                       TrackingCode: protocolo,
-                      Token: token,
+                      ...credencial,
                       Comment: textoDaReabertura.length > 0 ? textoDaReabertura : null,
                     }),
                   aoReabrir,

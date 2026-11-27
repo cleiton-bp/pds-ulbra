@@ -51,7 +51,8 @@ encerrado da coluna final o reabre, então o painel <strong>pergunta antes</stro
 
 <details class="mais">
   <summary>Uma configuração guardada que a API ainda ignora</summary>
-  <p><code>tracking_code_can_act</code> diz se quem chega pelo código pessoal também confirma e
-  reabre. Ele fica gravado, <strong>escondido na tela de Encerramento</strong>, e a API o ignora:
-  confirmar, reabrir e responder aceitam só o link. Aceitar o código é <strong>Adiado</strong>.</p>
+  <p>Quem chega pelo código pessoal ou pelo crachá <strong>confirma com nota e reabre</strong>, como
+  quem chega pelo link: o retorno sobre o encerramento é de quem relatou, por qualquer caminho.
+  Responder continua só pelo link. <code>tracking_code_can_act</code>, que decidiria isso por
+  projeto, fica gravado, escondido na tela de Encerramento e ignorado pela API.</p>
 </details>
