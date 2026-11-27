@@ -22,6 +22,7 @@ import {
   projectCycleSettingsService,
   projectPriorityService,
   projectReportService,
+  projectReportTypeService,
   projectTeamService,
 } from '@/data'
 import { useSessionStore } from '@/features/auth/sessionStore'
@@ -29,6 +30,7 @@ import { BulkActions, BulkFailures, type Falha, useBulkUndo } from '@/features/r
 import { boardColumns, type LaneBy } from '@/features/reports/board/boardState'
 import { BoardSkeleton, ReportsBoard } from '@/features/reports/board/ReportsBoard'
 import { useBoard } from '@/features/reports/board/useBoard'
+import { CardTypeIcon, StatusLozenge, statusTone } from '@/features/reports/cardLook'
 import {
   describeRemoteChange,
   LiveAnnouncer,
@@ -36,8 +38,19 @@ import {
   type RemoteChange,
   useAnnouncer,
 } from '@/features/reports/LiveStatus'
+import {
+  buildListGroups,
+  LIST_GROUPING_STORAGE_KEY,
+  LIST_GROUPINGS,
+  type ListGroupBy,
+  type ListGroupDefinition,
+} from '@/features/reports/listGroups'
 import { NewCardDialog } from '@/features/reports/NewCardDialog'
-import { ReportsTable, ReportsTableSkeleton } from '@/features/reports/ReportsTable'
+import {
+  type GrupoDaTabela,
+  ReportsTable,
+  ReportsTableSkeleton,
+} from '@/features/reports/ReportsTable'
 import { SavedViews } from '@/features/reports/SavedViews'
 import { SprintBacklog } from '@/features/reports/sprints/SprintBacklog'
 import {
@@ -50,6 +63,7 @@ import {
   useSprintsForFilter,
 } from '@/features/reports/sprints/sprintLook'
 import { useFiltersInAddress } from '@/features/reports/useFiltersInAddress'
+import { type ListGroupView, useGroupedReportList } from '@/features/reports/useGroupedReportList'
 import { useReportInbox } from '@/features/reports/useReportInbox'
 import {
   NO_LIST_FILTERS,
@@ -60,6 +74,7 @@ import { useWorkRealtime } from '@/features/reports/useWorkRealtime'
 import { WorkFilterBar } from '@/features/reports/WorkFilterBar'
 import { AlturaSuave, useTrocaQuandoChegar } from '@/shared/components/AlturaSuave'
 import { Button } from '@/shared/components/Button'
+import { PersonAvatar, PriorityIcon } from '@/shared/components/cardFace'
 import { Modal } from '@/shared/components/Modal'
 import { Select } from '@/shared/components/Select'
 import { ShortcutsButton, ShortcutsDialog } from '@/shared/components/ShortcutsDialog'
@@ -88,7 +103,9 @@ const DESTAQUE_DE_FABRICA = 2
  * de quem relatou.
  *
  * **Uma tela, duas vistas, em abas**: a lista, uma tabela do mais recente para o
- * mais antigo — ou na ordem que a pessoa escolheu nos cabecalhos —, e o quadro, uma
+ * mais antigo (ou na ordem que a pessoa escolheu nos cabecalhos), **em blocos por coluna
+ * de inicio**, ou por responsavel, prioridade ou tipo, ou corrida, como a pessoa escolher
+ * (ver `listGroups`); e o quadro, uma
  * coluna por estado na ordem que o time arrumou. A ultima escolhida fica guardada
  * neste navegador, por projeto. O card abre no mesmo dialogo nas duas, e so ao
  * clicar — a linha e a frente do quadro sao um resumo.
@@ -138,6 +155,13 @@ export function ReportsScreen() {
     `pds.web.trabalho.raias.${project.PublicId}`,
     AGRUPAMENTOS,
     'none',
+  )
+  // Os blocos da lista, lembrados para a pessoa neste navegador (ver `listGroups`). Por
+  // coluna de inicio: com muitos relatos, a tabela corrida e a primeira a ficar ruim.
+  const [blocosDaLista, setBlocosDaLista] = useEscolhaLembrada(
+    LIST_GROUPING_STORAGE_KEY,
+    LIST_GROUPINGS,
+    'state',
   )
   /** A lista dos atalhos, aberta pelo "?". */
   const [vendoAtalhos, setVendoAtalhos] = useState(false)
@@ -288,75 +312,6 @@ export function ReportsScreen() {
       }),
   }
 
-  // O quadro tem as proprias leituras: a lista so e lida na vista dela, e de novo a
-  // cada volta — o que o quadro mudou nao passa por ela.
-  const {
-    reports,
-    total,
-    loading,
-    failed,
-    loadingMore,
-    refreshing: relendoALista,
-    hasMore,
-    reload,
-    refresh: releituraDaLista,
-    loadMore,
-    loadAll,
-    apply,
-    prepend,
-  } = useReportInbox(
-    project.PublicId,
-    null,
-    false,
-    !quadro && !backlog,
-    filtros.applied,
-    chaveDaLista,
-    {
-      columns: colunasDaLista,
-      sprint: sprintDaLista ?? undefined,
-      sort: filtros.sort ?? undefined,
-    },
-  )
-  // A lista relendo com outro filtro, ou a busca esperando a pessoa parar de digitar:
-  // a tabela esmaece, o campo diz "Buscando…" e o lote espera.
-  const buscando = !quadro && !backlog && (relendoALista || filtros.typing)
-
-  // Os arquivados, no modal: lista e filtros so deles, lidos so com ele aberto. A lista de
-  // tras e os filtros da tela nao mudam com o que se procura la.
-  const filtrosDoArquivo = useArchivedFilters()
-  const arquivo = useReportInbox(
-    project.PublicId,
-    null,
-    true,
-    arquivados,
-    filtrosDoArquivo.applied,
-    filtrosDoArquivo.key,
-    { sort: filtrosDoArquivo.sort ?? undefined },
-  )
-
-  // O recorte da lista (filtro, ordem, coluna, sprint). **So vale na tela quando
-  // a lista dele chega**: ate la a antiga fica parada, esmaecida se demorar, e nao renasce
-  // com os dados de antes. Ao chegar, as linhas entram juntas e a area muda de altura com
-  // transicao (ver `AlturaSuave`), em vez de saltar.
-  const trocaNaTela = useTrocaQuandoChegar(
-    JSON.stringify([filtros.applied, filtros.sort, colunasDaLista, sprintDaLista]),
-    reports,
-    buscando,
-  )
-
-  // O "Desfazer" do lote: roda daqui, e nao da barra, que pode ter saido da tela.
-  const desfazerLote = useBulkUndo(
-    () => {
-      void releituraDaLista()
-      renovarContagens()
-      if (sprintsLigadas) {
-        sprints.revalidate()
-        mexeuNoBacklog()
-      }
-    },
-    (resultado) => setFalhasDoLote({ ...resultado, desfazendo: true }),
-  )
-
   // Depois de uma mudanca, a contagem e relida sem sair da tela (`revalidate`): pelo
   // vazio, o quadro saia da tela e voltava lido do zero a cada movimento. Os filtros
   // entram pela referencia, e trocar de filtro tambem rele sem sair da tela.
@@ -402,6 +357,165 @@ export function ReportsScreen() {
   // A contagem de outro projeto nao serve: na troca, ela ainda e a do anterior por
   // uma renderizacao, e o quadro pediria as colunas dele ao projeto novo.
   const contagens = contagensLidas?.projeto === project.PublicId ? contagensLidas.linhas : null
+
+  // **A lista em blocos** (ver `useGroupedReportList`): cada bloco e lido com o recorte
+  // dele, e a fonte dos blocos (as colunas, o time, as prioridades, os tipos) vem antes.
+  // A fonte que falha devolve a tabela corrida, em vez de uma lista que nunca chega.
+  const naLista = !quadro && !backlog
+  const pessoasDosBlocos = useAsyncResource(
+    useCallback(
+      async () =>
+        fonteDosBlocos(naLista && blocosDaLista === 'assignee', () =>
+          projectTeamService.listMembers(project.PublicId),
+        ),
+      [project.PublicId, naLista, blocosDaLista],
+    ),
+  )
+  const prioridadesDosBlocos = useAsyncResource(
+    useCallback(
+      async () =>
+        fonteDosBlocos(naLista && blocosDaLista === 'priority', () =>
+          projectPriorityService.listPriorities(project.PublicId),
+        ),
+      [project.PublicId, naLista, blocosDaLista],
+    ),
+  )
+  const tiposDosBlocos = useAsyncResource(
+    useCallback(
+      async () =>
+        fonteDosBlocos(naLista && blocosDaLista === 'type', () =>
+          projectReportTypeService.listReportTypes(project.PublicId),
+        ),
+      [project.PublicId, naLista, blocosDaLista],
+    ),
+  )
+  const fonteFalhou =
+    (blocosDaLista === 'state' && contagens === null && contagensFalharam) ||
+    (blocosDaLista === 'assignee' && pessoasDosBlocos.failed) ||
+    (blocosDaLista === 'priority' && prioridadesDosBlocos.failed) ||
+    (blocosDaLista === 'type' && tiposDosBlocos.failed)
+  const emBlocos = naLista && blocosDaLista !== 'none' && !fonteFalhou
+  const definicoesDosBlocos = useMemo(
+    () =>
+      emBlocos
+        ? buildListGroups(
+            blocosDaLista,
+            {
+              colunas: contagens,
+              pessoas: pessoasDosBlocos.data ?? null,
+              prioridades: prioridadesDosBlocos.data ?? null,
+              tipos: tiposDosBlocos.data ?? null,
+            },
+            {
+              columns: colunasDaLista,
+              assignees: filtros.applied.assignees,
+              priorities: filtros.applied.priorities,
+              types: filtros.applied.types,
+            },
+          )
+        : null,
+    [
+      emBlocos,
+      blocosDaLista,
+      contagens,
+      pessoasDosBlocos.data,
+      prioridadesDosBlocos.data,
+      tiposDosBlocos.data,
+      colunasDaLista,
+      filtros.applied,
+    ],
+  )
+
+  // O quadro tem as proprias leituras: a lista so e lida na vista dela, e de novo a
+  // cada volta — o que o quadro mudou nao passa por ela.
+  const listaCorrida = useReportInbox(
+    project.PublicId,
+    null,
+    false,
+    naLista && !emBlocos,
+    filtros.applied,
+    chaveDaLista,
+    {
+      columns: colunasDaLista,
+      sprint: sprintDaLista ?? undefined,
+      sort: filtros.sort ?? undefined,
+    },
+  )
+  const listaEmBlocos = useGroupedReportList({
+    publicId: project.PublicId,
+    enabled: emBlocos,
+    by: blocosDaLista,
+    definitions: definicoesDosBlocos,
+    filters: filtros.applied,
+    filtersKey: filtros.key,
+    sort: filtros.sort ?? null,
+    sprint: sprintDaLista,
+  })
+  const {
+    reports,
+    total,
+    loading,
+    failed,
+    loadingMore,
+    refreshing: relendoALista,
+    hasMore,
+    reload,
+    refresh: releituraDaLista,
+    loadMore,
+    loadAll,
+    apply,
+    prepend,
+  } = emBlocos ? listaEmBlocos : listaCorrida
+  // Os blocos como a tabela os desenha. **Bloco vazio some**: com a busca, ficam so os que
+  // acharam algo, e sem ela a coluna sem card nao ocupa uma linha a toa.
+  const gruposDaTabela: GrupoDaTabela[] | null =
+    emBlocos && listaEmBlocos.groups
+      ? listaEmBlocos.groups
+          .filter((grupo) => grupo.total > 0 || grupo.failed)
+          .map((grupo) => paraATabela(grupo, contagens, listaEmBlocos))
+      : null
+  const linhasDosBlocos = gruposDaTabela
+    ? gruposDaTabela.filter((grupo) => !grupo.recolhido).flatMap((grupo) => grupo.linhas)
+    : []
+  // A lista relendo com outro filtro, ou a busca esperando a pessoa parar de digitar:
+  // a tabela esmaece, o campo diz "Buscando…" e o lote espera.
+  const buscando = !quadro && !backlog && (relendoALista || filtros.typing)
+
+  // Os arquivados, no modal: lista e filtros so deles, lidos so com ele aberto. A lista de
+  // tras e os filtros da tela nao mudam com o que se procura la.
+  const filtrosDoArquivo = useArchivedFilters()
+  const arquivo = useReportInbox(
+    project.PublicId,
+    null,
+    true,
+    arquivados,
+    filtrosDoArquivo.applied,
+    filtrosDoArquivo.key,
+    { sort: filtrosDoArquivo.sort ?? undefined },
+  )
+
+  // O recorte da lista (filtro, ordem, coluna, sprint). **So vale na tela quando
+  // a lista dele chega**: ate la a antiga fica parada, esmaecida se demorar, e nao renasce
+  // com os dados de antes. Ao chegar, as linhas entram juntas e a area muda de altura com
+  // transicao (ver `AlturaSuave`), em vez de saltar.
+  const trocaNaTela = useTrocaQuandoChegar(
+    JSON.stringify([filtros.applied, filtros.sort, colunasDaLista, sprintDaLista]),
+    reports,
+    buscando,
+  )
+
+  // O "Desfazer" do lote: roda daqui, e nao da barra, que pode ter saido da tela.
+  const desfazerLote = useBulkUndo(
+    () => {
+      void releituraDaLista()
+      renovarContagens()
+      if (sprintsLigadas) {
+        sprints.revalidate()
+        mexeuNoBacklog()
+      }
+    },
+    (resultado) => setFalhasDoLote({ ...resultado, desfazendo: true }),
+  )
 
   const colunasDoQuadro = useMemo(() => (contagens ? boardColumns(contagens) : null), [contagens])
   // Com filtro, o quadro diz "2 de 10": a contagem sem os filtros (com o recorte da
@@ -652,7 +766,7 @@ export function ReportsScreen() {
    */
   const entrarNaLista = async (card: ReportSummaryViewModel): Promise<boolean | null> => {
     if (quadro || backlog) return null
-    if (chaveDaLista === '') {
+    if (chaveDaLista === '' && !emBlocos) {
       prepend(card)
       return true
     }
@@ -929,7 +1043,8 @@ export function ReportsScreen() {
           {reports && reports.length > 0 && (
             <>
               <ReportsTable
-                reports={reports}
+                reports={gruposDaTabela ? linhasDosBlocos : reports}
+                grupos={gruposDaTabela ?? undefined}
                 colunas={contagens}
                 soonDays={destaque}
                 destacados={destacados}
@@ -942,6 +1057,16 @@ export function ReportsScreen() {
                 // pagina: so a troca de recorte faz as linhas entrarem de novo.
                 troca={trocaNaTela}
               />
+
+              {/* Quem saiu do time continua nos cards dele, e nenhum bloco do time de agora
+                  os pega: a tela diz quantos sao, em vez de deixa-los sumir calados. */}
+              {emBlocos && listaEmBlocos.outside > 0 && (
+                <p className="mt-2 text-caption text-fg-muted leading-relaxed">
+                  {listaEmBlocos.outside === 1
+                    ? 'Há 1 card com uma pessoa que saiu do time, e ele aparece na lista sem blocos.'
+                    : `Há ${listaEmBlocos.outside} cards com pessoas que saíram do time, e eles aparecem na lista sem blocos.`}
+                </p>
+              )}
 
               {/* Depois da tabela, presa embaixo da tela: marcar nao empurra as linhas. */}
               {reports.some((report) => marcados.has(report.PublicId)) && (
@@ -1188,6 +1313,17 @@ export function ReportsScreen() {
                     sprints: sprintsLigadas ? sprintsDoFiltro : null,
                     ordem: filtros.sort,
                     aoOrdenar: filtros.setSort,
+                    blocos: {
+                      valor: blocosDaLista,
+                      aoEscolher: (valor) => setBlocosDaLista(valor as ListGroupBy),
+                      opcoes: [
+                        { value: 'none', label: 'Sem blocos' },
+                        { value: 'state', label: 'Por coluna' },
+                        { value: 'assignee', label: 'Por responsável' },
+                        { value: 'priority', label: 'Por prioridade' },
+                        { value: 'type', label: 'Por tipo' },
+                      ],
+                    },
                   }
             }
             buscando={buscando}
@@ -1367,6 +1503,125 @@ export function ReportsScreen() {
  * pessoa do time trabalha como prefere. O navegador pode negar o armazenamento —
  * janela privada, dados bloqueados —, e ai a tela so nao lembra.
  */
+/** Le a fonte dos blocos so quando o agrupamento escolhido precisa dela. */
+function fonteDosBlocos<T>(precisa: boolean, ler: () => Promise<T>): Promise<T> | null {
+  return precisa ? ler() : null
+}
+
+/** Um bloco da lista, do jeito que a tabela desenha: o titulo, as linhas e as acoes dele. */
+function paraATabela(
+  grupo: ListGroupView,
+  colunas: ReportStateCountViewModel[] | null,
+  acoes: {
+    toggle: (definicao: ListGroupDefinition) => void
+    showMore: (chave: string) => Promise<void>
+    retry: (chave: string) => void
+  },
+): GrupoDaTabela {
+  const { definition } = grupo
+  return {
+    chave: definition.key,
+    rotulo: <RotuloDoBloco definicao={definition} colunas={colunas} />,
+    nome: definition.label,
+    total: grupo.total,
+    linhas: grupo.reports,
+    recolhido: grupo.collapsed,
+    aoAlternar: () => acoes.toggle(definition),
+    carregandoMais: grupo.loadingMore,
+    aoMostrarMais: () => void acoes.showMore(definition.key),
+    falhou: grupo.failed,
+    aoTentarDeNovo: () => acoes.retry(definition.key),
+  }
+}
+
+/**
+ * O titulo do bloco, com a mesma marca que o card mostra na linha: o tom da coluna, a foto
+ * da pessoa, o icone da prioridade ou do tipo. O que foi aposentado diz isso, porque ainda
+ * pode segurar card antigo.
+ */
+function RotuloDoBloco({
+  definicao,
+  colunas,
+}: {
+  definicao: ListGroupDefinition
+  colunas: ReportStateCountViewModel[] | null
+}) {
+  const { look, label } = definicao
+  const aposentado = (texto: string) => (
+    <span className="font-normal text-caption text-fg-muted">{texto}</span>
+  )
+  switch (look.kind) {
+    case 'state':
+      return (
+        <>
+          <StatusLozenge
+            name={label}
+            tone={statusTone(look.coluna.StatePublicId, colunas)}
+            className="font-semibold text-body"
+          />
+          {look.coluna.StatePublicId !== null &&
+            !look.coluna.IsActive &&
+            aposentado('(desativada)')}
+        </>
+      )
+    case 'assignee':
+      return (
+        <>
+          {look.pessoa && (
+            <PersonAvatar
+              size="sm"
+              pessoa={{
+                UserPublicId: look.pessoa.UserPublicId,
+                Name: look.pessoa.Name,
+                AvatarUrl: look.pessoa.AvatarUrl,
+                InTeam: true,
+              }}
+            />
+          )}
+          <span className="truncate">{label}</span>
+        </>
+      )
+    case 'priority':
+      return (
+        <>
+          {look.prioridade && (
+            <PriorityIcon
+              priority={{
+                PublicId: look.prioridade.PublicId,
+                Name: look.prioridade.Name,
+                Color: look.prioridade.Color,
+                IsActive: look.prioridade.IsActive,
+              }}
+            />
+          )}
+          <span className="truncate">{label}</span>
+          {look.prioridade && !look.prioridade.IsActive && aposentado('(aposentada)')}
+        </>
+      )
+    case 'type':
+      return (
+        <>
+          <CardTypeIcon
+            card={{
+              Kind: look.tipo ? 'Report' : 'Team',
+              Type: look.tipo
+                ? {
+                    PublicId: look.tipo.PublicId,
+                    Name: look.tipo.Name,
+                    Color: look.tipo.Color,
+                    Icon: look.tipo.Icon,
+                    IsActive: look.tipo.IsActive,
+                  }
+                : null,
+            }}
+          />
+          <span className="truncate">{label}</span>
+          {look.tipo && !look.tipo.IsActive && aposentado('(desativado)')}
+        </>
+      )
+  }
+}
+
 function useEscolhaLembrada<T extends string>(chave: string, validas: readonly T[], padrao: T) {
   const ler = useCallback((): T => {
     try {

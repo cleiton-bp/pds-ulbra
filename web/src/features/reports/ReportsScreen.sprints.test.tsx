@@ -363,6 +363,8 @@ beforeEach(() => {
   for (const mock of Object.values(dublê)) mock.mockReset()
   // A vista e as raias ficam neste navegador; os filtros, na aba.
   window.localStorage.clear()
+  // Estes testes sao da tabela corrida: a lista em blocos tem os testes dela.
+  window.localStorage.setItem('pds.web.trabalho.lista-blocos', 'none')
   window.sessionStorage.clear()
   useToastStore.setState({ toasts: [] })
   aoVivo.estado.handlers = null
